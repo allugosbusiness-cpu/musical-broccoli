@@ -1,0 +1,677 @@
+# server/api/mobile_endpoints.py
+"""
+Mobile app API endpoints for real-time driver tracking
+Handles location updates, alerts, and driver registration via QR codes
+"""
+
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from django.utils import timezone
+from django.db.models import Q
+import json
+import qrcode
+from io import BytesIO
+import base64
+from datetime import datetime, timedelta
+
+from .models_v2 import FleetDriver, FleetTruck, FleetMission, TruckLocation
+from .models import Alert
+from .serializers import TruckSerializer, AlertSerializer
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def mobile_driver_registration(request):
+    """
+    Register driver by scanning QR code on truck
+    QR contains truck UUID, driver provides phone number
+    """
+    try:
+        qr_data = request.data.get('qr_data', '')
+        phone_number = request.data.get('phone_number', '')
+
+        if not qr_data or not phone_number:
+            return Response(
+                {'error': 'QR data and phone number required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Parse QR data
+        try:
+            qr_info = json.loads(qr_data)
+            truck_id = qr_info.get('truck_id')
+        except json.JSONDecodeError:
+            truck_id = qr_data  # Assume it's just the truck UUID
+
+        # Get truck
+        try:
+            truck = FleetTruck.objects.get(id=truck_id)
+        except FleetTruck.DoesNotExist:
+            return Response(
+                {'error': 'Truck not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Get or create driver
+        driver, created = FleetDriver.objects.get_or_create(
+            phone_number=phone_number,
+            defaults={
+                'first_name': 'Driver',
+                'last_name': phone_number[-4:],
+                'email': f'driver_{phone_number}@fleet.local',
+                'fleet_id': truck.fleet_id,
+            }
+        )
+
+        # Update driver to active and assign truck
+        driver.truck = truck
+        driver.is_active = True
+        driver.save()
+
+        # Generate unique auth token and tracking session ID
+        import uuid
+        auth_token = str(uuid.uuid4())
+        tracking_id = str(uuid.uuid4())
+        
+        # Store tracking session in cache or database
+        from django.core.cache import cache
+        cache.set(f'driver_tracking_{driver.id}', {
+            'tracking_id': tracking_id,
+            'driver_id': str(driver.id),
+            'truck_id': str(truck.id),
+            'started_at': datetime.now().isoformat(),
+            'gps_enabled': True
+        }, timeout=None)  # Keep indefinitely until explicitly cleared
+        
+        return Response({
+            'driver_id': str(driver.id),
+            'truck_id': str(truck.id),
+            'tracking_id': tracking_id,
+            'token': auth_token,
+            'driver_name': f'{driver.first_name} {driver.last_name}',
+            'truck_name': truck.truck_identifier,
+            'phone_number': phone_number,
+            'first_name': driver.first_name,
+            'last_name': driver.last_name,
+            'gps_tracking_enabled': True,
+            'success': True
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+def mobile_location_update(request):
+    """
+    Receive location update from mobile app
+    Called every 2 minutes with driver position, speed, accuracy
+    """
+    try:
+        driver_id = request.data.get('driver_id')
+        latitude = request.data.get('latitude')
+        longitude = request.data.get('longitude')
+        speed = request.data.get('speed', 0)  # km/h
+        accuracy = request.data.get('accuracy', 0)
+        altitude = request.data.get('altitude', 0)
+        timestamp = request.data.get('timestamp', int(datetime.now().timestamp() * 1000))
+
+        # Validate required fields
+        if not driver_id or latitude is None or longitude is None:
+            return Response(
+                {'error': 'driver_id, latitude, longitude required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get driver
+        try:
+            driver = FleetDriver.objects.get(id=driver_id)
+        except FleetDriver.DoesNotExist:
+            return Response(
+                {'error': 'Driver not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Update driver location
+        driver.latitude = latitude
+        driver.longitude = longitude
+        driver.current_speed = speed
+        driver.updated_at = timezone.now()
+        driver.save()
+
+        # Store location history
+        TruckLocation.objects.create(
+            truck=driver.truck,
+            driver=driver,
+            latitude=latitude,
+            longitude=longitude,
+            speed=speed,
+            accuracy=accuracy,
+            altitude=altitude,
+            timestamp=timezone.datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
+        )
+
+        # Check for overspeeding alert
+        if speed > 120:  # 120 km/h threshold
+            Alert.objects.create(
+                driver=driver,
+                truck=driver.truck,
+                alert_type='overspeeding',
+                message=f'Overspeeding: {speed} km/h',
+                latitude=latitude,
+                longitude=longitude,
+                speed=speed
+            )
+
+        return Response({
+            'success': True,
+            'message': 'Location updated',
+            'driver_id': str(driver.id),
+            'truck_id': str(driver.truck.id) if driver.truck else None
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+def mobile_alert(request):
+    """
+    Receive alert from mobile app
+    Alert types: overspeeding, route_deviation, wrong_location, driver_initiated, mechanical_issue
+    """
+    try:
+        driver_id = request.data.get('driver_id')
+        alert_type = request.data.get('alert_type')
+        message = request.data.get('message')
+        latitude = request.data.get('latitude')
+        longitude = request.data.get('longitude')
+        speed = request.data.get('speed', 0)
+
+        # Validate
+        if not all([driver_id, alert_type, message, latitude is not None, longitude is not None]):
+            return Response(
+                {'error': 'Missing required fields'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get driver
+        try:
+            driver = FleetDriver.objects.get(id=driver_id)
+        except FleetDriver.DoesNotExist:
+            return Response(
+                {'error': 'Driver not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Create alert
+        alert = Alert.objects.create(
+            driver=driver,
+            truck=driver.truck,
+            alert_type=alert_type,
+            message=message,
+            latitude=latitude,
+            longitude=longitude,
+            speed=speed,
+            severity='high' if alert_type in ['overspeeding', 'route_deviation'] else 'medium'
+        )
+
+        # TODO: Trigger notification to admin dashboard
+        # TODO: Send notification to dispatcher
+
+        return Response({
+            'success': True,
+            'alert_id': str(alert.id),
+            'message': 'Alert recorded'
+        }, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+def mobile_driver_profile(request, driver_id):
+    """
+    Get driver profile with performance points and current mission
+    """
+    try:
+        driver = FleetDriver.objects.get(id=driver_id)
+
+        # Get current mission
+        current_mission = FleetMission.objects.filter(
+            truck=driver.truck,
+            status='in_progress'
+        ).first()
+
+        return Response({
+            'id': str(driver.id),
+            'name': driver.name,
+            'phone': driver.phone_number,
+            'email': driver.email,
+            'performance_points': driver.performance_mark,
+            'current_speed': driver.current_speed or 0,
+            'latitude': driver.latitude,
+            'longitude': driver.longitude,
+            'truck_id': str(driver.truck.id) if driver.truck else None,
+            'truck_name': driver.truck.truck_name if driver.truck else None,
+            'current_mission': {
+                'id': str(current_mission.id),
+                'mission_number': current_mission.mission_number,
+                'status': current_mission.status,
+                'distance_total_m': current_mission.distance_total_m,
+                'progress_pct': current_mission.progress_pct,
+                'origin': {'lat': float(current_mission.origin_latitude), 'lon': float(current_mission.origin_longitude)},
+                'destination': {'lat': float(current_mission.destination_latitude), 'lon': float(current_mission.destination_longitude)},
+            } if current_mission else None,
+        }, status=status.HTTP_200_OK)
+
+    except FleetDriver.DoesNotExist:
+        return Response(
+            {'error': 'Driver not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+def mobile_driver_current_mission(request, driver_id):
+    """
+    Get current mission for driver
+    """
+    try:
+        driver = FleetDriver.objects.get(id=driver_id)
+
+        mission = FleetMission.objects.filter(
+            truck=driver.truck,
+            status='in_progress'
+        ).first()
+
+        if not mission:
+            return Response(
+                {'error': 'No active mission'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        return Response({
+            'id': str(mission.id),
+            'mission_number': mission.mission_number,
+            'status': mission.status,
+            'distance_total_m': mission.distance_total_m,
+            'progress_pct': mission.progress_pct,
+            'origin': {
+                'lat': float(mission.origin_latitude),
+                'lon': float(mission.origin_longitude)
+            },
+            'destination': {
+                'lat': float(mission.destination_latitude),
+                'lon': float(mission.destination_longitude)
+            },
+            'created_at': mission.created_at.isoformat(),
+            'updated_at': mission.updated_at.isoformat(),
+        }, status=status.HTTP_200_OK)
+
+    except FleetDriver.DoesNotExist:
+        return Response(
+            {'error': 'Driver not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+def mobile_driver_missions(request, driver_id):
+    """
+    Get mission history for driver
+    """
+    try:
+        driver = FleetDriver.objects.get(id=driver_id)
+        limit = request.query_params.get('limit', 10)
+
+        missions = FleetMission.objects.filter(
+            truck=driver.truck
+        ).order_by('-created_at')[:int(limit)]
+
+        data = []
+        for mission in missions:
+            data.append({
+                'id': str(mission.id),
+                'mission_number': mission.mission_number,
+                'status': mission.status,
+                'distance_total_m': mission.distance_total_m,
+                'progress_pct': mission.progress_pct,
+                'origin': {
+                    'lat': float(mission.origin_latitude),
+                    'lon': float(mission.origin_longitude)
+                },
+                'destination': {
+                    'lat': float(mission.destination_latitude),
+                    'lon': float(mission.destination_longitude)
+                },
+                'created_at': mission.created_at.isoformat(),
+                'updated_at': mission.updated_at.isoformat(),
+            })
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    except FleetDriver.DoesNotExist:
+        return Response(
+            {'error': 'Driver not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+def mobile_mission_complete(request, mission_id):
+    """
+    Mark mission as completed by driver
+    """
+    try:
+        mission = FleetMission.objects.get(id=mission_id)
+        mission.status = 'completed'
+        mission.updated_at = timezone.now()
+        mission.save()
+
+        # Award performance points
+        driver = mission.truck.fleetdriver_set.first()
+        if driver:
+            driver.performance_mark += 10  # Base points for completion
+            driver.save()
+
+        return Response({
+            'success': True,
+            'message': 'Mission completed',
+            'mission_id': str(mission.id),
+        }, status=status.HTTP_200_OK)
+
+    except FleetMission.DoesNotExist:
+        return Response(
+            {'error': 'Mission not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+def generate_truck_qr(request, truck_id):
+    """
+    Generate QR code for truck registration
+    QR contains truck UUID and backend URL
+    """
+    try:
+        truck = FleetTruck.objects.get(id=truck_id)
+
+        # Create QR code data - MUST include type for mobile app recognition
+        qr_data = json.dumps({
+            'type': 'truck_registration',
+            'truck_id': str(truck.id),
+            'truck_identifier': truck.truck_identifier,
+            'plate': truck.plate or '',
+            'backend_url': 'http://192.168.1.100:8000/api/v1',
+            'timestamp': datetime.now().isoformat(),
+        })
+
+        # Generate QR code image
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(qr_data)
+        qr.make(fit=True)
+
+        img = qr.make_image(fill_color='black', back_color='white')
+
+        # Convert to base64
+        buffer = BytesIO()
+        img.save(buffer, format='PNG')
+        buffer.seek(0)
+        img_base64 = base64.b64encode(buffer.getvalue()).decode()
+
+        return Response({
+            'truck_id': str(truck.id),
+            'qr_code_data': qr_data,
+            'qr_code_image': f'data:image/png;base64,{img_base64}',
+        }, status=status.HTTP_200_OK)
+
+    except FleetTruck.DoesNotExist:
+        return Response(
+            {'error': 'Truck not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def validate_driver_pin(request):
+    """
+    Validate PIN code and register driver to truck
+    PIN is 6-digit alphanumeric code sent to driver via SMS or displayed on dashboard
+    """
+    try:
+        pin = request.data.get('pin', '').upper()
+        phone_number = request.data.get('phone_number', '')
+
+        if not pin or not phone_number:
+            return Response(
+                {'error': 'PIN and phone number required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate PIN format
+        if len(pin) != 6 or not all(c.isalnum() for c in pin):
+            return Response(
+                {'error': 'Invalid PIN format. Must be 6 alphanumeric characters.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get truck by PIN from cache
+        from django.core.cache import cache
+        from api.models_v2 import FleetTruck, FleetDriver
+        
+        # Try to find PIN in active registrations (in a real app, store PINs properly)
+        # For now, we'll search through recent trucks
+        trucks = FleetTruck.objects.all()
+        truck_found = None
+        
+        for truck in trucks:
+            # Generate expected PIN based on truck ID hash
+            truck_pin = (abs(hash(str(truck.id))) % 1000000)
+            generated_pin = f'{truck_pin:06d}'
+            
+            if generated_pin == pin:
+                truck_found = truck
+                break
+        
+        if not truck_found:
+            return Response(
+                {'error': 'Invalid PIN code. Please check and try again.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Get or create driver with phone number
+        driver, created = FleetDriver.objects.get_or_create(
+            phone_number=phone_number,
+            defaults={
+                'first_name': 'Driver',
+                'last_name': phone_number[-4:],
+                'email': f'driver_{phone_number}@fleet.local',
+                'fleet_id': truck_found.fleet_id,
+            }
+        )
+
+        # Link driver to truck
+        driver.truck = truck_found
+        driver.is_active = True
+        driver.save()
+
+        # Generate tracking ID and auth token
+        import uuid
+        tracking_id = str(uuid.uuid4())
+        auth_token = str(uuid.uuid4())
+        
+        cache.set(f'driver_tracking_{driver.id}', {
+            'tracking_id': tracking_id,
+            'driver_id': str(driver.id),
+            'truck_id': str(truck_found.id),
+            'started_at': datetime.now().isoformat(),
+            'gps_enabled': True
+        }, timeout=None)
+
+        return Response({
+            'success': True,
+            'driver_id': str(driver.id),
+            'truck_id': str(truck_found.id),
+            'tracking_id': tracking_id,
+            'token': auth_token,
+            'driver_name': f'{driver.first_name} {driver.last_name}',
+            'truck_name': truck_found.truck_identifier,
+            'phone_number': phone_number,
+            'gps_tracking_enabled': True,
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {'error': f'PIN validation error: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def generate_driver_pin(request, truck_id):
+    """
+    Generate a PIN code for driver to use for registration
+    PIN is based on truck ID hash for easy distribution
+    """
+    try:
+        truck = FleetTruck.objects.get(id=truck_id)
+        
+        # Generate PIN from truck ID
+        truck_pin = abs(hash(str(truck.id))) % 1000000
+        pin = f'{truck_pin:06d}'
+        
+        return Response({
+            'truck_id': str(truck.id),
+            'truck_name': truck.truck_identifier,
+            'pin_code': pin,
+            'instructions': 'Share this PIN with driver. They enter it in the PulseTrack app during registration.'
+        }, status=status.HTTP_200_OK)
+
+    except FleetTruck.DoesNotExist:
+        return Response(
+            {'error': 'Truck not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+def generate_mission_qr(request, mission_id):
+    """
+    Generate QR code for mission assignment
+    QR contains mission details, driver info, truck, and destination coordinates
+    """
+    try:
+        mission = FleetMission.objects.get(id=mission_id)
+
+        # Get driver and truck
+        driver = mission.driver
+        truck = mission.truck
+
+        if not driver or not truck:
+            return Response(
+                {'error': 'Mission must be assigned to a driver and truck'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Create QR code data
+        qr_data = json.dumps({
+            'type': 'driver_mission_assignment',
+            'mission_id': str(mission.id),
+            'driver_id': str(driver.id),
+            'truck_id': str(truck.id),
+            'driver_name': driver.name,
+            'driver_phone': driver.phone_number,
+            'destination_latitude': float(mission.destination_latitude),
+            'destination_longitude': float(mission.destination_longitude),
+            'origin_latitude': float(mission.origin_latitude),
+            'origin_longitude': float(mission.origin_longitude),
+            'mission_number': mission.mission_number,
+            'destination_address': mission.destination_address or '',
+            'timestamp': datetime.now().isoformat(),
+        })
+
+        # Generate QR code image
+        qr = qrcode.QRCode(
+            version=2,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(qr_data)
+        qr.make(fit=True)
+
+        img = qr.make_image(fill_color='black', back_color='white')
+
+        # Convert to base64
+        buffer = BytesIO()
+        img.save(buffer, format='PNG')
+        buffer.seek(0)
+        img_base64 = base64.b64encode(buffer.getvalue()).decode()
+
+        return Response({
+            'mission_id': str(mission.id),
+            'driver_id': str(driver.id),
+            'truck_id': str(truck.id),
+            'qr_code_data': qr_data,
+            'qr_code_image': f'data:image/png;base64,{img_base64}',
+        }, status=status.HTTP_200_OK)
+
+    except FleetMission.DoesNotExist:
+        return Response(
+            {'error': 'Mission not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
