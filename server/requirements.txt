@@ -14,3 +14,5 @@ folium
 gunicorn
 whitenoise
 psycopg2-binary
+qrcode[pil]
+Pillow
