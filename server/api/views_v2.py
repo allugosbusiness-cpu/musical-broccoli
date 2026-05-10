@@ -221,12 +221,13 @@ class TruckViewSet(viewsets.ModelViewSet):
     - PATCH /api/v1/trucks/{id} - Update truck
     - PATCH /api/v1/trucks/{id}/assign - Assign driver to truck (admin only)
     """
-    queryset = FleetTruck.objects.all()
+    queryset = FleetTruck.objects.all().order_by('-created_at')
     serializer_class = TruckSerializer
     permission_classes = [AllowAny]
     filterset_fields = ['fleet_id', 'status', 'plate']
     search_fields = ['truck_identifier', 'plate', 'telematics_id']
     ordering_fields = ['created_at', 'fuel_consumed_liters', 'odometer_km']
+    ordering = ['-created_at']
     
     def create(self, request, *args, **kwargs):
         """Create new truck (admin only)"""
