@@ -21,20 +21,26 @@ django.setup()
 # Ensure v2 schema tables exist (emergency fix for migration state issues)
 def ensure_database_tables():
     """Create v2 schema tables if they don't exist - handles migration state issues"""
+    print("[WSGI] Starting database table check...")
     try:
         from django.db import connection
         from api.models_v2 import FleetDriver
         
         # Quick check: try to query fleet_drivers
-        FleetDriver.objects.count()
+        count = FleetDriver.objects.count()
+        print(f"[WSGI] Tables already exist! Found {count} drivers")
         return  # Tables exist, no action needed
         
     except Exception as e:
         error_msg = str(e).lower()
-        if 'no such table' not in error_msg and 'does not exist' not in error_msg:
+        print(f"[WSGI] Database check failed: {e}")
+        print(f"[WSGI] Error type: {type(e).__name__}")
+        if 'no such table' not in error_msg and 'does not exist' not in error_msg and 'relation' not in error_msg:
+            print(f"[WSGI] Not a table-missing error, skipping creation")
             return  # Different error, don't try to fix
         
         # Tables don't exist - create them using raw SQL
+        print("[WSGI] Creating v2 schema tables...")
         try:
             from django.db import connection
             
@@ -206,8 +212,174 @@ def ensure_database_tables():
                         )
                     """)
                 
-                connection.commit()
-                print("[WSGI] Emergency: Fleet tables created successfully")
+                    connection.commit()
+                    print("[WSGI] Emergency: SQLite fleet tables created successfully")
+                else:
+                    # PostgreSQL: Create all tables with proper data types
+                    print("[WSGI] Creating PostgreSQL tables...")
+                    
+                    # PostgreSQL SQL with proper data types
+                    pg_sql = """
+                    CREATE TABLE IF NOT EXISTS fleet_drivers (
+                        id VARCHAR(36) PRIMARY KEY,
+                        fleet_id VARCHAR(36) NOT NULL,
+                        first_name VARCHAR(100) NOT NULL,
+                        last_name VARCHAR(100) NOT NULL,
+                        phone VARCHAR(20),
+                        email VARCHAR(254) UNIQUE,
+                        license_number VARCHAR(50) UNIQUE,
+                        license_state VARCHAR(10),
+                        hire_date DATE,
+                        status VARCHAR(20) DEFAULT 'active',
+                        on_duty BOOLEAN DEFAULT FALSE,
+                        performance_mark NUMERIC(5,2) DEFAULT 0,
+                        deliveries_count INTEGER DEFAULT 0,
+                        last_active_at TIMESTAMP,
+                        achievements TEXT DEFAULT '{}',
+                        photo_url VARCHAR(500),
+                        notes TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+                    
+                    CREATE TABLE IF NOT EXISTS fleet_trucks (
+                        id VARCHAR(36) PRIMARY KEY,
+                        fleet_id VARCHAR(36) NOT NULL,
+                        truck_identifier VARCHAR(50) NOT NULL,
+                        plate VARCHAR(50) NOT NULL UNIQUE,
+                        vin VARCHAR(50) UNIQUE,
+                        telematics_id VARCHAR(100),
+                        make VARCHAR(100),
+                        model VARCHAR(100),
+                        year INTEGER,
+                        fuel_capacity_liters NUMERIC(10,2),
+                        fuel_consumed_liters NUMERIC(10,2) DEFAULT 0,
+                        odometer_km NUMERIC(12,2),
+                        kilometers_travelled_km NUMERIC(12,2) DEFAULT 0,
+                        status VARCHAR(20) DEFAULT 'idle',
+                        is_moving BOOLEAN DEFAULT FALSE,
+                        last_latitude NUMERIC(10,6),
+                        last_longitude NUMERIC(10,6),
+                        last_location_ts TIMESTAMP,
+                        assigned_driver VARCHAR(36),
+                        maintenance_due_date DATE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (assigned_driver) REFERENCES fleet_drivers(id)
+                    );
+                    
+                    CREATE TABLE IF NOT EXISTS fleet_missions (
+                        id VARCHAR(36) PRIMARY KEY,
+                        fleet_id VARCHAR(36) NOT NULL,
+                        mission_number VARCHAR(100) NOT NULL UNIQUE,
+                        driver_id VARCHAR(36),
+                        truck_id VARCHAR(36),
+                        status VARCHAR(20) DEFAULT 'planned',
+                        priority VARCHAR(20) DEFAULT 'normal',
+                        origin VARCHAR(500),
+                        destination VARCHAR(500),
+                        current_location TEXT,
+                        route_polyline TEXT,
+                        distance_total_m NUMERIC(12,2) DEFAULT 0,
+                        distance_remaining_m NUMERIC(12,2) DEFAULT 0,
+                        progress_pct NUMERIC(5,2) DEFAULT 0,
+                        speed_kmh NUMERIC(5,2),
+                        eta TIMESTAMP,
+                        cargo TEXT DEFAULT '{}',
+                        stops TEXT DEFAULT '[]',
+                        mission_date DATE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        started_at TIMESTAMP,
+                        completed_at TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (driver_id) REFERENCES fleet_drivers(id),
+                        FOREIGN KEY (truck_id) REFERENCES fleet_trucks(id)
+                    );
+                    
+                    CREATE TABLE IF NOT EXISTS fleet_mission_stops (
+                        id VARCHAR(36) PRIMARY KEY,
+                        mission_id VARCHAR(36) NOT NULL,
+                        stop_order INTEGER,
+                        location_name VARCHAR(255),
+                        address VARCHAR(500),
+                        latitude NUMERIC(10,6),
+                        longitude NUMERIC(10,6),
+                        arrival_time TIMESTAMP,
+                        departure_time TIMESTAMP,
+                        stop_duration_minutes INTEGER,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (mission_id) REFERENCES fleet_missions(id)
+                    );
+                    
+                    CREATE TABLE IF NOT EXISTS fleet_mission_events (
+                        id VARCHAR(36) PRIMARY KEY,
+                        mission_id VARCHAR(36) NOT NULL,
+                        event_type VARCHAR(50),
+                        description TEXT,
+                        latitude NUMERIC(10,6),
+                        longitude NUMERIC(10,6),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (mission_id) REFERENCES fleet_missions(id)
+                    );
+                    
+                    CREATE TABLE IF NOT EXISTS fleet_mission_disputes (
+                        id VARCHAR(36) PRIMARY KEY,
+                        mission_id VARCHAR(36) NOT NULL,
+                        dispute_type VARCHAR(50),
+                        description TEXT,
+                        resolution TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (mission_id) REFERENCES fleet_missions(id)
+                    );
+                    
+                    CREATE TABLE IF NOT EXISTS fleet_driver_performance_daily (
+                        id VARCHAR(36) PRIMARY KEY,
+                        driver_id VARCHAR(36) NOT NULL,
+                        date DATE NOT NULL,
+                        deliveries_count INTEGER DEFAULT 0,
+                        on_time_count INTEGER DEFAULT 0,
+                        late_count INTEGER DEFAULT 0,
+                        harsh_braking_count INTEGER DEFAULT 0,
+                        idling_minutes INTEGER DEFAULT 0,
+                        fuel_efficiency_liters_per_100km NUMERIC(5,2),
+                        safety_score NUMERIC(5,2) DEFAULT 0,
+                        efficiency_score NUMERIC(5,2) DEFAULT 0,
+                        overall_score NUMERIC(5,2) DEFAULT 0,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (driver_id) REFERENCES fleet_drivers(id)
+                    );
+                    
+                    CREATE TABLE IF NOT EXISTS fleet_admin_audit_logs (
+                        id BIGINT PRIMARY KEY,
+                        admin_id VARCHAR(36) NOT NULL,
+                        action VARCHAR(50),
+                        resource_type VARCHAR(50),
+                        resource_id VARCHAR(36),
+                        old_values TEXT,
+                        new_values TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+                    
+                    CREATE TABLE IF NOT EXISTS fleet_truck_locations (
+                        id VARCHAR(36) PRIMARY KEY,
+                        truck_id VARCHAR(36) NOT NULL,
+                        latitude NUMERIC(10,6),
+                        longitude NUMERIC(10,6),
+                        speed NUMERIC(5,2),
+                        accuracy NUMERIC(5,2),
+                        altitude NUMERIC(8,2),
+                        heading INTEGER,
+                        timestamp BIGINT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (truck_id) REFERENCES fleet_trucks(id)
+                    );
+                    """
+                    
+                    # Execute PostgreSQL statements
+                    cursor.execute(pg_sql)
+                    connection.commit()
+                    print("[WSGI] Emergency: PostgreSQL fleet tables created successfully")
                 
         except Exception as create_error:
             print(f"[WSGI] Error creating emergency tables: {create_error}")
