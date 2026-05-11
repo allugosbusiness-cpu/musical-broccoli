@@ -1,0 +1,12 @@
+{
+  "environments": {
+    "production": {
+      "pythonVersion": "3.14"
+    }
+  },
+  "variables": {
+    "DEBUG": "False",
+    "ALLOWED_HOSTS": "*.railway.app,*.vercel.app,localhost",
+    "SECRET_KEY": "django-insecure-production-key"
+  }
+}

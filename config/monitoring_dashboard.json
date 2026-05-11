@@ -1,0 +1,341 @@
+{
+  "dashboard": {
+    "title": "Fleet Alert Pipeline - Production Dashboard",
+    "description": "Real-time monitoring of alert pipeline health, latency, queue, and error rates",
+    "tags": ["alerts", "production", "fleet"],
+    "timezone": "UTC",
+    "refresh": "5s",
+    "rows": [
+      {
+        "title": "Alert Pipeline Health (Last 24h)",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Pipeline Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "alert_pipeline_status",
+                "legendFormat": "Status (1=healthy)"
+              }
+            ],
+            "thresholds": [
+              { "value": 0.5, "color": "red", "label": "DOWN" },
+              { "value": 0.9, "color": "yellow", "label": "DEGRADED" },
+              { "value": 1.0, "color": "green", "label": "HEALTHY" }
+            ],
+            "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 }
+          },
+          {
+            "id": 2,
+            "title": "Exception Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(alert_pipeline_exceptions_total[5m])",
+                "legendFormat": "Exceptions/sec"
+              }
+            ],
+            "alert": {
+              "name": "High Exception Rate",
+              "condition": "> 0.1",
+              "severity": "critical"
+            },
+            "gridPos": { "h": 8, "w": 6, "x": 6, "y": 0 }
+          },
+          {
+            "id": 3,
+            "title": "Worker Threads Active",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "alert_pipeline_worker_threads_active",
+                "legendFormat": "Active threads"
+              }
+            ],
+            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 }
+          }
+        ]
+      },
+      {
+        "title": "Latency SLOs (Target: p50 <500ms, p95 <2s, p99 <5s)",
+        "panels": [
+          {
+            "id": 4,
+            "title": "End-to-End Alert Latency (ms)",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.50, alert_pipeline_latency_ms_bucket)",
+                "legendFormat": "p50"
+              },
+              {
+                "expr": "histogram_quantile(0.95, alert_pipeline_latency_ms_bucket)",
+                "legendFormat": "p95"
+              },
+              {
+                "expr": "histogram_quantile(0.99, alert_pipeline_latency_ms_bucket)",
+                "legendFormat": "p99"
+              }
+            ],
+            "alerts": [
+              { "field": "p50", "gt": 500, "severity": "warning", "message": "P50 latency above SLO" },
+              { "field": "p95", "gt": 2000, "severity": "critical", "message": "P95 latency above SLO" }
+            ],
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+          },
+          {
+            "id": 5,
+            "title": "Evaluation Latency Distribution",
+            "type": "heatmap",
+            "targets": [
+              {
+                "expr": "alert_pipeline_evaluation_latency_ms_bucket"
+              }
+            ],
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+          }
+        ]
+      },
+      {
+        "title": "Queue & Backpressure (SLO: <80% utilization, <0.1% drops)",
+        "panels": [
+          {
+            "id": 6,
+            "title": "Queue Utilization %",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "100 * alert_pipeline_queue_length / alert_pipeline_queue_max_size"
+              }
+            ],
+            "thresholdLines": [
+              { "value": 80, "color": "orange", "label": "Backpressure threshold" },
+              { "value": 100, "color": "red", "label": "Queue full" }
+            ],
+            "gridPos": { "h": 8, "w": 6, "x": 0, "y": 16 }
+          },
+          {
+            "id": 7,
+            "title": "Queue Length (events)",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "alert_pipeline_queue_length"
+              }
+            ],
+            "gridPos": { "h": 8, "w": 6, "x": 6, "y": 16 }
+          },
+          {
+            "id": 8,
+            "title": "Dropped Events Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(alert_pipeline_dropped_events_total[1m])",
+                "legendFormat": "Events/sec dropped"
+              }
+            ],
+            "alert": {
+              "name": "High Drop Rate",
+              "condition": "> 0.001",  // > 0.1%
+              "severity": "warning"
+            },
+            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 16 }
+          },
+          {
+            "id": 9,
+            "title": "Sampling Rate (when queue >80%)",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "alert_pipeline_sampling_rate"
+              }
+            ],
+            "gridPos": { "h": 8, "w": 6, "x": 18, "y": 16 }
+          }
+        ]
+      },
+      {
+        "title": "Alert Metrics & False Positive Suppression (SLO: N-consensus + exponential backoff)",
+        "panels": [
+          {
+            "id": 10,
+            "title": "Alerts Generated (rate)",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(alert_pipeline_alerts_total[5m])",
+                "legendFormat": "Alerts/sec"
+              }
+            ],
+            "gridPos": { "h": 8, "w": 6, "x": 0, "y": 24 }
+          },
+          {
+            "id": 11,
+            "title": "Off-Route Alerts by Vehicle",
+            "type": "table",
+            "targets": [
+              {
+                "expr": "topk(10, rate(alert_off_route_total[1h]) by (truck_id))",
+                "legendFormat": "{{ truck_id }}"
+              }
+            ],
+            "gridPos": { "h": 8, "w": 6, "x": 6, "y": 24 }
+          },
+          {
+            "id": 12,
+            "title": "False Positive Suppressions (N-consensus)",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "alert_pipeline_false_positive_suppressions_total"
+              }
+            ],
+            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 24 }
+          },
+          {
+            "id": 13,
+            "title": "Cooldown Suppression Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(alert_pipeline_cooldown_suppressions_total[5m])",
+                "legendFormat": "Suppressions/sec"
+              }
+            ],
+            "gridPos": { "h": 8, "w": 6, "x": 18, "y": 24 }
+          }
+        ]
+      },
+      {
+        "title": "Input Quality & Geometry Robustness",
+        "panels": [
+          {
+            "id": 14,
+            "title": "Invalid Coordinates Rejected",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "alert_pipeline_invalid_coords_rejected_total"
+              }
+            ],
+            "gridPos": { "h": 8, "w": 6, "x": 0, "y": 32 }
+          },
+          {
+            "id": 15,
+            "title": "Geometry Errors (fallback to bbox)",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(alert_pipeline_geometry_errors_total[5m])",
+                "legendFormat": "Errors/sec"
+              }
+            ],
+            "gridPos": { "h": 8, "w": 6, "x": 6, "y": 32 }
+          },
+          {
+            "id": 16,
+            "title": "Stale Telemetry Filtered",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "rate(alert_pipeline_stale_events_filtered_total[1m])",
+                "legendFormat": "Events/sec"
+              }
+            ],
+            "gridPos": { "h": 8, "w": 6, "x": 12, "y": 32 }
+          },
+          {
+            "id": 17,
+            "title": "Speed Anomalies Caught",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "alert_pipeline_speed_anomalies_total"
+              }
+            ],
+            "gridPos": { "h": 8, "w": 6, "x": 18, "y": 32 }
+          }
+        ]
+      },
+      {
+        "title": "Feature Flags & Rollout Progress",
+        "panels": [
+          {
+            "id": 18,
+            "title": "New Pipeline Enabled (%)",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "100 * count(alert_pipeline_feature_flag_new_enabled) / count(all_vehicles)"
+              }
+            ],
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 }
+          },
+          {
+            "id": 19,
+            "title": "Web Worker Frontend Enabled (%)",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "100 * count(client_alert_worker_enabled) / count(all_clients)"
+              }
+            ],
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 }
+          }
+        ]
+      }
+    ],
+    "alerts": [
+      {
+        "name": "Pipeline Exception Rate High",
+        "condition": "alert_pipeline_exceptions_total > 0.1 for 5m",
+        "severity": "critical",
+        "notification": "pagerduty,slack"
+      },
+      {
+        "name": "Queue Utilization High",
+        "condition": "alert_pipeline_queue_length / alert_pipeline_queue_max_size > 0.9 for 10m",
+        "severity": "warning",
+        "notification": "slack"
+      },
+      {
+        "name": "Latency SLO Violation (p95)",
+        "condition": "histogram_quantile(0.95, alert_pipeline_latency_ms_bucket) > 2000 for 15m",
+        "severity": "critical",
+        "notification": "pagerduty"
+      },
+      {
+        "name": "Dropped Events High",
+        "condition": "rate(alert_pipeline_dropped_events_total[5m]) > 0.001 for 10m",
+        "severity": "warning",
+        "notification": "slack"
+      }
+    ]
+  },
+  "prometheus_metrics": {
+    "counters": [
+      "alert_pipeline_alerts_total{type}",
+      "alert_pipeline_dropped_events_total",
+      "alert_pipeline_exceptions_total",
+      "alert_pipeline_false_positive_suppressions_total",
+      "alert_pipeline_cooldown_suppressions_total",
+      "alert_pipeline_invalid_coords_rejected_total",
+      "alert_pipeline_geometry_errors_total",
+      "alert_pipeline_stale_events_filtered_total",
+      "alert_pipeline_speed_anomalies_total"
+    ],
+    "gauges": [
+      "alert_pipeline_queue_length",
+      "alert_pipeline_queue_max_size",
+      "alert_pipeline_worker_threads_active",
+      "alert_pipeline_sampling_rate",
+      "alert_pipeline_status"
+    ],
+    "histograms": [
+      "alert_pipeline_latency_ms_bucket{le}",
+      "alert_pipeline_evaluation_latency_ms_bucket{le}"
+    ]
+  }
+}
