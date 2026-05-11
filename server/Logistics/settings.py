@@ -155,15 +155,13 @@ if DEBUG:
     # Also allow all origins in development for flexibility
     CORS_ALLOW_ALL_ORIGINS = True
 else:
-    # Production: Restrict to known origins (Vercel frontend + any additional domains)
+    # Production: Allow Vercel frontend and set all origins to True for testing
     CORS_ALLOWED_ORIGINS = [
         'https://pulsetrack-frontend-henna.vercel.app',
-        'https://*.vercel.app',
-        'https://pulsetrack.example.com',  # Replace with actual domain
+        'https://pulsetrack.example.com',
         'https://app.pulsetrack.example.com',
     ]
-    # Fallback: Allow all origins if list is empty (will be restricted on next update)
-    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_CREDENTIALS = True
 
