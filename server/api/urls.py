@@ -27,6 +27,9 @@ from .mission_endpoints import (
 from .delivery_endpoints import (
     mission_delivery_confirmed, driver_status, mission_details
 )
+from .locations_endpoints import (
+    location_search, location_types, location_autocomplete
+)
 from .fuel_views import (
     TruckFuelViewSet, FuelConsumptionViewSet, FuelAlertViewSet, FuelReportViewSet
 )
@@ -65,6 +68,11 @@ urlpatterns = [
     path('v1/api-missions/<str:mission_id>/status/', update_mission_status, name='update-mission-status'),
     path('v1/api-missions/<str:mission_id>/tracking/', save_mission_tracking_data, name='save-mission-tracking-data'),
     path('v1/api-missions/<str:mission_id>/details/', get_mission_details, name='get-mission-details'),
+    
+    # Location suggestions endpoints
+    path('v1/locations/search/', location_search, name='location-search'),
+    path('v1/locations/types/', location_types, name='location-types'),
+    path('v1/locations/autocomplete/', location_autocomplete, name='location-autocomplete'),
     
     # Dashboard endpoints
     path('v1/dashboard/summary/', dashboard_summary, name='dashboard-summary'),
