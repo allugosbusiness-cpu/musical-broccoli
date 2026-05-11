@@ -7,9 +7,59 @@ const getApiV1Base = () => {
 };
 
 /**
+ * LocationAutocomplete Component
+ * Provides dropdown suggestions for location selection
+ */
+function LocationAutocomplete({ label, value, searchQuery, suggestions, onSearch, onSelectLocation, type = 'origin' }) {
+  return (
+    <div className="relative">
+      <label className="block text-sm font-semibold text-slate-300 mb-2">
+        {label} <span className="text-red-400">*</span>
+      </label>
+      <input
+        type="text"
+        placeholder="Search for location (e.g., Mutare, school, butchery)..."
+        value={searchQuery}
+        onChange={(e) => onSearch(e.target.value, type)}
+        className="w-full bg-slate-800 border border-slate-600 text-white px-4 py-2 rounded focus:outline-none focus:border-blue-500 placeholder-slate-500"
+      />
+      
+      {/* Suggestions Dropdown */}
+      {searchQuery.length > 1 && suggestions.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-600 rounded shadow-lg z-40">
+          <div className="max-h-48 overflow-y-auto">
+            {suggestions.map((loc, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => onSelectLocation(loc, type)}
+                className="w-full px-4 py-2 hover:bg-slate-700 text-left text-white hover:text-blue-300 transition flex justify-between items-start"
+              >
+                <div>
+                  <div className="font-semibold">{loc.name}</div>
+                  <div className="text-xs text-slate-400">{loc.type} • {loc.lat.toFixed(4)}, {loc.lon.toFixed(4)}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Selected Location Display */}
+      {value.lat && value.lon && (
+        <div className="mt-2 p-2 bg-slate-800 border border-slate-600 rounded text-sm text-slate-300">
+          📍 {value.lat.toFixed(4)}, {value.lon.toFixed(4)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * MissionCreationForm Component
  * 
  * Allows users to create new missions for trucks and drivers
+ * Includes location autocomplete for origin and destination
  */
 export default function MissionCreationForm({ trucks, drivers, onMissionCreated, onClose }) {
   const [formData, setFormData] = useState({
@@ -26,6 +76,64 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  
+  // Location autocomplete state
+  const [originSearch, setOriginSearch] = useState('');
+  const [destinationSearch, setDestinationSearch] = useState('');
+  const [originSuggestions, setOriginSuggestions] = useState([]);
+  const [destinationSuggestions, setDestinationSuggestions] = useState([]);
+
+  // Fetch location suggestions
+  const fetchLocationSuggestions = async (query, type) => {
+    if (query.length < 2) {
+      if (type === 'origin') setOriginSuggestions([]);
+      else setDestinationSuggestions([]);
+      return;
+    }
+
+    try {
+      const response = await axios.get(`${getApiV1Base()}/locations/autocomplete/`, {
+        params: { q: query }
+      });
+      
+      if (type === 'origin') {
+        setOriginSuggestions(response.data.results || []);
+      } else {
+        setDestinationSuggestions(response.data.results || []);
+      }
+    } catch (err) {
+      console.error(`Location search error (${type}):`, err);
+    }
+  };
+
+  const handleLocationSearch = (query, type) => {
+    if (type === 'origin') {
+      setOriginSearch(query);
+    } else {
+      setDestinationSearch(query);
+    }
+    fetchLocationSuggestions(query, type);
+  };
+
+  const handleSelectLocation = (location, type) => {
+    setFormData(prev => ({
+      ...prev,
+      [type]: {
+        lat: location.lat,
+        lon: location.lon,
+      }
+    }));
+
+    if (type === 'origin') {
+      setOriginSearch(location.name);
+      setOriginSuggestions([]);
+    } else {
+      setDestinationSearch(location.name);
+      setDestinationSuggestions([]);
+    }
+
+    console.log(`📍 Selected ${type}:`, location);
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -119,6 +227,8 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
         planned_duration_minutes: '',
         notes: '',
       });
+      setOriginSearch('');
+      setDestinationSearch('');
 
       // Close after 2 seconds
       setTimeout(() => {
@@ -217,11 +327,22 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
             />
           </div>
 
-          {/* Origin Coordinates */}
+          {/* Origin Location with Autocomplete */}
+          <LocationAutocomplete
+            label="📍 Origin Location"
+            value={formData.origin}
+            searchQuery={originSearch}
+            suggestions={originSuggestions}
+            onSearch={handleLocationSearch}
+            onSelectLocation={handleSelectLocation}
+            type="origin"
+          />
+
+          {/* Manual Origin Coordinates (optional override) */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-semibold text-slate-300 mb-2">
-                Origin Latitude <span className="text-red-400">*</span>
+              <label className="block text-xs font-semibold text-slate-400 mb-2">
+                Origin Latitude (Manual)
               </label>
               <input
                 type="number"
@@ -230,12 +351,12 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
                 placeholder="-17.8"
                 value={formData.origin.lat}
                 onChange={handleInputChange}
-                className="w-full bg-slate-800 border border-slate-600 text-white px-4 py-2 rounded focus:outline-none focus:border-blue-500 placeholder-slate-500"
+                className="w-full bg-slate-800 border border-slate-600 text-white px-3 py-1.5 rounded text-sm focus:outline-none focus:border-blue-500 placeholder-slate-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-300 mb-2">
-                Origin Longitude <span className="text-red-400">*</span>
+              <label className="block text-xs font-semibold text-slate-400 mb-2">
+                Origin Longitude (Manual)
               </label>
               <input
                 type="number"
@@ -244,16 +365,27 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
                 placeholder="31.0"
                 value={formData.origin.lon}
                 onChange={handleInputChange}
-                className="w-full bg-slate-800 border border-slate-600 text-white px-4 py-2 rounded focus:outline-none focus:border-blue-500 placeholder-slate-500"
+                className="w-full bg-slate-800 border border-slate-600 text-white px-3 py-1.5 rounded text-sm focus:outline-none focus:border-blue-500 placeholder-slate-500"
               />
             </div>
           </div>
 
-          {/* Destination Coordinates */}
+          {/* Destination Location with Autocomplete */}
+          <LocationAutocomplete
+            label="📍 Destination Location"
+            value={formData.destination}
+            searchQuery={destinationSearch}
+            suggestions={destinationSuggestions}
+            onSearch={handleLocationSearch}
+            onSelectLocation={handleSelectLocation}
+            type="destination"
+          />
+
+          {/* Manual Destination Coordinates (optional override) */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-semibold text-slate-300 mb-2">
-                Destination Latitude <span className="text-red-400">*</span>
+              <label className="block text-xs font-semibold text-slate-400 mb-2">
+                Destination Latitude (Manual)
               </label>
               <input
                 type="number"
@@ -262,12 +394,12 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
                 placeholder="-17.9"
                 value={formData.destination.lat}
                 onChange={handleInputChange}
-                className="w-full bg-slate-800 border border-slate-600 text-white px-4 py-2 rounded focus:outline-none focus:border-blue-500 placeholder-slate-500"
+                className="w-full bg-slate-800 border border-slate-600 text-white px-3 py-1.5 rounded text-sm focus:outline-none focus:border-blue-500 placeholder-slate-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-300 mb-2">
-                Destination Longitude <span className="text-red-400">*</span>
+              <label className="block text-xs font-semibold text-slate-400 mb-2">
+                Destination Longitude (Manual)
               </label>
               <input
                 type="number"
@@ -276,7 +408,7 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
                 placeholder="31.1"
                 value={formData.destination.lon}
                 onChange={handleInputChange}
-                className="w-full bg-slate-800 border border-slate-600 text-white px-4 py-2 rounded focus:outline-none focus:border-blue-500 placeholder-slate-500"
+                className="w-full bg-slate-800 border border-slate-600 text-white px-3 py-1.5 rounded text-sm focus:outline-none focus:border-blue-500 placeholder-slate-500"
               />
             </div>
           </div>
