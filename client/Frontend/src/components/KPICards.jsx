@@ -177,34 +177,74 @@ export default function KPICards({ selectedTruck = null, selectedDriver = null, 
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
       {cards.map((c, i) => {
         const colorMap = {
-          "text-red": { bg: "bg-slate-800", border: "border-red-900", text: "text-red-400", icon: "text-red-400" },
-          "text-amber": { bg: "bg-slate-800", border: "border-amber-900", text: "text-amber-400", icon: "text-amber-400" },
-          "text-green": { bg: "bg-slate-800", border: "border-green-900", text: "text-green-400", icon: "text-green-400" },
-          "text-blue": { bg: "bg-slate-800", border: "border-blue-900", text: "text-blue-400", icon: "text-blue-400" },
-          "text-purple": { bg: "bg-slate-800", border: "border-purple-900", text: "text-purple-400", icon: "text-purple-400" },
+          "text-red": { 
+            bg: "from-red-900/10 to-red-800/5", 
+            border: "border-red-700/30", 
+            text: "text-red-400", 
+            icon: "text-red-500",
+            label: "text-red-300/70"
+          },
+          "text-amber": { 
+            bg: "from-amber-900/10 to-amber-800/5", 
+            border: "border-amber-700/30", 
+            text: "text-amber-400", 
+            icon: "text-amber-500",
+            label: "text-amber-300/70"
+          },
+          "text-green": { 
+            bg: "from-green-900/10 to-green-800/5", 
+            border: "border-green-700/30", 
+            text: "text-green-400", 
+            icon: "text-green-500",
+            label: "text-green-300/70"
+          },
+          "text-blue": { 
+            bg: "from-blue-900/10 to-blue-800/5", 
+            border: "border-blue-700/30", 
+            text: "text-blue-400", 
+            icon: "text-blue-500",
+            label: "text-blue-300/70"
+          },
+          "text-purple": { 
+            bg: "from-purple-900/10 to-purple-800/5", 
+            border: "border-purple-700/30", 
+            text: "text-purple-400", 
+            icon: "text-purple-500",
+            label: "text-purple-300/70"
+          },
         };
-        const styles = colorMap[c.color] || { bg: "bg-slate-800", border: "border-slate-700", text: "text-slate-100", icon: "text-slate-400" };
+        const styles = colorMap[c.color] || { 
+          bg: "from-slate-800/50 to-slate-900/20", 
+          border: "border-slate-700/30", 
+          text: "text-slate-100", 
+          icon: "text-slate-400",
+          label: "text-slate-400/70"
+        };
         
         return (
           <div
             key={i}
-            className={`${styles.bg} border ${styles.border} rounded-lg p-4 hover:border-slate-600 transition-all duration-300 shadow-dark hover:shadow-dark-lg`}
+            className={`bg-gradient-to-br ${styles.bg} border ${styles.border} rounded-xl p-4 hover:border-slate-600/50 transition-all duration-300 shadow-lg hover:shadow-xl backdrop-blur-sm`}
           >
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-slate-400 uppercase font-semibold tracking-wide">{c.label}</p>
-              <c.Icon size={18} className={styles.icon} />
+            <div className="flex items-start justify-between mb-3">
+              <p className={`text-xs uppercase font-semibold tracking-widest ${styles.label}`}>{c.label}</p>
+              <div className={`p-2 rounded-lg bg-slate-900/40 ${styles.icon}`}>
+                <c.Icon size={16} />
+              </div>
             </div>
-            <h2 className={`text-2xl font-bold mb-1 ${styles.text}`}>
-              {loading ? "..." : c.value}
-              {c.unit ? <span className="text-xs ml-1">{c.unit}</span> : ""}
-            </h2>
-            <div className="text-xs text-slate-400">{c.sub}</div>
+            <div className="space-y-1">
+              <h2 className={`text-3xl font-bold ${styles.text}`}>
+                {c.value}{c.unit ? ` ${c.unit}` : ''}
+              </h2>
+              <p className="text-xs text-slate-400">{c.sub}</p>
+            </div>
           </div>
         );
       })}
     </div>
   );
+
 }

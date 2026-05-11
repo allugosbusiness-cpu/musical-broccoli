@@ -707,7 +707,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
   }, [trucks]);
 
   return (
-    <div className="border border-border rounded-xl overflow-hidden flex flex-col relative" style={{ height: '750px' }}>
+    <div className="border border-slate-700/50 rounded-xl overflow-hidden flex flex-col relative bg-slate-900/50 shadow-xl backdrop-blur-sm" style={{ height: '750px' }}>
       {/* Road-Matched Trail System */}
       {map.current && trucks.length > 0 && (
         <RoadMatchedTrailSystem 
@@ -720,12 +720,12 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
       <DriverEventAlerts tracker={driverEventTracker} />
 
       {/* Header */}
-      <div className="px-5 py-4 border-b border-border bg-gradient-to-r from-bg2 to-bg3">
+      <div className="px-5 py-4 border-b border-slate-700/50 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900/50">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold font-heading text-text1 uppercase tracking-wider">
-            Smart Global Map
+          <span className="text-sm font-bold text-slate-100 uppercase tracking-widest">
+            🗺️ Smart Global Map
           </span>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#cbd5e1' }}>
             <input
               type="checkbox"
               checked={showRawTraces}
@@ -740,6 +740,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
                   );
                 });
               }}
+              style={{ cursor: 'pointer' }}
             />
             Show raw GPS traces
           </label>

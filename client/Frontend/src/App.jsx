@@ -120,9 +120,9 @@ export default function App() {
         <div className="p-6 max-w-[1600px] mx-auto space-y-6">
           {/* Selection Context Banner */}
           {(selectedTruck || selectedDriver) && (
-            <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 flex items-center justify-between shadow-dark">
+            <div className="bg-gradient-to-r from-blue-900/20 to-slate-800/20 border border-blue-700/30 rounded-lg p-4 flex items-center justify-between shadow-lg backdrop-blur-sm">
               <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-slate-100">
+                <span className="text-sm font-semibold text-slate-100">
                   {selectedTruck ? `📍 Truck: ${selectedTruck.truck_identifier || selectedTruck.plate}` : `👤 Driver: ${selectedDriver.first_name} ${selectedDriver.last_name}`}
                 </span>
               </div>
@@ -131,7 +131,7 @@ export default function App() {
                   setSelectedTruck(null);
                   setSelectedDriver(null);
                 }}
-                className="text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors"
+                className="text-sm text-blue-400 hover:text-blue-300 font-semibold transition-colors"
               >
                 ✕ Clear
               </button>
@@ -141,7 +141,7 @@ export default function App() {
           <KPICards selectedTruck={selectedTruck} selectedDriver={selectedDriver} refreshTrigger={refreshTrigger} />
 
           {/* MAIN GRID - Global Map Full Width */}
-          <div className="w-full rounded-lg overflow-hidden shadow-dark-lg">
+          <div className="w-full rounded-xl overflow-hidden shadow-xl border border-slate-700/50">
             <GlobalMap 
               onTruckSelect={handleSelectTruck}
               highlightedTruck={selectedTruck}
@@ -166,7 +166,7 @@ export default function App() {
           <FuelTracking refreshTrigger={refreshTrigger} />
 
           {/* BOTTOM PANELS */}
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-2 gap-6">
             <Alerts selectedTruck={selectedTruck} refreshTrigger={refreshTrigger} />
             <FleetAlerts selectedDriver={selectedDriver} refreshTrigger={refreshTrigger} />
           </div>
