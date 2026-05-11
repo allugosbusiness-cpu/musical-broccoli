@@ -160,7 +160,7 @@ def get_mission_details(request, mission_id):
             'truck': {
                 'id': str(mission.truck.id),
                 'truck_identifier': mission.truck.truck_identifier,
-                'plate': mission.plate,
+                'plate': mission.truck.plate,
             } if mission.truck else None,
             'driver': {
                 'id': str(mission.driver.id),
