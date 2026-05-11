@@ -1,2 +1,2 @@
-release: python manage.py migrate && python create_fleet_activity_direct.py && python seed_fleet_data.py
-web: gunicorn Logistics.wsgi
+release: python manage.py migrate && python preflight_checks.py && python seed_fleet_data.py
+web: python preflight_checks.py && gunicorn Logistics.wsgi
