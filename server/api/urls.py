@@ -30,6 +30,9 @@ from .delivery_endpoints import (
 from .locations_endpoints import (
     location_search, location_types, location_autocomplete
 )
+from .tracking_endpoints import (
+    update_truck_location_speed, get_truck_current_location_speed, get_all_trucks_current_locations
+)
 from .fuel_views import (
     TruckFuelViewSet, FuelConsumptionViewSet, FuelAlertViewSet, FuelReportViewSet
 )
@@ -73,6 +76,11 @@ urlpatterns = [
     path('v1/locations/search/', location_search, name='location-search'),
     path('v1/locations/types/', location_types, name='location-types'),
     path('v1/locations/autocomplete/', location_autocomplete, name='location-autocomplete'),
+    
+    # Truck location and speed tracking endpoints (real-time from mobile app)
+    path('v1/truck-tracking/location-speed/', update_truck_location_speed, name='update-truck-location-speed'),
+    path('v1/truck-tracking/location-speed/<str:truck_id>/', get_truck_current_location_speed, name='get-truck-location-speed'),
+    path('v1/truck-tracking/all-locations/', get_all_trucks_current_locations, name='get-all-trucks-locations'),
     
     # Dashboard endpoints
     path('v1/dashboard/summary/', dashboard_summary, name='dashboard-summary'),

@@ -12,6 +12,7 @@ import QRCodeDisplay from "./components/QRCodeDisplay.jsx";
 import DriverLinkingMethods from "./components/DriverLinkingMethods.jsx";
 import AutoTrailActivation from "./components/AutoTrailActivation.jsx";
 import MissionCreationForm from "./components/MissionCreationForm.jsx";
+import TruckLocationSpeedWidget from "./components/TruckLocationSpeedWidget.jsx";
 import { getDashboardTrucks, getDashboardDrivers } from "./services/api.js";
 
 export default function App() {
@@ -206,6 +207,9 @@ export default function App() {
             )}
 
           <KPICards selectedTruck={selectedTruck} selectedDriver={selectedDriver} refreshTrigger={refreshTrigger} />
+
+          {/* TRUCK LOCATION & SPEED WIDGET - Real-time tracking */}
+          <TruckLocationSpeedWidget />
 
           {/* MAIN GRID - Global Map Full Width */}
           <div className="w-full rounded-xl overflow-hidden shadow-xl border border-slate-700/50">
