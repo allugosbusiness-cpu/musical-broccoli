@@ -389,4 +389,116 @@ try:
 except Exception as e:
     print(f"[WSGI] Warning during database check: {e}")
 
+# Seed initial data if tables are empty
+def ensure_initial_data():
+    """Ensure database has initial test data"""
+    try:
+        from api.models_v2 import FleetDriver, FleetTruck
+        
+        # Check if we already have data
+        if FleetDriver.objects.exists() and FleetTruck.objects.exists():
+            return
+        
+        print("[WSGI] Seeding initial database data...")
+        import uuid
+        from datetime import datetime
+        from django.db import transaction
+        
+        with transaction.atomic():
+            # Create drivers
+            drivers = []
+            driver_data = [
+                {'first_name': 'John', 'last_name': 'Driver', 'email': 'john.driver@example.com'},
+                {'first_name': 'Jane', 'last_name': 'Smith', 'email': 'jane.smith@example.com'},
+            ]
+            
+            for data in driver_data:
+                driver, _ = FleetDriver.objects.get_or_create(
+                    email=data['email'],
+                    defaults={
+                        'id': str(uuid.uuid4()),
+                        'fleet_id': str(uuid.uuid4()),
+                        'first_name': data['first_name'],
+                        'last_name': data['last_name'],
+                        'status': 'active',
+                        'on_duty': True,
+                    }
+                )
+                drivers.append(driver)
+            
+            # Create trucks
+            trucks_data = [
+                {
+                    'truck_identifier': 'trk2',
+                    'plate': 'ZWE-1001',
+                    'make': 'Volvo',
+                    'model': 'FH16',
+                    'year': 2020,
+                    'fuel_capacity_liters': 500,
+                    'status': 'idle',
+                    'is_moving': False,
+                    'last_latitude': -17.8252,
+                    'last_longitude': 31.0335,
+                },
+                {
+                    'truck_identifier': 'trk3',
+                    'plate': 'ATY 3272',
+                    'make': 'Mercedes',
+                    'model': 'Actros',
+                    'year': 2021,
+                    'fuel_capacity_liters': 600,
+                    'status': 'enroute',
+                    'is_moving': True,
+                    'last_latitude': -17.8256,
+                    'last_longitude': 31.0345,
+                },
+                {
+                    'truck_identifier': 'trk4',
+                    'plate': 'AQW7645',
+                    'make': 'Hino',
+                    'model': '500',
+                    'year': 2019,
+                    'fuel_capacity_liters': 400,
+                    'status': 'idle',
+                    'is_moving': False,
+                    'last_latitude': -17.8260,
+                    'last_longitude': 31.0340,
+                },
+                {
+                    'truck_identifier': 'TRK1',
+                    'plate': 'AXE5422',
+                    'make': 'Scania',
+                    'model': 'R500',
+                    'year': 2022,
+                    'fuel_capacity_liters': 550,
+                    'status': 'idle',
+                    'is_moving': False,
+                    'last_latitude': -17.8250,
+                    'last_longitude': 31.0330,
+                },
+            ]
+            
+            trucks = []
+            for i, data in enumerate(trucks_data):
+                truck, _ = FleetTruck.objects.get_or_create(
+                    plate=data['plate'],
+                    defaults={
+                        'id': str(uuid.uuid4()),
+                        'fleet_id': str(uuid.uuid4()),
+                        'assigned_driver': drivers[i % len(drivers)] if drivers else None,
+                        **data
+                    }
+                )
+                trucks.append(truck)
+            
+            print(f"[WSGI] Seeded {len(drivers)} drivers and {len(trucks)} trucks")
+            
+    except Exception as e:
+        print(f"[WSGI] Note: Could not seed data (may already exist): {e}")
+
+try:
+    ensure_initial_data()
+except Exception as e:
+    print(f"[WSGI] Warning during data seeding: {e}")
+
 application = get_wsgi_application()
