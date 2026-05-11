@@ -252,6 +252,8 @@ CREATE TABLE IF NOT EXISTS fleet_trucks (
     last_location_ts TIMESTAMP,
     assigned_driver TEXT,
     maintenance_due_date DATE,
+    current_location TEXT,
+    speed_kmh REAL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (assigned_driver) REFERENCES fleet_drivers(id)
@@ -398,6 +400,108 @@ try:
     print(f"\nVerification: Found {len(tables)} fleet tables:")
     for (table,) in tables:
         print(f"  - {table}")
+
+# Create FleetActivity table for audit trail
+print("\nCreating FleetActivity table for audit trail...")
+
+fleet_activity_sql_sqlite = """
+CREATE TABLE IF NOT EXISTS fleet_activities (
+    id TEXT PRIMARY KEY,
+    fleet_id TEXT NOT NULL,
+    truck_id TEXT,
+    driver_id TEXT,
+    mission_id TEXT,
+    activity_type TEXT NOT NULL,
+    activity_category TEXT,
+    location_lat REAL,
+    location_lon REAL,
+    location_name TEXT,
+    speed_kmh REAL,
+    distance_m REAL,
+    fuel_liters REAL,
+    fuel_percentage REAL,
+    alert_level TEXT,
+    breach_type TEXT,
+    violation_details TEXT,
+    mission_status_before TEXT,
+    mission_status_after TEXT,
+    metadata TEXT,
+    activity_date DATE,
+    activity_time TIME,
+    timestamp TIMESTAMP,
+    is_critical BOOLEAN DEFAULT 0,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (truck_id) REFERENCES fleet_trucks(id),
+    FOREIGN KEY (driver_id) REFERENCES fleet_drivers(id),
+    FOREIGN KEY (mission_id) REFERENCES fleet_missions(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_fleet_activities_fleet_type_ts ON fleet_activities(fleet_id, activity_type, timestamp);
+CREATE INDEX IF NOT EXISTS idx_fleet_activities_truck_date ON fleet_activities(truck_id, activity_date);
+CREATE INDEX IF NOT EXISTS idx_fleet_activities_driver_date ON fleet_activities(driver_id, activity_date);
+CREATE INDEX IF NOT EXISTS idx_fleet_activities_mission_ts ON fleet_activities(mission_id, timestamp);
+CREATE INDEX IF NOT EXISTS idx_fleet_activities_category_ts ON fleet_activities(activity_category, timestamp);
+CREATE INDEX IF NOT EXISTS idx_fleet_activities_critical_ts ON fleet_activities(is_critical, timestamp);
+CREATE INDEX IF NOT EXISTS idx_fleet_activities_ts ON fleet_activities(timestamp);
+"""
+
+fleet_activity_sql_postgres = """
+CREATE TABLE IF NOT EXISTS fleet_activities (
+    id UUID PRIMARY KEY,
+    fleet_id UUID NOT NULL,
+    truck_id UUID,
+    driver_id UUID,
+    mission_id UUID,
+    activity_type VARCHAR(50) NOT NULL,
+    activity_category VARCHAR(50),
+    location_lat NUMERIC(10,6),
+    location_lon NUMERIC(10,6),
+    location_name VARCHAR(255),
+    speed_kmh NUMERIC(5,2),
+    distance_m NUMERIC(12,2),
+    fuel_liters NUMERIC(10,2),
+    fuel_percentage NUMERIC(5,2),
+    alert_level VARCHAR(20),
+    breach_type VARCHAR(50),
+    violation_details TEXT,
+    mission_status_before VARCHAR(50),
+    mission_status_after VARCHAR(50),
+    metadata JSONB DEFAULT '{}',
+    activity_date DATE,
+    activity_time TIME,
+    timestamp TIMESTAMP,
+    is_critical BOOLEAN DEFAULT FALSE,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (truck_id) REFERENCES fleet_trucks(id),
+    FOREIGN KEY (driver_id) REFERENCES fleet_drivers(id),
+    FOREIGN KEY (mission_id) REFERENCES fleet_missions(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_fleet_activities_fleet_type_ts ON fleet_activities(fleet_id, activity_type, timestamp);
+CREATE INDEX IF NOT EXISTS idx_fleet_activities_truck_date ON fleet_activities(truck_id, activity_date);
+CREATE INDEX IF NOT EXISTS idx_fleet_activities_driver_date ON fleet_activities(driver_id, activity_date);
+CREATE INDEX IF NOT EXISTS idx_fleet_activities_mission_ts ON fleet_activities(mission_id, timestamp);
+CREATE INDEX IF NOT EXISTS idx_fleet_activities_category_ts ON fleet_activities(activity_category, timestamp);
+CREATE INDEX IF NOT EXISTS idx_fleet_activities_critical_ts ON fleet_activities(is_critical, timestamp);
+CREATE INDEX IF NOT EXISTS idx_fleet_activities_ts ON fleet_activities(timestamp);
+"""
+
+try:
+    with connection.cursor() as cursor:
+        if db_vendor == 'sqlite':
+            for statement in fleet_activity_sql_sqlite.split(';'):
+                if statement.strip():
+                    cursor.execute(statement)
+        else:
+            cursor.execute(fleet_activity_sql_postgres)
+    
+    connection.commit()
+    print("✓ FleetActivity table and indexes created successfully")
+    
+except Exception as e:
+    print(f"Warning: FleetActivity table creation failed (may already exist): {e}")
         
 except Exception as e:
     print(f"\nERROR creating tables: {e}")
