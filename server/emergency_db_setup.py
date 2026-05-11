@@ -400,6 +400,11 @@ try:
     print(f"\nVerification: Found {len(tables)} fleet tables:")
     for (table,) in tables:
         print(f"  - {table}")
+        
+except Exception as e:
+    print(f"\nERROR creating v2 tables: {e}")
+    import traceback
+    traceback.print_exc()
 
 # Create FleetActivity table for audit trail
 print("\nCreating FleetActivity table for audit trail...")
@@ -502,11 +507,5 @@ try:
     
 except Exception as e:
     print(f"Warning: FleetActivity table creation failed (may already exist): {e}")
-        
-except Exception as e:
-    print(f"\nERROR creating tables: {e}")
-    import traceback
-    traceback.print_exc()
-    sys.exit(1)
 
 print("\nEmergency database setup complete")
