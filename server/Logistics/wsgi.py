@@ -45,6 +45,13 @@ def ensure_database_tables():
             from django.db import connection
             
             with connection.cursor() as cursor:
+                # Log which database we're connecting to
+                print(f"[WSGI] Database vendor: {connection.vendor}")
+                print(f"[WSGI] Database settings: {connection.settings_dict.get('ENGINE', 'unknown')}")
+                db_name = connection.settings_dict.get('NAME', 'unknown')
+                if isinstance(db_name, str) and 'sqlite' in db_name.lower():
+                    print(f"[WSGI] WARNING: Using SQLite database: {db_name}")
+                
                 # Create fleet_drivers table
                 if connection.vendor == 'sqlite':
                     cursor.execute("""
@@ -54,12 +61,19 @@ def ensure_database_tables():
                             first_name TEXT NOT NULL,
                             last_name TEXT NOT NULL,
                             phone TEXT,
+                            phone_number TEXT UNIQUE,
                             email TEXT UNIQUE,
                             license_number TEXT UNIQUE,
                             license_state TEXT,
                             hire_date DATE,
                             status TEXT DEFAULT 'active',
                             on_duty INTEGER DEFAULT 0,
+                            is_active INTEGER DEFAULT 1,
+                            truck_id TEXT,
+                            latitude REAL,
+                            longitude REAL,
+                            current_speed REAL DEFAULT 0,
+                            last_location_update TIMESTAMP,
                             performance_mark REAL DEFAULT 0,
                             deliveries_count INTEGER DEFAULT 0,
                             last_active_at TIMESTAMP,
@@ -74,27 +88,27 @@ def ensure_database_tables():
                         CREATE TABLE IF NOT EXISTS fleet_trucks (
                             id TEXT PRIMARY KEY,
                             fleet_id TEXT NOT NULL,
-                            truck_identifier TEXT NOT NULL,
+                            truck_identifier TEXT NOT NULL UNIQUE,
                             plate TEXT NOT NULL UNIQUE,
                             vin TEXT UNIQUE,
-                            telematics_id TEXT,
+                            telematics_id TEXT UNIQUE,
                             make TEXT,
                             model TEXT,
                             year INTEGER,
-                            fuel_capacity_liters REAL,
+                            fuel_capacity_liters REAL DEFAULT 100,
                             fuel_consumed_liters REAL DEFAULT 0,
-                            odometer_km REAL,
+                            odometer_km REAL DEFAULT 0,
                             kilometers_travelled_km REAL DEFAULT 0,
                             status TEXT DEFAULT 'idle',
                             is_moving INTEGER DEFAULT 0,
                             last_latitude REAL,
                             last_longitude REAL,
                             last_location_ts TIMESTAMP,
-                            assigned_driver TEXT,
+                            assigned_driver_id TEXT,
                             maintenance_due_date DATE,
                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            FOREIGN KEY (assigned_driver) REFERENCES fleet_drivers(id)
+                            FOREIGN KEY (assigned_driver_id) REFERENCES fleet_drivers(id)
                         )
                     """)
                     cursor.execute("""
@@ -268,11 +282,11 @@ def ensure_database_tables():
                         last_latitude NUMERIC(9,6),
                         last_longitude NUMERIC(9,6),
                         last_location_ts TIMESTAMP,
-                        assigned_driver VARCHAR(36),
+                        assigned_driver_id VARCHAR(36),
                         maintenance_due_date DATE,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (assigned_driver) REFERENCES fleet_drivers(id)
+                        FOREIGN KEY (assigned_driver_id) REFERENCES fleet_drivers(id)
                     );
                     
                     CREATE TABLE IF NOT EXISTS fleet_missions (
