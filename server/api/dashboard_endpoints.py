@@ -79,9 +79,11 @@ def trucks_list_with_mission_data(request):
         data = get_trucks_with_mission_data()
         return Response(data, status=status.HTTP_200_OK)
     except Exception as e:
+        import traceback
         logger.error(f'Error getting trucks mission data: {str(e)}')
+        logger.error(f'Traceback: {traceback.format_exc()}')
         return Response(
-            {'error': 'Failed to get trucks mission data'},
+            {'error': 'Failed to get trucks mission data', 'detail': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
@@ -101,9 +103,11 @@ def missions_list_with_details(request):
         data = get_missions_with_details()
         return Response(data, status=status.HTTP_200_OK)
     except Exception as e:
+        import traceback
         logger.error(f'Error getting missions details: {str(e)}')
+        logger.error(f'Traceback: {traceback.format_exc()}')
         return Response(
-            {'error': 'Failed to get missions details'},
+            {'error': 'Failed to get missions details', 'detail': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 

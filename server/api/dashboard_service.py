@@ -423,7 +423,7 @@ def get_trucks_with_mission_data():
             'plate': truck.plate,
             'make': truck.make,
             'model': truck.model,
-            'status': status,
+            'status': str(status) if status else 'IDLE',  # Convert enum to string
             'location': location,
             'latitude': float(truck.last_latitude) if truck.last_latitude else None,
             'longitude': float(truck.last_longitude) if truck.last_longitude else None,
@@ -453,7 +453,7 @@ def get_missions_with_details():
             'mission_number': mission.mission_number,
             'truck_identifier': mission.truck.truck_identifier if mission.truck else 'Unassigned',
             'driver_name': mission.driver.get_display_name() if mission.driver else 'Unassigned',
-            'status': mission.status.upper(),  # Convert to uppercase for frontend
+            'status': str(mission.status).upper() if mission.status else 'PLANNED',  # Convert to uppercase string
             'priority': mission.priority,
             'progress_pct': float(progress_pct),  # Match frontend field name
             'distance_total_m': float(distance_m) if distance_m else 0,  # Keep in meters for frontend
