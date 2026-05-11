@@ -23,8 +23,9 @@ def ensure_database_tables():
     """Create v2 schema tables if they don't exist - handles migration state issues"""
     print("[WSGI] Starting database table check...")
     import os
+    from django.conf import settings as dj_settings
     print(f"[WSGI] Environment DATABASE_URL: {'DATABASE_URL' in os.environ}")
-    print(f"[WSGI] Django DEFAULT database ENGINE: {settings.DATABASES['default'].get('ENGINE', 'unknown')}")
+    print(f"[WSGI] Django DEFAULT database ENGINE: {dj_settings.DATABASES['default'].get('ENGINE', 'unknown')}")
     
     try:
         from django.db import connection
