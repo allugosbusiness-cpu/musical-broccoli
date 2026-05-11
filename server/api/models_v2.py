@@ -174,6 +174,10 @@ class FleetTruck(models.Model):
     last_longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
     last_location_ts = models.DateTimeField(blank=True, null=True)
     
+    # Real-time tracking from mobile app
+    current_location = models.JSONField(blank=True, null=True, default=dict)  # {'lat': float, 'lon': float, 'timestamp': iso}
+    speed_kmh = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, default=0)
+    
     assigned_driver = models.ForeignKey(FleetDriver, on_delete=models.SET_NULL, null=True, blank=True)
     maintenance_due_date = models.DateField(blank=True, null=True)
     
