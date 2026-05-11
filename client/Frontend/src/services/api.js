@@ -852,10 +852,15 @@ export const getDashboardDrivers = async () => {
 
 export const getDashboardTrucks = async () => {
   try {
+    console.log('📡 Fetching trucks from:', apiV1.defaults.baseURL + '/dashboard/trucks/');
     const response = await apiV1.get('/dashboard/trucks/');
+    console.log('✅ Trucks response:', response.data);
     return response.data || [];
   } catch (error) {
-    console.error('Error fetching dashboard trucks:', error);
+    console.error('❌ Error fetching dashboard trucks:', error.message);
+    console.error('   URL:', error.config?.url);
+    console.error('   Status:', error.response?.status);
+    console.error('   Data:', error.response?.data);
     return [];
   }
 };

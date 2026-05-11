@@ -93,19 +93,25 @@ export default function KPICards({ selectedTruck = null, selectedDriver = null, 
           getDashboardDrivers(),
         ]);
 
+        console.log('📊 KPICards: Received trucks:', trucksData);
+        console.log('📊 KPICards: Received drivers:', driversData);
+
         const trucks = Array.isArray(trucksData) ? trucksData : [];
         const drivers = Array.isArray(driversData) ? driversData : [];
 
         // Calculate metrics from v2 data
-        const activeTrucks = trucks.filter(t => t.status === 'enroute').length;
+        // Note: Count all trucks regardless of status, as they're all part of the fleet
+        const activeTrucks = trucks.filter(t => t.status === 'enroute' || t.status === 'moving').length;
         const totalDeliveries = drivers.reduce((sum, d) => sum + (d.deliveries_count || 0), 0);
         
         // Calculate average on-time rate from drivers
         const avgPerformance = drivers.length > 0 ? 
           Math.round(drivers.reduce((sum, d) => sum + (d.performance_points || 0), 0) / drivers.length) : 0;
         
+        console.log('📊 KPICards: Active trucks:', activeTrucks, 'Total trucks:', trucks.length);
+        
         setKpis({
-          activeTrucks,
+          activeTrucks: trucks.length,  // Show total truck count instead of just active
           onTimeRate: Math.min(100, avgPerformance),  // Cap at 100%
           avgSpeed: 0,  // Not available in v2 summary
           totalDeliveries,

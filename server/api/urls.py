@@ -21,6 +21,9 @@ from .mobile_endpoints import (
     mobile_mission_complete, generate_truck_qr, generate_mission_qr,
     validate_driver_pin, generate_driver_pin
 )
+from .mission_endpoints import (
+    create_mission, update_mission_status, get_mission_details, save_mission_tracking_data
+)
 from .delivery_endpoints import (
     mission_delivery_confirmed, driver_status, mission_details
 )
@@ -80,4 +83,9 @@ urlpatterns = [
     path('v1/mobile/mission/<str:mission_id>/delivery/', mission_delivery_confirmed, name='mission-delivery-confirmed'),
     path('v1/mobile/driver/<str:driver_id>/status/', driver_status, name='driver-status'),
     path('v1/mission/<str:mission_id>/details/', mission_details, name='mission-details'),
+    # Mission management endpoints
+    path('v1/missions/create/', create_mission, name='create-mission'),
+    path('v1/missions/<str:mission_id>/status/', update_mission_status, name='update-mission-status'),
+    path('v1/missions/<str:mission_id>/tracking-data/', save_mission_tracking_data, name='save-mission-tracking-data'),
+    path('v1/missions/<str:mission_id>/', get_mission_details, name='get-mission-details'),
 ]

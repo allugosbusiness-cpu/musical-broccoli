@@ -234,10 +234,27 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
    * Add truck marker to map with label
    */
   const addTruckMarker = (truck) => {
-    if (!map.current || !truck.latitude || !truck.longitude) return;
+    console.log(`🚚 addTruckMarker called for truck ${truck.identifier}:`, {
+      id: truck.id,
+      lat: truck.latitude,
+      lon: truck.longitude,
+      status: truck.status,
+      hasMap: !!map.current,
+    });
+
+    if (!map.current) {
+      console.error(`❌ Map not initialized for truck ${truck.identifier}`);
+      return;
+    }
+    
+    if (!truck.latitude || !truck.longitude) {
+      console.warn(`⚠️ Missing coordinates for truck ${truck.identifier}`);
+      return;
+    }
 
     // Remove old marker if exists
     if (markersRef.current[truck.id]) {
+      console.log(`🗑️ Removing old marker for truck ${truck.identifier}`);
       map.current.removeLayer(markersRef.current[truck.id]);
     }
 
@@ -440,12 +457,15 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
       try {
         console.log('📍 Fetching trucks from dashboard API...');
         const data = await getDashboardTrucks();
-        console.log('✅ Trucks fetched:', data?.length || 0, 'trucks');
+        console.log('✅ Trucks fetched:', data?.length || 0, 'trucks', data);
         
         const trucksArray = Array.isArray(data) ? data : [];
+        console.log(`🚚 Processing ${trucksArray.length} trucks for transformation`);
         
         // Transform v2 truck data to match expected format
         const transformedTrucks = await Promise.all(trucksArray.map(async (truck, index) => {
+          console.log(`  🔄 Transforming truck ${index + 1}/${trucksArray.length}:`, truck.truck_identifier);
+          
           // Use location from mission if available, otherwise use truck's last known position
           const coordLat = truck.location?.lat || truck.latitude;
           const coordLon = truck.location?.lon || truck.longitude;
@@ -459,7 +479,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
           // Assign unique color to each truck based on index
           const routeColor = getTruckRouteColor(index);
           
-          return {
+          const transformed = {
             id: truck.id,
             plate: truck.plate,
             identifier: truck.truck_identifier,
@@ -473,7 +493,12 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
             speed: 0,
             progress: 0,
           };
+          
+          console.log(`    ✅ Transformed ${truck.truck_identifier}:`, transformed);
+          return transformed;
         }));
+
+        console.log(`✅ All ${transformedTrucks.length} trucks transformed`, transformedTrucks);
 
         // Track events for each truck
         transformedTrucks.forEach(truck => {
@@ -498,11 +523,16 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
         );
 
         // Add truck markers to map
-        transformedTrucks.forEach(truck => {
+        console.log(`🗺️ Adding markers to map for ${transformedTrucks.length} trucks...`);
+        transformedTrucks.forEach((truck, idx) => {
+          console.log(`  📍 Adding marker ${idx + 1}/${transformedTrucks.length}: ${truck.identifier}`);
           if (truck.latitude && truck.longitude) {
             addTruckMarker(truck);
+          } else {
+            console.warn(`    ⚠️ Skipping marker - missing coordinates for ${truck.identifier}`);
           }
         });
+        console.log(`✅ All markers added to map`);
 
         setLoading(false);
       } catch (error) {

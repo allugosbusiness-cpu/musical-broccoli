@@ -61,13 +61,29 @@ export default function FleetTable({ onTruckSelect, highlightedTruck = null, ref
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [addresses, setAddresses] = useState({}); // Cache for addresses
+  const [apiDebug, setApiDebug] = useState(null); // For debugging
   const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     const fetchTrucks = async () => {
       try {
+        console.log('🚚 FleetTable: Fetching trucks...');
+        // First, let's test the API directly
+        try {
+          const testResponse = await fetch('https://musical-broccoli-production.up.railway.app/api/v1/dashboard/trucks/');
+          console.log('🚚 Direct fetch test status:', testResponse.status);
+          const testData = await testResponse.json();
+          console.log('🚚 Direct fetch data:', testData);
+          setApiDebug({ status: testResponse.status, dataLength: Array.isArray(testData) ? testData.length : 'not array' });
+        } catch (fetchError) {
+          console.error('🚚 Direct fetch error:', fetchError);
+          setApiDebug({ error: fetchError.message });
+        }
+        
         const data = await getDashboardTrucks();
+        console.log('🚚 FleetTable: Received data:', data);
         const trucksData = Array.isArray(data) ? data.slice(0, 50) : [];
+        console.log('🚚 FleetTable: Processed trucks:', trucksData.length, 'trucks');
         
         // Geocode all truck locations
         const addressMap = {};
@@ -160,6 +176,17 @@ export default function FleetTable({ onTruckSelect, highlightedTruck = null, ref
         </div>
       </div>
 
+      {/* Debug Info */}
+      {apiDebug && (
+        <div className="px-6 py-3 bg-slate-800/50 border-b border-slate-700/30 text-xs text-slate-400">
+          {apiDebug.error ? (
+            <span>❌ API Error: {apiDebug.error}</span>
+          ) : (
+            <span>✅ API Status: {apiDebug.status}, Data: {apiDebug.dataLength} items</span>
+          )}
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-800/50 border-b border-slate-700/50 sticky top-0">
@@ -194,7 +221,7 @@ export default function FleetTable({ onTruckSelect, highlightedTruck = null, ref
                   <td className="px-4 py-3 font-mono text-slate-300">{truck.plate}</td>
                   <td className="px-4 py-3 text-slate-200">{truck.assigned_driver || '—'}</td>
                   <td className="px-4 py-3"><StatusPill status={truck.status} /></td>
-                  <td className="px-4 py-3 text-slate-300 text-xs">{addresses[truck.truck_identifier] || (truck.location ? `${truck.location.lat?.toFixed(3)}, ${truck.location.lon?.toFixed(3)}` : '—')}</td>
+                  <td className="px-4 py-3 text-slate-300 text-xs">{addresses[truck.truck_identifier] || (truck.latitude ? `${truck.latitude?.toFixed(3)}, ${truck.longitude?.toFixed(3)}` : '—')}</td>
                   <td className="px-4 py-3 font-mono text-slate-300">{'—'}</td>
                   <td className="px-4 py-3 text-slate-400 text-xs">{'—'}</td>
                   <td className="px-4 py-3"><ProgressBar progress={0} status={truck.status} /></td>
