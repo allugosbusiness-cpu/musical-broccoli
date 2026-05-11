@@ -22,9 +22,17 @@ django.setup()
 def ensure_database_tables():
     """Create v2 schema tables if they don't exist - handles migration state issues"""
     print("[WSGI] Starting database table check...")
+    import os
+    print(f"[WSGI] Environment DATABASE_URL: {'DATABASE_URL' in os.environ}")
+    print(f"[WSGI] Django DEFAULT database ENGINE: {settings.DATABASES['default'].get('ENGINE', 'unknown')}")
+    
     try:
         from django.db import connection
         from api.models_v2 import FleetDriver
+        
+        print(f"[WSGI] Database vendor: {connection.vendor}")
+        print(f"[WSGI] Database ENGINE from connection: {connection.settings_dict.get('ENGINE', 'unknown')}")
+        print(f"[WSGI] Database NAME: {connection.settings_dict.get('NAME', 'unknown')}")
         
         # Quick check: try to query fleet_drivers
         count = FleetDriver.objects.count()
@@ -43,6 +51,7 @@ def ensure_database_tables():
         print("[WSGI] Creating v2 schema tables...")
         try:
             from django.db import connection
+            from django.conf import settings as dj_settings
             
             with connection.cursor() as cursor:
                 # Log which database we're connecting to
