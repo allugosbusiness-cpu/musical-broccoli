@@ -1,2 +1,2 @@
-release: python manage.py migrate && python seed_fleet_data.py
-web: gunicorn Logistics.wsgi
+release: python manage.py migrate && python init_db.py && python seed_fleet_data.py
+web: python init_db.py && gunicorn Logistics.wsgi
