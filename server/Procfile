@@ -1,2 +1,2 @@
-release: python manage.py migrate && python execute_init_sql.py && python seed_fleet_data.py
-web: gunicorn Logistics.wsgi_wrapper:application
+release: python manage.py migrate && python seed_fleet_data.py
+web: gunicorn Logistics.wsgi
