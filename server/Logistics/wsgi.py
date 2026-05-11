@@ -145,7 +145,9 @@ def ensure_database_tables():
                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                             started_at TIMESTAMP,
                             completed_at TIMESTAMP,
+                            delivered_at TIMESTAMP,
                             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            created_by_admin_id TEXT,
                             FOREIGN KEY (driver_id) REFERENCES fleet_drivers(id),
                             FOREIGN KEY (truck_id) REFERENCES fleet_trucks(id)
                         )
@@ -322,7 +324,9 @@ def ensure_database_tables():
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         started_at TIMESTAMP,
                         completed_at TIMESTAMP,
+                        delivered_at TIMESTAMP,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        created_by_admin_id VARCHAR(36),
                         FOREIGN KEY (driver_id) REFERENCES fleet_drivers(id),
                         FOREIGN KEY (truck_id) REFERENCES fleet_trucks(id)
                     );
