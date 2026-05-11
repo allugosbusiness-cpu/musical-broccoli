@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { getApiV1Base } from '../utils/helpers';
+
+const getApiV1Base = () => {
+  if (import.meta.env.MODE === 'development') return 'http://localhost:8000/api/v1';
+  return 'https://musical-broccoli-production.up.railway.app/api/v1';
+};
 
 const ActivityTable = () => {
   const [activities, setActivities] = useState([]);
