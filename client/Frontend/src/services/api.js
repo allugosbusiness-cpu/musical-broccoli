@@ -610,7 +610,16 @@ export const subscribeLiveOptimization = (vehicleId, destination) => {
 // V2 API ENDPOINTS (New Fleet Management System)
 // ============================================================
 
-const API_V1_BASE = 'http://localhost:8000/api/v1';
+// Dynamic API URL based on environment
+const getApiV1Base = () => {
+  if (import.meta.env.MODE === 'development') {
+    return 'http://localhost:8000/api/v1';
+  }
+  // Production: use Railway backend
+  return 'https://musical-broccoli-production.up.railway.app/api/v1';
+};
+
+const API_V1_BASE = getApiV1Base();
 
 const apiV1 = axios.create({
   baseURL: API_V1_BASE,
