@@ -57,6 +57,30 @@ class MissionEventType(models.TextChoices):
     RESUMED = 'resumed', 'Mission Resumed'
     DISPUTE_FILED = 'dispute_filed', 'Dispute Filed'
 
+class ActivityType(models.TextChoices):
+    """Comprehensive activity log types"""
+    TRAIL_RECORDED = 'trail_recorded', 'Trail Recorded'
+    MISSION_CREATED = 'mission_created', 'Mission Created'
+    MISSION_STARTED = 'mission_started', 'Mission Started'
+    MISSION_PAUSED = 'mission_paused', 'Mission Paused'
+    MISSION_RESUMED = 'mission_resumed', 'Mission Resumed'
+    MISSION_COMPLETED = 'mission_completed', 'Mission Completed'
+    MISSION_CANCELLED = 'mission_cancelled', 'Mission Cancelled'
+    LOCATION_UPDATE = 'location_update', 'Location Update'
+    SPEED_RECORDED = 'speed_recorded', 'Speed Recorded'
+    FUEL_UPDATE = 'fuel_update', 'Fuel Update'
+    ALERT_TRIGGERED = 'alert_triggered', 'Alert Triggered'
+    BREACH_DETECTED = 'breach_detected', 'Breach Detected'
+    DRIVER_CHECK_IN = 'driver_check_in', 'Driver Check In'
+    DRIVER_CHECK_OUT = 'driver_check_out', 'Driver Check Out'
+    MAINTENANCE_ALERT = 'maintenance_alert', 'Maintenance Alert'
+    SPEED_VIOLATION = 'speed_violation', 'Speed Violation'
+    GEOFENCE_BREACH = 'geofence_breach', 'Geofence Breach'
+    STOP_COMPLETED = 'stop_completed', 'Stop Completed'
+    CARGO_UPDATE = 'cargo_update', 'Cargo Update'
+    DISTANCE_RECORDED = 'distance_recorded', 'Distance Recorded'
+    OTHER = 'other', 'Other'
+
 class DisputeType(models.TextChoices):
     INCORRECT_LOCATION = 'incorrect_location', 'Incorrect Location'
     WRONG_CARGO = 'wrong_cargo', 'Wrong Cargo'
@@ -445,5 +469,116 @@ class TruckLocation(models.Model):
     
     def __str__(self):
         return f"{self.truck} @ {self.timestamp} ({self.speed}km/h)"
+
+
+# ============================================================
+# 10. COMPREHENSIVE ACTIVITY/AUDIT LOG MODEL
+# ============================================================
+
+class FleetActivity(models.Model):
+    """
+    Comprehensive audit log for all system activities.
+    Records all events: trails, missions, alerts, breaches, fuel, locations, speed.
+    Allows manager/owner to review all activities after weeks/months.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    fleet_id = models.UUIDField(db_index=True)
+    
+    # Primary relationships
+    truck = models.ForeignKey(FleetTruck, on_delete=models.SET_NULL, null=True, blank=True, 
+                             related_name='activities', db_index=True)
+    driver = models.ForeignKey(FleetDriver, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='activities', db_index=True)
+    mission = models.ForeignKey(FleetMission, on_delete=models.SET_NULL, null=True, blank=True,
+                               related_name='activities', db_index=True)
+    
+    # Activity classification
+    activity_type = models.CharField(max_length=50, choices=ActivityType.choices, 
+                                    default=ActivityType.OTHER, db_index=True)
+    activity_category = models.CharField(max_length=20, choices=[
+        ('mission', 'Mission'),
+        ('location', 'Location'),
+        ('speed', 'Speed'),
+        ('fuel', 'Fuel'),
+        ('alert', 'Alert'),
+        ('breach', 'Breach'),
+        ('driver', 'Driver'),
+        ('maintenance', 'Maintenance'),
+        ('trail', 'Trail'),
+        ('cargo', 'Cargo'),
+    ], db_index=True)
+    
+    # Location data
+    location_lat = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    location_lon = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    location_name = models.CharField(max_length=255, blank=True, null=True)
+    
+    # Tracking metrics
+    speed_kmh = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True, null=True)
+    distance_m = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True, null=True)
+    fuel_liters = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True)
+    fuel_percentage = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
+    
+    # Alert & Breach data
+    alert_level = models.CharField(max_length=20, choices=[
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('critical', 'Critical'),
+    ], blank=True, null=True)
+    breach_type = models.CharField(max_length=100, blank=True, null=True)
+    violation_details = models.TextField(blank=True, null=True)
+    
+    # Mission context
+    mission_status_before = models.CharField(max_length=20, blank=True, null=True)
+    mission_status_after = models.CharField(max_length=20, blank=True, null=True)
+    
+    # Flexible metadata storage
+    metadata = models.JSONField(blank=True, default=dict)
+    
+    # Timestamps
+    activity_date = models.DateField(db_index=True)  # For easy date filtering
+    activity_time = models.TimeField()
+    timestamp = models.DateTimeField(auto_now_add=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    # Status & visibility
+    is_critical = models.BooleanField(default=False, db_index=True)
+    notes = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        db_table = 'fleet_activities'
+        indexes = [
+            models.Index(fields=['fleet_id', 'activity_type', '-timestamp'], name='fleet_act_type_ts_idx'),
+            models.Index(fields=['truck', 'activity_date'], name='fleet_act_truck_date_idx'),
+            models.Index(fields=['driver', 'activity_date'], name='fleet_act_drv_date_idx'),
+            models.Index(fields=['mission', '-timestamp'], name='fleet_act_mission_ts_idx'),
+            models.Index(fields=['activity_category', '-timestamp'], name='fleet_act_cat_ts_idx'),
+            models.Index(fields=['is_critical', '-timestamp'], name='fleet_act_critical_idx'),
+            models.Index(fields=['-timestamp'], name='fleet_act_timestamp_idx'),
+        ]
+        ordering = ['-timestamp']
+        verbose_name = 'Fleet Activity'
+        verbose_name_plural = 'Fleet Activities'
+    
+    def __str__(self):
+        truck_name = self.truck.truck_identifier if self.truck else 'Unknown'
+        return f"{truck_name}: {self.get_activity_type_display()} @ {self.timestamp}"
+    
+    @property
+    def is_recent(self):
+        """Check if activity is from today"""
+        from django.utils import timezone
+        return self.activity_date == timezone.now().date()
+    
+    @property
+    def display_location(self):
+        """Return formatted location display"""
+        if self.location_name:
+            return self.location_name
+        if self.location_lat and self.location_lon:
+            return f"{float(self.location_lat):.4f}, {float(self.location_lon):.4f}"
+        return "Unknown"
 
 

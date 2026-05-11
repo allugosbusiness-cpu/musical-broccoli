@@ -13,6 +13,7 @@ import DriverLinkingMethods from "./components/DriverLinkingMethods.jsx";
 import AutoTrailActivation from "./components/AutoTrailActivation.jsx";
 import MissionCreationForm from "./components/MissionCreationForm.jsx";
 import TruckLocationSpeedWidget from "./components/TruckLocationSpeedWidget.jsx";
+import ActivityTable from "./components/ActivityTable.jsx";
 import { getDashboardTrucks, getDashboardDrivers } from "./services/api.js";
 
 export default function App() {
@@ -235,6 +236,9 @@ export default function App() {
 
           {/* FUEL TRACKING */}
           <FuelTracking refreshTrigger={refreshTrigger} />
+
+          {/* ACTIVITY AUDIT TRAIL */}
+          <ActivityTable />
 
           {/* BOTTOM PANELS */}
           <div className="grid md:grid-cols-2 gap-6">

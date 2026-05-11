@@ -33,6 +33,9 @@ from .locations_endpoints import (
 from .tracking_endpoints import (
     update_truck_location_speed, get_truck_current_location_speed, get_all_trucks_current_locations
 )
+from .activities_endpoints import (
+    log_activity, get_activities, get_activity_summary, get_critical_activities
+)
 from .fuel_views import (
     TruckFuelViewSet, FuelConsumptionViewSet, FuelAlertViewSet, FuelReportViewSet
 )
@@ -81,6 +84,12 @@ urlpatterns = [
     path('v1/truck-tracking/location-speed/', update_truck_location_speed, name='update-truck-location-speed'),
     path('v1/truck-tracking/location-speed/<str:truck_id>/', get_truck_current_location_speed, name='get-truck-location-speed'),
     path('v1/truck-tracking/all-locations/', get_all_trucks_current_locations, name='get-all-trucks-locations'),
+    
+    # Activity logging and audit trail endpoints
+    path('v1/activities/log/', log_activity, name='log-activity'),
+    path('v1/activities/', get_activities, name='get-activities'),
+    path('v1/activities/summary/', get_activity_summary, name='activity-summary'),
+    path('v1/activities/critical/', get_critical_activities, name='critical-activities'),
     
     # Dashboard endpoints
     path('v1/dashboard/summary/', dashboard_summary, name='dashboard-summary'),
