@@ -406,7 +406,13 @@ def get_drivers_with_performance():
 
 def get_trucks_with_mission_data():
     """Get all trucks with data synced from missions"""
-    trucks = FleetTruck.objects.all()
+    # Use .only() to avoid columns that might not exist in production DB
+    # This allows gradual schema migration
+    trucks = FleetTruck.objects.only(
+        'id', 'fleet_id', 'truck_identifier', 'plate', 'make', 'model',
+        'status', 'fuel_capacity_liters', 'last_latitude', 'last_longitude',
+        'assigned_driver', 'fuel_consumed_liters', 'kilometers_travelled_km', 'updated_at'
+    ).all()
     result = []
     for truck in trucks:
         # Sync data from missions
@@ -439,7 +445,13 @@ def get_trucks_with_mission_data():
 
 def get_missions_with_details():
     """Get all missions with driver and truck details"""
-    missions = FleetMission.objects.select_related('driver', 'truck').all()
+    # Use .only() to avoid columns that might not exist in production DB
+    missions = FleetMission.objects.select_related('driver', 'truck').only(
+        'id', 'fleet_id', 'mission_number', 'status', 'priority', 'progress_pct',
+        'distance_total_m', 'origin', 'destination', 'current_location',
+        'eta', 'created_at', 'started_at', 'completed_at', 'mission_date', 'stops',
+        'driver__id', 'truck__id', 'truck__truck_identifier'
+    ).all()
     result = []
     for mission in missions:
         # Calculate distance using OSRM if not already set
