@@ -79,7 +79,7 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
     setError(null);
 
     try {
-      const apiUrl = `${getApiV1Base()}/missions/create/`;
+      const apiUrl = `${getApiV1Base()}/api-missions/create/`;
       console.log('📝 Creating mission at:', apiUrl);
       console.log('📦 Mission data:', formData);
 

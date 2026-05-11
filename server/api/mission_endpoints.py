@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 @require_http_methods(["POST"])
 def create_mission(request):
     """
-    POST /api/v1/missions/create/
+    POST /api/v1/api-missions/create/
     
     Create a new mission
     
@@ -27,43 +27,49 @@ def create_mission(request):
         "identifier": "MIS001",
         "truck_id": "uuid",
         "driver_id": "uuid",
-        "status": "pending",  # pending, enroute, completed
         "origin": {"lat": -17.8, "lon": 31.0},
         "destination": {"lat": -17.9, "lon": 31.1},
         "planned_distance_km": 50,
-        "planned_duration_minutes": 120,
-        "notes": "Optional mission notes"
+        "planned_duration_minutes": 120
     }
     """
     try:
         data = json.loads(request.body)
-        logger.info(f"📝 Creating mission: {data.get('identifier')}")
+        identifier = data.get('identifier', f'MIS-{int(timezone.now().timestamp())}')
+        logger.info(f"📝 Creating mission: {identifier}")
+        
+        # Validate required fields
+        if not all(k in data for k in ['truck_id', 'driver_id', 'origin', 'destination']):
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
         
         with transaction.atomic():
+            # Get truck and driver instances
+            truck = FleetTruck.objects.get(id=data['truck_id'])
+            driver = FleetDriver.objects.get(id=data['driver_id'])
+            
+            # Convert km to meters
+            distance_m = float(data.get('planned_distance_km', 0)) * 1000
+            
             mission = FleetMission.objects.create(
-                identifier=data.get('identifier', f'MIS-{timezone.now().timestamp()}'),
-                truck_id=data.get('truck_id'),
-                driver_id=data.get('driver_id'),
-                status=data.get('status', 'pending'),
-                origin_lat=data.get('origin', {}).get('lat'),
-                origin_lon=data.get('origin', {}).get('lon'),
-                destination_lat=data.get('destination', {}).get('lat'),
-                destination_lon=data.get('destination', {}).get('lon'),
-                planned_distance_km=data.get('planned_distance_km', 0),
-                planned_duration_minutes=data.get('planned_duration_minutes', 0),
-                notes=data.get('notes', ''),
-                status_updated_at=timezone.now(),
-                created_at=timezone.now(),
-                updated_at=timezone.now(),
+                fleet_id=truck.fleet_id,
+                mission_number=identifier,
+                truck=truck,
+                driver=driver,
+                status='pending',
+                origin=data['origin'],  # {lat, lon}
+                destination=data['destination'],  # {lat, lon}
+                distance_total_m=distance_m,
+                distance_remaining_m=distance_m,
             )
             
-            logger.info(f"✅ Mission created: {mission.identifier}")
+            logger.info(f"✅ Mission created: {mission.mission_number}")
             return JsonResponse({
                 'id': str(mission.id),
-                'identifier': mission.identifier,
+                'mission_number': mission.mission_number,
                 'status': mission.status,
-                'truck_id': str(mission.truck_id),
-                'driver_id': str(mission.driver_id),
+                'truck_id': str(mission.truck.id),
+                'driver_id': str(mission.driver.id),
+                'distance_m': float(mission.distance_total_m),
                 'created_at': mission.created_at.isoformat(),
             }, status=201)
             

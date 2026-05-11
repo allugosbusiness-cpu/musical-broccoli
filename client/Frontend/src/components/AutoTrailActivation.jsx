@@ -108,8 +108,8 @@ export default function AutoTrailActivation({ onTrailStatusChange, onMissionEven
               completedTrail.status = 'completed';
               completedTrail.endTime = new Date();
 
-              // Save to database
-              await saveMissionTrackingData(mission.id, completedTrail);
+              // Save to database (fire and forget)
+              saveMissionTrackingData(mission.id, completedTrail);
 
               if (onMissionEvent) {
                 onMissionEvent({
@@ -193,7 +193,7 @@ export default function AutoTrailActivation({ onTrailStatusChange, onMissionEven
   const saveMissionTrackingData = async (missionId, trailData) => {
     try {
       const response = await fetch(
-        `https://musical-broccoli-production.up.railway.app/api/v1/missions/${missionId}/tracking-data/`,
+        `https://musical-broccoli-production.up.railway.app/api/v1/api-missions/${missionId}/tracking/`,
         {
           method: 'POST',
           headers: {

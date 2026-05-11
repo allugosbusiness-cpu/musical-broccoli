@@ -59,6 +59,13 @@ urlpatterns = [
     path('', include(router.urls)),
     path('v1/', include(router_v1.urls)),
     path('v1/calculate-distance/', calculate_distance, name='calculate-distance'),
+    
+    # ✅ Mission management endpoints (custom paths to avoid router conflicts)
+    path('v1/api-missions/create/', create_mission, name='create-mission'),
+    path('v1/api-missions/<str:mission_id>/status/', update_mission_status, name='update-mission-status'),
+    path('v1/api-missions/<str:mission_id>/tracking/', save_mission_tracking_data, name='save-mission-tracking-data'),
+    path('v1/api-missions/<str:mission_id>/details/', get_mission_details, name='get-mission-details'),
+    
     # Dashboard endpoints
     path('v1/dashboard/summary/', dashboard_summary, name='dashboard-summary'),
     path('v1/dashboard/drivers/', drivers_list_with_performance, name='dashboard-drivers'),
@@ -83,9 +90,4 @@ urlpatterns = [
     path('v1/mobile/mission/<str:mission_id>/delivery/', mission_delivery_confirmed, name='mission-delivery-confirmed'),
     path('v1/mobile/driver/<str:driver_id>/status/', driver_status, name='driver-status'),
     path('v1/mission/<str:mission_id>/details/', mission_details, name='mission-details'),
-    # Mission management endpoints
-    path('v1/missions/create/', create_mission, name='create-mission'),
-    path('v1/missions/<str:mission_id>/status/', update_mission_status, name='update-mission-status'),
-    path('v1/missions/<str:mission_id>/tracking-data/', save_mission_tracking_data, name='save-mission-tracking-data'),
-    path('v1/missions/<str:mission_id>/', get_mission_details, name='get-mission-details'),
 ]
