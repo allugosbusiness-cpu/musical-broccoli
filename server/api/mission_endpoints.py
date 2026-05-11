@@ -84,7 +84,7 @@ def create_mission(request):
 @require_http_methods(["PATCH"])
 def update_mission_status(request, mission_id):
     """
-    PATCH /api/v1/missions/{mission_id}/status/
+    PATCH /api/v1/api-missions/{mission_id}/status/
     
     Update mission status and trigger trail activation/deactivation
     
@@ -101,31 +101,34 @@ def update_mission_status(request, mission_id):
         old_status = mission.status
         new_status = data.get('status', mission.status)
         
-        logger.info(f"🔄 Updating mission {mission.identifier} from {old_status} to {new_status}")
+        logger.info(f"🔄 Updating mission {mission.mission_number} from {old_status} to {new_status}")
         
         with transaction.atomic():
             mission.status = new_status
-            mission.status_updated_at = timezone.now()
             mission.updated_at = timezone.now()
             
             # Update truck status and current location
             if mission.truck:
                 mission.truck.status = 'enroute' if new_status == 'enroute' else 'idle'
-                mission.truck.latitude = data.get('current_lat', mission.truck.latitude)
-                mission.truck.longitude = data.get('current_lon', mission.truck.longitude)
+                if data.get('current_lat'):
+                    mission.truck.current_location = {
+                        'lat': data['current_lat'],
+                        'lon': data['current_lon']
+                    }
                 mission.truck.save()
                 logger.info(f"  🚚 Truck {mission.truck.truck_identifier} status: {mission.truck.status}")
             
-            # When mission completes, save all tracking data
+            # When mission completes, save delivered time
             if new_status == 'completed' and old_status != 'completed':
                 mission.delivered_at = timezone.now()
-                logger.info(f"  ✅ Mission completed: {mission.identifier}")
+                mission.completed_at = timezone.now()
+                logger.info(f"  ✅ Mission completed: {mission.mission_number}")
             
             mission.save()
             
             return JsonResponse({
                 'id': str(mission.id),
-                'identifier': mission.identifier,
+                'mission_number': mission.mission_number,
                 'status': mission.status,
                 'truck_status': mission.truck.status if mission.truck else None,
                 'updated_at': mission.updated_at.isoformat(),
@@ -139,10 +142,11 @@ def update_mission_status(request, mission_id):
         return JsonResponse({'error': str(e)}, status=400)
 
 
+@csrf_exempt
 @require_http_methods(["GET"])
 def get_mission_details(request, mission_id):
     """
-    GET /api/v1/missions/{mission_id}/
+    GET /api/v1/api-missions/{mission_id}/details/
     
     Get full mission details including tracking data
     """
@@ -151,32 +155,25 @@ def get_mission_details(request, mission_id):
         
         return JsonResponse({
             'id': str(mission.id),
-            'identifier': mission.identifier,
+            'mission_number': mission.mission_number,
             'status': mission.status,
             'truck': {
                 'id': str(mission.truck.id),
-                'identifier': mission.truck.truck_identifier,
-                'plate': mission.truck.plate,
+                'truck_identifier': mission.truck.truck_identifier,
+                'plate': mission.plate,
             } if mission.truck else None,
             'driver': {
                 'id': str(mission.driver.id),
                 'name': f"{mission.driver.first_name} {mission.driver.last_name}",
             } if mission.driver else None,
-            'origin': {
-                'lat': mission.origin_lat,
-                'lon': mission.origin_lon,
-            },
-            'destination': {
-                'lat': mission.destination_lat,
-                'lon': mission.destination_lon,
-            },
-            'planned_distance_km': mission.planned_distance_km,
-            'planned_duration_minutes': mission.planned_duration_minutes,
-            'actual_distance_km': mission.actual_distance_km,
-            'actual_duration_minutes': mission.actual_duration_minutes,
-            'notes': mission.notes,
+            'origin': mission.origin,
+            'destination': mission.destination,
+            'distance_total_m': float(mission.distance_total_m),
+            'distance_remaining_m': float(mission.distance_remaining_m),
+            'progress_pct': float(mission.progress_pct),
             'created_at': mission.created_at.isoformat(),
             'started_at': mission.started_at.isoformat() if mission.started_at else None,
+            'completed_at': mission.completed_at.isoformat() if mission.completed_at else None,
             'delivered_at': mission.delivered_at.isoformat() if mission.delivered_at else None,
         }, status=200)
         
@@ -191,7 +188,7 @@ def get_mission_details(request, mission_id):
 @require_http_methods(["POST"])
 def save_mission_tracking_data(request, mission_id):
     """
-    POST /api/v1/missions/{mission_id}/tracking-data/
+    POST /api/v1/api-missions/{mission_id}/tracking/
     
     Save tracking data for completed missions (activities, alerts, routes)
     
@@ -214,14 +211,6 @@ def save_mission_tracking_data(request, mission_id):
                 "speedLimit": 100
             }
         ],
-        "routePoints": [
-            {
-                "latitude": -17.8,
-                "longitude": 31.0,
-                "speed": 0,
-                "timestamp": "2024-01-01T10:00:00Z"
-            }
-        ],
         "totalDistance": 50.5,
         "totalDuration": 120
     }
@@ -230,7 +219,7 @@ def save_mission_tracking_data(request, mission_id):
         mission = FleetMission.objects.get(id=mission_id)
         data = json.loads(request.body)
         
-        logger.info(f"💾 Saving tracking data for mission {mission.identifier}")
+        logger.info(f"💾 Saving tracking data for mission {mission.mission_number}")
         
         with transaction.atomic():
             # Save mission events (activities)
@@ -238,32 +227,26 @@ def save_mission_tracking_data(request, mission_id):
                 event = FleetMissionEvent.objects.create(
                     mission_id=mission_id,
                     event_type=activity.get('type', 'ACTIVITY'),
-                    latitude=activity.get('location', {}).get('lat'),
-                    longitude=activity.get('location', {}).get('lon'),
+                    location=activity.get('location', {}),
                     details=activity.get('details', ''),
-                    created_at=timezone.now(),
                 )
                 logger.info(f"  📌 Event saved: {event.event_type}")
             
             # Update mission with actual distance and duration
             if data.get('totalDistance'):
-                mission.actual_distance_km = data['totalDistance']
-            if data.get('totalDuration'):
-                mission.actual_duration_minutes = data['totalDuration']
+                mission.distance_remaining_m = 0
+                mission.progress_pct = 100
             
             mission.updated_at = timezone.now()
             mission.save()
             
-            logger.info(f"✅ Tracking data saved for mission {mission.identifier}")
+            logger.info(f"✅ Tracking data saved for mission {mission.mission_number}")
             
             return JsonResponse({
                 'id': str(mission.id),
-                'identifier': mission.identifier,
-                'actual_distance_km': mission.actual_distance_km,
-                'actual_duration_minutes': mission.actual_duration_minutes,
+                'mission_number': mission.mission_number,
                 'events_saved': len(data.get('activities', [])),
                 'alerts_saved': len(data.get('alerts', [])),
-                'route_points_saved': len(data.get('routePoints', [])),
             }, status=200)
             
     except FleetMission.DoesNotExist:
