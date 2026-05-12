@@ -185,6 +185,8 @@ CORS_EXPOSE_HEADERS = [
 
 # CSRF Configuration - Trust frontend domains for cross-origin requests
 CSRF_TRUSTED_ORIGINS = [
+    'https://web-production-691ff.up.railway.app',
+    'https://*.railway.app',
     'https://pulsetrack-frontend-henna.vercel.app',
     'https://*.vercel.app',
     'http://localhost:5173',
