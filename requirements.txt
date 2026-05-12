@@ -15,3 +15,5 @@ gunicorn
 whitenoise
 psycopg2-binary
 dj-database-url
+qrcode[pil]>=7.4
+Pillow>=10.0
