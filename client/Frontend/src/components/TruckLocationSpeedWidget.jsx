@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const getApiV1Base = () => {
-  if (import.meta.env.MODE === 'development') return 'http://localhost:8000/api/v1';
-  return 'https://pulsetrack-back.onrender.com/api/v1';
+const getApiBase = () => {
+  if (import.meta.env.MODE === 'development') return 'http://localhost:8000/api';
+  return 'https://pulsetrack-back.onrender.com/api';
 };
 
 /**
@@ -23,7 +23,7 @@ export default function TruckLocationSpeedWidget() {
       try {
         setLoading(true);
         const response = await axios.get(
-          `${getApiV1Base()}/trucks/all_trucks_with_trails/`
+          `${getApiBase()}/trucks/all_trucks_with_trails/`
         );
 
         if (response.data.trucks) {
