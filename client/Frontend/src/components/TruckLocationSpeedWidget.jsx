@@ -23,7 +23,7 @@ export default function TruckLocationSpeedWidget() {
       try {
         setLoading(true);
         const response = await axios.get(
-          `${getApiV1Base()}/truck-tracking/all-locations/`
+          `${getApiV1Base()}/trucks/all_trucks_with_trails/`
         );
 
         if (response.data.trucks) {

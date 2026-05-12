@@ -44,7 +44,7 @@ const ActivityTable = () => {
       if (filters.truck_id) params.truck_id = filters.truck_id;
       if (filters.driver_id) params.driver_id = filters.driver_id;
 
-      const response = await axios.get(`${API_BASE}/v1/activities/`, { params });
+      const response = await axios.get(`${API_BASE}/activities/`, { params });
       setActivities(response.data.activities || []);
       setTotalCount(response.data.total_count || 0);
     } catch (err) {
@@ -57,7 +57,7 @@ const ActivityTable = () => {
 
   const fetchSummary = async () => {
     try {
-      const response = await axios.get(`${API_BASE}/v1/activities/summary/`, {
+      const response = await axios.get(`${API_BASE}/activities/summary/`, {
         params: { days: filters.days },
       });
       setSummary(response.data);

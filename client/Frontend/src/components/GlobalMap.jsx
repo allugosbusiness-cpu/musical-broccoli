@@ -577,7 +577,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
       for (const truck of trucks) {
         try {
           const response = await fetch(
-            `http://localhost:8000/api/trucks/${truck.id}/truck_trail_with_directions/?limit=100`
+            `${getApiV1Base()}/trucks/${truck.id}/truck_trail_with_directions/?limit=100`
           );
           
           // Skip if endpoint not found (404 = new data model without legacy endpoint)

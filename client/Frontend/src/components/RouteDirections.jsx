@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
+const getApiV1Base = () => {
+  if (import.meta.env.MODE === 'development') return 'http://localhost:8000/api/v1';
+  return 'https://pulsetrack-back.onrender.com/api/v1';
+};
+
 export default function RouteDirections({ truckId, truckPlate, onClose }) {
   const [directions, setDirections] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -12,7 +17,7 @@ export default function RouteDirections({ truckId, truckPlate, onClose }) {
       try {
         setLoading(true);
         const response = await axios.get(
-          `http://localhost:8000/api/trucks/${truckId}/truck_trail_with_directions/`,
+          `${getApiV1Base()}/trucks/${truckId}/truck_trail_with_directions/`,
           { params: { limit: 300 } }
         );
         
