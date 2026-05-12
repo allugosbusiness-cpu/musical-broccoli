@@ -33,10 +33,10 @@ const getApiBaseUrl = () => {
 
   // Production - use Railway backend
   if (isProduction) {
-    return 'https://musical-broccoli-production.up.railway.app/api/v1';
+    return 'https://web-production-691ff.up.railway.app/api/v1';
   }
 
-  return 'https://musical-broccoli-production.up.railway.app/api/v1';
+  return 'https://web-production-691ff.up.railway.app/api/v1';
 };
 
 // Retry configuration for network resilience
