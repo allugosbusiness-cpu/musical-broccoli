@@ -453,6 +453,12 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
    * Load trucks on mount
    */
   useEffect(() => {
+    // Only fetch trucks if map is initialized
+    if (!map.current) {
+      console.log('⏳ Waiting for map to initialize before fetching trucks...');
+      return;
+    }
+
     const fetchTrucks = async () => {
       try {
         console.log('📍 Fetching trucks from dashboard API...');
@@ -522,17 +528,19 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
           }))
         );
 
-        // Add truck markers to map
-        console.log(`🗺️ Adding markers to map for ${transformedTrucks.length} trucks...`);
-        transformedTrucks.forEach((truck, idx) => {
-          console.log(`  📍 Adding marker ${idx + 1}/${transformedTrucks.length}: ${truck.identifier}`);
-          if (truck.latitude && truck.longitude) {
-            addTruckMarker(truck);
-          } else {
-            console.warn(`    ⚠️ Skipping marker - missing coordinates for ${truck.identifier}`);
-          }
-        });
-        console.log(`✅ All markers added to map`);
+        // Add truck markers to map (only if map is ready)
+        if (map.current) {
+          console.log(`🗺️ Adding markers to map for ${transformedTrucks.length} trucks...`);
+          transformedTrucks.forEach((truck, idx) => {
+            console.log(`  📍 Adding marker ${idx + 1}/${transformedTrucks.length}: ${truck.identifier}`);
+            if (truck.latitude && truck.longitude) {
+              addTruckMarker(truck);
+            } else {
+              console.warn(`    ⚠️ Skipping marker - missing coordinates for ${truck.identifier}`);
+            }
+          });
+          console.log(`✅ All markers added to map`);
+        }
 
         setLoading(false);
       } catch (error) {
@@ -544,7 +552,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
     fetchTrucks();
     const interval = setInterval(fetchTrucks, 30000); // Update every 30 seconds
     return () => clearInterval(interval);
-  }, [previousTrucks, highlightedTruck, refreshTrigger]);
+  }, [map.current, previousTrucks, highlightedTruck, refreshTrigger]);
 
   /**
    * Update selectedTruckData when selectedTruck changes
