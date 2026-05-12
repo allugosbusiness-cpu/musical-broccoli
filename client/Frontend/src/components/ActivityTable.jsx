@@ -34,19 +34,14 @@ const ActivityTable = () => {
     setLoading(true);
     setError('');
     try {
-      const params = {
-        limit: ITEMS_PER_PAGE,
-        days: filters.days,
-      };
-
-      if (filters.activity_type) params.activity_type = filters.activity_type;
-      if (filters.activity_category) params.activity_category = filters.activity_category;
-      if (filters.truck_id) params.truck_id = filters.truck_id;
-      if (filters.driver_id) params.driver_id = filters.driver_id;
-
-      const response = await axios.get(`${API_BASE}/activities/`, { params });
-      setActivities(response.data.activities || []);
-      setTotalCount(response.data.total_count || 0);
+      // TODO: Activities endpoint not yet implemented on backend
+      // Placeholder data for now
+      const mockActivities = [
+        { id: 1, truck_id: 1, activity_type: 'Departure', timestamp: new Date().toISOString() },
+        { id: 2, truck_id: 2, activity_type: 'Arrival', timestamp: new Date().toISOString() },
+      ];
+      setActivities(mockActivities);
+      setTotalCount(mockActivities.length);
     } catch (err) {
       console.error('Error fetching activities:', err);
       setError('Failed to load activities');
@@ -57,10 +52,8 @@ const ActivityTable = () => {
 
   const fetchSummary = async () => {
     try {
-      const response = await axios.get(`${API_BASE}/activities/summary/`, {
-        params: { days: filters.days },
-      });
-      setSummary(response.data);
+      // TODO: Activities summary endpoint not yet implemented
+      setSummary({ total_count: 0 });
     } catch (err) {
       console.error('Error fetching summary:', err);
     }

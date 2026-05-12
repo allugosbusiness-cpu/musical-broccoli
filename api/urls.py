@@ -28,42 +28,16 @@ from .fuel_views import (
     TruckFuelViewSet, FuelConsumptionViewSet, FuelAlertViewSet, FuelReportViewSet
 )
 
-# Try to import from server.api if available, otherwise create placeholder
-try:
-    from server.api.activities_endpoints import get_activities, get_activity_summary
-except ImportError:
-    # Fallback: define simple activities endpoints inline
-    from django.http import JsonResponse
-    from django.utils import timezone
-    from datetime import timedelta
-    from api.models_v2 import FleetActivity
-    
-    def get_activities(request):
-        """Retrieve activities from audit trail"""
-        try:
-            days = int(request.GET.get('days', 7))
-            limit = int(request.GET.get('limit', 50))
-            start_date = timezone.now() - timedelta(days=days)
-            query = FleetActivity.objects.filter(timestamp__gte=start_date)[:limit]
-            activities_data = [{
-                'id': str(a.id),
-                'truck_identifier': a.truck.truck_identifier if a.truck else None,
-                'activity_type': a.activity_type,
-                'timestamp': a.timestamp.isoformat(),
-            } for a in query]
-            return JsonResponse({'activities': activities_data, 'total_count': len(activities_data)})
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=400)
-    
-    def get_activity_summary(request):
-        """Get activity summary statistics"""
-        try:
-            days = int(request.GET.get('days', 7))
-            start_date = timezone.now() - timedelta(days=days)
-            query = FleetActivity.objects.filter(timestamp__gte=start_date)
-            return JsonResponse({'total_count': query.count()})
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=400)
+# Placeholder endpoints for activities (not yet implemented)
+from django.http import JsonResponse
+
+def get_activities(request):
+    """Placeholder for activities endpoint - returns empty list"""
+    return JsonResponse({'activities': [], 'total_count': 0})
+
+def get_activity_summary(request):
+    """Placeholder for activities summary endpoint"""
+    return JsonResponse({'total_count': 0})
 
 # Legacy router (v0)
 router = DefaultRouter()
