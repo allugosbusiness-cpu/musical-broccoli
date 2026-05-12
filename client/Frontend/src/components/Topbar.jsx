@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from "react";
-import { BarChart3, Settings, QrCode } from "lucide-react";
+import { BarChart3, Settings, QrCode, BarChart4 } from "lucide-react";
 
 export default function Topbar({ currentView = 'dashboard', onViewChange = () => {}, selectedTruck = null, selectedDriver = null }) {
   const [time, setTime] = useState("");
@@ -77,6 +77,18 @@ export default function Topbar({ currentView = 'dashboard', onViewChange = () =>
         >
           <QrCode size={18} />
           QR Code
+        </button>
+
+        <button
+          onClick={() => onViewChange('activity')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-sm font-medium ${
+            currentView === 'activity'
+              ? 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-lg'
+              : 'text-slate-300 hover:bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm'
+          }`}
+        >
+          <BarChart4 size={18} />
+          Activities
         </button>
       </div>
 

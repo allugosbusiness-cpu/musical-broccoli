@@ -106,6 +106,10 @@ export default function App() {
           onSelectDriver={handleSelectDriver}
           onDataChanged={triggerRefresh}
         />
+      ) : currentView === 'activity' ? (
+        <div className="p-6 max-w-[1600px] mx-auto">
+          <ActivityTable />
+        </div>
       ) : currentView === 'qr' ? (
         <div className="p-6 max-w-[1600px] mx-auto">
           <h1 className="text-3xl font-bold text-slate-100 mb-2">🔗 PulseTrack Driver Linking</h1>
