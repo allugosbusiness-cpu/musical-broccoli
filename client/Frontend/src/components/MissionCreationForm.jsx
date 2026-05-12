@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const getApiV1Base = () => {
   if (import.meta.env.MODE === 'development') return 'http://localhost:8000/api/v1';
-  return 'https://musical-broccoli-production.up.railway.app/api/v1';
+  return 'https://pulsetrack-back.onrender.com/api/v1';
 };
 
 /**

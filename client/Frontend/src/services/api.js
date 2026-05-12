@@ -650,8 +650,8 @@ const getApiV1Base = () => {
   if (import.meta.env.MODE === 'development') {
     return 'http://localhost:8000/api/v1';
   }
-  // Production: use Railway backend
-  return 'https://musical-broccoli-production.up.railway.app/api/v1';
+  // Production: use Render backend
+  return 'https://pulsetrack-back.onrender.com/api/v1';
 };
 
 const API_V1_BASE = getApiV1Base();

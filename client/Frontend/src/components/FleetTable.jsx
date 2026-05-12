@@ -70,7 +70,7 @@ export default function FleetTable({ onTruckSelect, highlightedTruck = null, ref
         console.log('🚚 FleetTable: Fetching trucks...');
         // First, let's test the API directly
         try {
-          const testResponse = await fetch('https://musical-broccoli-production.up.railway.app/api/v1/dashboard/trucks/');
+          const testResponse = await fetch('https://pulsetrack-back.onrender.com/api/v1/dashboard/trucks/');
           console.log('🚚 Direct fetch test status:', testResponse.status);
           const testData = await testResponse.json();
           console.log('🚚 Direct fetch data:', testData);
