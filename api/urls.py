@@ -51,6 +51,11 @@ router_v1.register(r'trucks', TruckViewSetV2, basename='truck-v1')
 router_v1.register(r'missions', MissionViewSet, basename='mission')
 router_v1.register(r'disputes', MissionDisputeViewSet, basename='dispute')
 router_v1.register(r'performance', DriverPerformanceViewSet, basename='performance')
+router_v1.register(r'alerts', AlertViewSet, basename='alert-v1')
+router_v1.register(r'fuel-alerts', FuelAlertViewSet, basename='fuel-alert-v1')
+router_v1.register(r'fuel', TruckFuelViewSet, basename='fuel-v1')
+router_v1.register(r'fuel-consumption', FuelConsumptionViewSet, basename='fuel-consumption-v1')
+router_v1.register(r'fuel-reports', FuelReportViewSet, basename='fuel-report-v1')
 
 urlpatterns = [
     path('', include(router.urls)),
