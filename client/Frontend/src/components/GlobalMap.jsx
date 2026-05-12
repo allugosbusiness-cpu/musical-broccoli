@@ -600,9 +600,9 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
             `${getApiBase()}/trucks/${truck.id}/truck_trail_with_directions/?limit=100`
           );
           
-          // Skip if endpoint not found (404 = new data model without legacy endpoint)
+          // Skip if endpoint not found (404 = no trail data yet for this truck)
           if (response.status === 404) {
-            console.debug(`⏭️ Trail endpoint not available for truck ${truck.id} (UUID-based model)`);
+            console.debug(`⏭️ No trail data for truck ${truck.id} (truck hasn't been tracked yet)`);
             continue;
           }
 
@@ -644,7 +644,12 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
           trailLayersRef.current[truck.id] = trailPolyline;
           console.log(`✅ Trail loaded for ${truck.id}: ${coords.length} points`);
         } catch (error) {
-          console.warn(`⚠️ Could not load trail for ${truck.id}:`, error.message);
+          // Only log actual network errors, not 404s
+          if (error.message !== 'Failed to fetch') {
+            console.debug(`⏭️ Trail not available for ${truck.id}`);
+          } else {
+            console.warn(`⚠️ Network error loading trail for ${truck.id}:`, error.message);
+          }
         }
       }
     };
