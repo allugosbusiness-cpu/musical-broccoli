@@ -92,12 +92,23 @@ WSGI_APPLICATION = 'Logistics.wsgi.application'
 
 # Railway automatically sets DATABASE_URL environment variable
 if os.environ.get('DATABASE_URL'):
-    DATABASES = {
-        'default': dj_database_url.config(
-            conn_max_age=600,
-            conn_health_checks=True,
-        )
-    }
+    try:
+        DATABASES = {
+            'default': dj_database_url.config(
+                conn_max_age=600,
+                conn_health_checks=True,
+            )
+        }
+    except Exception as e:
+        # If dj_database_url parsing fails, log it and use SQLite fallback
+        import sys
+        print(f"ERROR: Failed to parse DATABASE_URL: {e}", file=sys.stderr)
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
 else:
     # Local development: Use SQLite
     DATABASES = {
