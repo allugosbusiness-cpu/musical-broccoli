@@ -13,10 +13,15 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 from decouple import config
 import os
+import sys
 import dj_database_url
+
+# Debug: Print when settings are being loaded
+print(f"[SETTINGS] Loading Logistics.settings", file=sys.stderr)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+print(f"[SETTINGS] BASE_DIR: {BASE_DIR}", file=sys.stderr)
 
 
 # Quick-start development settings - unsuitable for production
@@ -90,8 +95,11 @@ WSGI_APPLICATION = 'Logistics.wsgi.application'
 # Database - PostgreSQL on Railway, SQLite for local development
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
+print(f"[SETTINGS] Configuring database...", file=sys.stderr)
+
 # Railway automatically sets DATABASE_URL environment variable
 if os.environ.get('DATABASE_URL'):
+    print(f"[SETTINGS] DATABASE_URL is set, parsing...", file=sys.stderr)
     try:
         DATABASES = {
             'default': dj_database_url.config(
@@ -99,10 +107,15 @@ if os.environ.get('DATABASE_URL'):
                 conn_health_checks=True,
             )
         }
+        print(f"[SETTINGS] ✓ Database configured from DATABASE_URL", file=sys.stderr)
+        print(f"[SETTINGS]   Engine: {DATABASES['default'].get('ENGINE', 'UNKNOWN')}", file=sys.stderr)
+        print(f"[SETTINGS]   Host: {DATABASES['default'].get('HOST', 'UNKNOWN')}", file=sys.stderr)
     except Exception as e:
         # If dj_database_url parsing fails, log it and use SQLite fallback
-        import sys
-        print(f"ERROR: Failed to parse DATABASE_URL: {e}", file=sys.stderr)
+        print(f"[SETTINGS] ✗ ERROR: Failed to parse DATABASE_URL: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        print(f"[SETTINGS] Falling back to SQLite", file=sys.stderr)
         DATABASES = {
             'default': {
                 'ENGINE': 'django.db.backends.sqlite3',
@@ -111,6 +124,7 @@ if os.environ.get('DATABASE_URL'):
         }
 else:
     # Local development: Use SQLite
+    print(f"[SETTINGS] DATABASE_URL not set, using SQLite", file=sys.stderr)
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
