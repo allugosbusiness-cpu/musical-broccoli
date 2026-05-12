@@ -15,6 +15,12 @@ const getApiV1Base = () => {
   return 'https://pulsetrack-back.onrender.com/api/v1';
 };
 
+// Helper to get legacy API base URL (without v1)
+const getApiBase = () => {
+  if (import.meta.env.MODE === 'development') return 'http://localhost:8000/api';
+  return 'https://pulsetrack-back.onrender.com/api';
+};
+
 // Fix Leaflet default marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -591,7 +597,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
       for (const truck of trucks) {
         try {
           const response = await fetch(
-            `${getApiV1Base()}/trucks/${truck.id}/truck_trail_with_directions/?limit=100`
+            `${getApiBase()}/trucks/${truck.id}/truck_trail_with_directions/?limit=100`
           );
           
           // Skip if endpoint not found (404 = new data model without legacy endpoint)
