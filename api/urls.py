@@ -84,16 +84,18 @@ urlpatterns = [
     path('v1/mobile/driver-registration/', mobile_driver_registration, name='mobile-driver-registration'),
     path('v1/mobile/location-update/', mobile_location_update, name='mobile-location-update'),
     path('v1/mobile/alert/', mobile_alert, name='mobile-alert'),
-    path('v1/mobile/driver/<str:driver_id>/', mobile_driver_profile, name='mobile-driver-profile'),
+    # Mission selection and tracking (MUST BE BEFORE generic driver/<id>/ route)
+    path('v1/mobile/driver/<str:driver_id>/available-missions/', get_available_missions, name='get-available-missions'),
     path('v1/mobile/driver/<str:driver_id>/current-mission/', mobile_driver_current_mission, name='mobile-driver-current-mission'),
     path('v1/mobile/driver/<str:driver_id>/missions/', mobile_driver_missions, name='mobile-driver-missions'),
+    path('v1/mobile/driver/<str:driver_id>/status/', driver_status, name='driver-status'),
+    # Generic driver profile endpoint (MUST BE LAST in driver/<id>/ group)
+    path('v1/mobile/driver/<str:driver_id>/', mobile_driver_profile, name='mobile-driver-profile'),
     path('v1/mobile/mission/<str:mission_id>/complete/', mobile_mission_complete, name='mobile-mission-complete'),
     path('v1/mobile/truck/<str:truck_id>/generate-qr/', generate_truck_qr, name='generate-truck-qr'),
     path('v1/mobile/mission/<str:mission_id>/generate-qr/', generate_mission_qr, name='generate-mission-qr'),
     path('v1/mobile/truck/<str:truck_id>/generate-pin/', generate_driver_pin, name='generate-driver-pin'),
     path('v1/mobile/validate-pin/', validate_driver_pin, name='validate-driver-pin'),
-    # Mission selection and tracking
-    path('v1/mobile/driver/<str:driver_id>/available-missions/', get_available_missions, name='get-available-missions'),
     path('v1/mobile/mission/start-tracking/', start_mission_tracking, name='start-mission-tracking'),
     # Delivery confirmation endpoints
     path('v1/mobile/mission/<str:mission_id>/delivery/', mission_delivery_confirmed, name='mission-delivery-confirmed'),
