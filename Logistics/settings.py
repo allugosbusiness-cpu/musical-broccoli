@@ -33,13 +33,15 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-jog5cd&da78_mp8ugp*z6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-# Allow Railway, Vercel frontend, localhost, and development hosts
+# Allow Railway, Render, Vercel frontend, localhost, and development hosts
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '*.railway.app',
     'pulsetrack-backend*.railway.app',
     'pulsetrack*.railway.app',
+    '*.render.com',
+    'pulsetrack-backend.render.com',
     '*.vercel.app',
     'pulsetrack-frontend*.vercel.app',
     '192.168.1.236',
@@ -179,9 +181,10 @@ if DEBUG:
     # Also allow all origins in development for flexibility
     CORS_ALLOW_ALL_ORIGINS = True
 else:
-    # Production: Allow Vercel frontend and set all origins to True for testing
+    # Production: Allow Vercel frontend and Render backend
     CORS_ALLOWED_ORIGINS = [
         'https://pulsetrack-frontend-henna.vercel.app',
+        'https://pulsetrack-backend.render.com',
         'https://pulsetrack.example.com',
         'https://app.pulsetrack.example.com',
     ]
@@ -212,6 +215,8 @@ CORS_EXPOSE_HEADERS = [
 CSRF_TRUSTED_ORIGINS = [
     'https://web-production-691ff.up.railway.app',
     'https://*.railway.app',
+    'https://*.render.com',
+    'https://pulsetrack-backend.render.com',
     'https://pulsetrack-frontend-henna.vercel.app',
     'https://*.vercel.app',
     'http://localhost:5173',

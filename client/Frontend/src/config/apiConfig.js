@@ -31,12 +31,22 @@ const getApiBaseUrl = () => {
     return 'http://localhost:8000/api';
   }
 
-  // Production - use Railway backend
+  // Production - check environment variable first, fallback to Railway
   if (isProduction) {
-    return 'https://web-production-691ff.up.railway.app/api/v1';
+    // VITE_BACKEND_URL can be set in .env.production or Vercel environment variables
+    const backendUrl = import.meta.env.VITE_BACKEND_URL;
+    
+    if (backendUrl) {
+      return `${backendUrl}/api/v1`;
+    }
+    
+    // Default: Try Render first, fallback to Railway
+    // Update this if you switch backends
+    return 'https://pulsetrack-backend.render.com/api/v1';
+    // Alternative (Railway): 'https://web-production-691ff.up.railway.app/api/v1'
   }
 
-  return 'https://web-production-691ff.up.railway.app/api/v1';
+  return 'https://pulsetrack-backend.render.com/api/v1';
 };
 
 // Retry configuration for network resilience

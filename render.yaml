@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: pulsetrack-backend
+    runtime: python310
+    region: ohio  # Change to your preferred region: ohio, oregon, frankfurt, singapore, sydney
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate
+    startCommand: gunicorn Logistics.wsgi:application --bind 0.0.0.0:$PORT --workers 4 --worker-class sync --timeout 60
+    envVars:
+      - key: DEBUG
+        value: false
+      - key: PYTHON_VERSION
+        value: 3.10.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: "*.render.com,*.railway.app,*.vercel.app,localhost,127.0.0.1"
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://pulsetrack-frontend-henna.vercel.app,https://*.render.com"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pulsetrack-db
+          property: connectionString
+
+  - type: pserv
+    name: pulsetrack-db
+    runtime: postgres15
+    region: ohio
+    plan: free
+    initialDatabase: railway
+    postgresMajorVersion: 15
