@@ -15,5 +15,6 @@ folium
 gunicorn
 whitenoise
 psycopg2-binary
-qrcode[pil]
-Pillow
+qrcode[pil]>=7.4 
+Pillow>=10.0
+qrcode
