@@ -212,13 +212,15 @@ CORS_EXPOSE_HEADERS = [
 ]
 
 # CSRF Configuration - Trust frontend domains for cross-origin requests
+# CSRF trusted origins for web frontend and mobile app cross-network communication
 CSRF_TRUSTED_ORIGINS = [
-    'https://web-production-691ff.up.railway.app',
-    'https://*.railway.app',
+    # Render backend domains
+    'https://pulsetrack-back.onrender.com',
     'https://*.render.com',
-    'https://pulsetrack-backend.render.com',
+    # Web frontend
     'https://pulsetrack-frontend-henna.vercel.app',
     'https://*.vercel.app',
+    # Local development (web frontend ports)
     'http://localhost:5173',
     'http://localhost:5174',
     'http://localhost:5175',
@@ -233,6 +235,12 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:5178',
     'http://192.168.1.236:5173',
     'http://192.168.0.0:5173',
+    # Mobile app cross-network communication
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    'http://192.168.1.236:8000',
+    'http://10.0.2.2:8000',
+    'https://pulsetrack-back.onrender.com:8000',
 ]
 
 # CSRF Cookie Settings - Allow frontend to read and send CSRF token
