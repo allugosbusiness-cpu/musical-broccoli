@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from api.models_v2 import FleetTruck, FleetDriver
+from api.models_v2 import FleetTruck, FleetDriver, FleetMission
 import uuid
 
 class Command(BaseCommand):
@@ -42,4 +42,70 @@ class Command(BaseCommand):
         
         self.stdout.write(self.style.SUCCESS(f'✓ Truck ID: {truck.id}'))
         self.stdout.write(self.style.SUCCESS(f'✓ Fleet ID: {truck.fleet_id}'))
-        self.stdout.write(self.style.SUCCESS(f'✓ Truck registered successfully - Ready for QR code registration!'))
+        
+        # Create test driver
+        test_driver_id = '570eb29f-ee89-4676-9d16-0fe7593ae8d8'
+        try:
+            driver = FleetDriver.objects.get(id=test_driver_id)
+            self.stdout.write(self.style.WARNING(f'⚠ Test driver already exists: {driver.get_display_name()}'))
+        except FleetDriver.DoesNotExist:
+            driver = FleetDriver.objects.create(
+                id=test_driver_id,
+                fleet_id=test_fleet_id,
+                phone_number='+256700000000',
+                first_name='Test',
+                last_name='Driver',
+                email='test@example.com',
+                truck=truck,
+                is_active=True,
+                on_duty=True
+            )
+            self.stdout.write(self.style.SUCCESS(f'✓ Created test driver: {driver.get_display_name()}'))
+        
+        # Create sample missions for testing
+        sample_missions = [
+            {
+                'mission_number': 'MISSION-001',
+                'status': 'planned',
+                'origin': {'lat': 6.9271, 'lng': 33.7347},
+                'destination': {'lat': 6.8, 'lng': 33.5},
+                'distance_total_m': 12500,
+                'cargo': {'item': 'Medical supplies', 'weight_kg': 150}
+            },
+            {
+                'mission_number': 'MISSION-002',
+                'status': 'planned',
+                'origin': {'lat': 6.9271, 'lng': 33.7347},
+                'destination': {'lat': 7.0, 'lng': 33.9},
+                'distance_total_m': 18500,
+                'cargo': {'item': 'Food items', 'weight_kg': 250}
+            },
+            {
+                'mission_number': 'MISSION-003',
+                'status': 'assigned',
+                'origin': {'lat': 6.9271, 'lng': 33.7347},
+                'destination': {'lat': 6.75, 'lng': 33.6},
+                'distance_total_m': 25000,
+                'cargo': {'item': 'Emergency supplies', 'weight_kg': 300}
+            }
+        ]
+        
+        for mission_data in sample_missions:
+            if not FleetMission.objects.filter(mission_number=mission_data['mission_number']).exists():
+                FleetMission.objects.create(
+                    id=uuid.uuid4(),
+                    fleet_id=test_fleet_id,
+                    truck=truck,
+                    driver=driver,
+                    mission_number=mission_data['mission_number'],
+                    status=mission_data['status'],
+                    origin=mission_data['origin'],
+                    destination=mission_data['destination'],
+                    distance_total_m=mission_data['distance_total_m'],
+                    cargo=mission_data['cargo']
+                )
+                self.stdout.write(self.style.SUCCESS(f'✓ Created mission: {mission_data["mission_number"]}'))
+            else:
+                self.stdout.write(self.style.WARNING(f'⚠ Mission already exists: {mission_data["mission_number"]}'))
+        
+        self.stdout.write(self.style.SUCCESS(f'✓ Truck registered successfully - Ready for mission testing!'))
