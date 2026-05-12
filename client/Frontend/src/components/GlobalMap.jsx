@@ -9,6 +9,12 @@ import DriverEventAlerts from './DriverEventAlerts';
 import { driverEventTracker } from '../services/driverEventTracker';
 import '../styles/trailStyles.css';
 
+// Helper to get API base URL for v1 endpoints
+const getApiV1Base = () => {
+  if (import.meta.env.MODE === 'development') return 'http://localhost:8000/api/v1';
+  return 'https://pulsetrack-back.onrender.com/api/v1';
+};
+
 // Fix Leaflet default marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
