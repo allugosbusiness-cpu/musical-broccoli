@@ -405,54 +405,70 @@ def get_drivers_with_performance():
 
 
 def get_trucks_with_mission_data():
-    """Get all trucks with data synced from missions"""
+    """Get all trucks with data synced from missions and standardized coordinate format"""
     trucks = FleetTruck.objects.all()
     result = []
+    import logging
+    logger = logging.getLogger(__name__)
+    
     for truck in trucks:
-        # Sync data from missions
-        sync_truck_data_from_missions(truck.id)
-        
-        # Get current location and status
-        location = get_truck_location_from_missions(truck.id)
-        status = get_truck_status_from_missions(truck.id)
-        fuel_data = calculate_truck_fuel_consumption(truck.id)
-        
-        # Ensure we always have latitude/longitude - use truck's own coords if no mission data
-        latitude = None
-        longitude = None
-        
-        if location and isinstance(location, dict):
-            latitude = location.get('lat') or location.get('latitude')
-            longitude = location.get('lon') or location.get('longitude')
-        
-        # Fall back to truck's stored latitude/longitude if no mission location
-        if latitude is None or longitude is None:
-            latitude = float(truck.last_latitude) if truck.last_latitude else None
-            longitude = float(truck.last_longitude) if truck.last_longitude else None
-        
-        # If STILL no coordinates, use default/zero (don't skip the truck)
-        if latitude is None:
-            latitude = 0.0
-        if longitude is None:
-            longitude = 0.0
-        
-        result.append({
-            'id': str(truck.id),
-            'truck_identifier': truck.truck_identifier,
-            'plate': truck.plate,
-            'make': truck.make,
-            'model': truck.model,
-            'status': status,
-            'location': location,
-            'latitude': latitude,
-            'longitude': longitude,
-            'fuel_consumed_liters': float(fuel_data['fuel_consumed_liters']),
-            'distance_travelled_km': float(fuel_data['distance_travelled_km']),
-            'fuel_rate_per_100km': fuel_data['fuel_rate_per_100km'],
-            'fuel_capacity_liters': float(truck.fuel_capacity_liters),
-            'fuel_percent': (float(fuel_data['fuel_consumed_liters']) / float(truck.fuel_capacity_liters) * 100) if truck.fuel_capacity_liters else 0,
-            'assigned_driver': truck.assigned_driver.get_display_name() if truck.assigned_driver else None,
-        })
+        try:
+            # Sync data from missions
+            sync_truck_data_from_missions(truck.id)
+            
+            # Get current location and status
+            location = get_truck_location_from_missions(truck.id)
+            status = get_truck_status_from_missions(truck.id)
+            fuel_data = calculate_truck_fuel_consumption(truck.id)
+            
+            # Extract latitude/longitude with proper fallback chain
+            latitude = None
+            longitude = None
+            
+            # Try mission location first
+            if location and isinstance(location, dict):
+                latitude = location.get('lat') or location.get('latitude')
+                longitude = location.get('lon') or location.get('longitude')
+            
+            # Fallback to truck's stored latitude/longitude if mission location incomplete
+            if latitude is None or longitude is None:
+                if truck.last_latitude:
+                    latitude = float(truck.last_latitude)
+                if truck.last_longitude:
+                    longitude = float(truck.last_longitude)
+            
+            # Skip trucks with no meaningful coordinates (not at 0,0)
+            if latitude is None or longitude is None:
+                logger.warning(f'⚠️ No coordinates for truck {truck.id} ({truck.truck_identifier})')
+                continue  # Skip this truck instead of using (0,0)
+            
+            # Ensure coordinates are properly typed as float
+            latitude = float(latitude)
+            longitude = float(longitude)
+            
+            result.append({
+                'id': str(truck.id),
+                'truck_identifier': truck.truck_identifier,
+                'plate': truck.plate,
+                'make': truck.make,
+                'model': truck.model,
+                'status': status,
+                'location': location,
+                'latitude': latitude,  # Standardized: always latitude/longitude
+                'longitude': longitude,
+                'fuel_consumed_liters': float(fuel_data['fuel_consumed_liters']),
+                'distance_travelled_km': float(fuel_data['distance_travelled_km']),
+                'fuel_rate_per_100km': fuel_data['fuel_rate_per_100km'],
+                'fuel_capacity_liters': float(truck.fuel_capacity_liters),
+                'fuel_percent': (float(fuel_data['fuel_consumed_liters']) / float(truck.fuel_capacity_liters) * 100) if truck.fuel_capacity_liters else 0,
+                'assigned_driver': truck.assigned_driver.get_display_name() if truck.assigned_driver else None,
+            })
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'❌ Error processing truck {truck.id}: {str(e)}')
+            continue  # Skip this truck on error instead of crashing
+    
     return result
 
 

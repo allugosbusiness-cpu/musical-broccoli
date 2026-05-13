@@ -259,8 +259,17 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
       return;
     }
     
-    if (!truck.latitude || !truck.longitude) {
+    // ✅ FIXED: Use explicit null/undefined checks instead of truthy checks
+    // This prevents treating valid 0° coordinates as missing
+    if (truck.latitude === null || truck.latitude === undefined ||
+        truck.longitude === null || truck.longitude === undefined) {
       console.warn(`⚠️ Missing coordinates for truck ${truck.identifier}`);
+      return;
+    }
+    
+    // ✅ FIXED: Validate coordinates are numbers and finite
+    if (!Number.isFinite(truck.latitude) || !Number.isFinite(truck.longitude)) {
+      console.warn(`⚠️ Invalid coordinates for truck ${truck.identifier}: ${truck.latitude}, ${truck.longitude}`);
       return;
     }
 
@@ -484,13 +493,24 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
         const transformedTrucks = await Promise.all(trucksArray.map(async (truck, index) => {
           console.log(`  🔄 Transforming truck ${index + 1}/${trucksArray.length}:`, truck.truck_identifier);
           
-          // Use location from mission if available, otherwise use truck's last known position
-          const coordLat = truck.location?.lat || truck.latitude;
-          const coordLon = truck.location?.lon || truck.longitude;
+          // ✅ FIXED: Standardized coordinate extraction with proper null handling
+        // Priority: mission location > truck coordinates
+        let coordLat = truck.latitude;  // Start with truck coordinate
+        let coordLon = truck.longitude;
+        
+        // Override with mission location if available
+        if (truck.location) {
+          if (typeof truck.location.lat !== 'undefined' && truck.location.lat !== null) {
+            coordLat = truck.location.lat;
+          }
+          if (typeof truck.location.lon !== 'undefined' && truck.location.lon !== null) {
+            coordLon = truck.location.lon;
+          }
+        }
           
           // Get address from coordinates
           let location_name = 'Unknown Location';
-          if (coordLat && coordLon) {
+          if (Number.isFinite(coordLat) && Number.isFinite(coordLon)) {
             location_name = await reverseGeocode(coordLat, coordLon);
           }
           

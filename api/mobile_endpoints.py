@@ -27,31 +27,71 @@ from .serializers import TruckSerializer, AlertSerializer
 def mobile_health_check(request):
     """
     ✅ Health check endpoint for mobile app
-    Diagnostic endpoint to verify backend is responding
+    Diagnostic endpoint to verify backend is responding with per-table error isolation
     """
+    diagnostics = {
+        'status': 'unknown',
+        'timestamp': timezone.now().isoformat(),
+        'database': {},
+        'message': '',
+    }
+    
     try:
-        # Check database connectivity
-        driver_count = FleetDriver.objects.count()
-        truck_count = FleetTruck.objects.count()
-        mission_count = FleetMission.objects.count()
+        # Test each database table individually to isolate errors
+        try:
+            driver_count = FleetDriver.objects.count()
+            diagnostics['database']['drivers'] = {
+                'status': 'ok',
+                'count': driver_count
+            }
+        except Exception as db_error:
+            diagnostics['database']['drivers'] = {
+                'status': 'error',
+                'error': str(db_error)
+            }
         
-        return Response({
-            'status': 'healthy',
-            'timestamp': timezone.now().isoformat(),
-            'database': {
-                'drivers': driver_count,
-                'trucks': truck_count,
-                'missions': mission_count,
-            },
-            'message': '✅ Backend is operational',
-        }, status=status.HTTP_200_OK)
+        try:
+            truck_count = FleetTruck.objects.count()
+            diagnostics['database']['trucks'] = {
+                'status': 'ok',
+                'count': truck_count
+            }
+        except Exception as db_error:
+            diagnostics['database']['trucks'] = {
+                'status': 'error',
+                'error': str(db_error)
+            }
+        
+        try:
+            mission_count = FleetMission.objects.count()
+            diagnostics['database']['missions'] = {
+                'status': 'ok',
+                'count': mission_count
+            }
+        except Exception as db_error:
+            diagnostics['database']['missions'] = {
+                'status': 'error',
+                'error': str(db_error)
+            }
+        
+        # Determine overall status based on per-table results
+        db_errors = [v for v in diagnostics['database'].values() if v.get('status') == 'error']
+        if db_errors:
+            diagnostics['status'] = 'unhealthy'
+            diagnostics['message'] = f'❌ {len(db_errors)} database tables unreachable'
+            return Response(diagnostics, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        else:
+            diagnostics['status'] = 'healthy'
+            diagnostics['message'] = '✅ Backend is operational'
+            return Response(diagnostics, status=status.HTTP_200_OK)
+            
     except Exception as e:
-        return Response({
-            'status': 'unhealthy',
-            'timestamp': timezone.now().isoformat(),
-            'error': str(e),
-            'message': '❌ Backend error or database unavailable',
-        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        import traceback
+        diagnostics['status'] = 'error'
+        diagnostics['message'] = '❌ Unexpected backend error'
+        diagnostics['error'] = str(e)
+        diagnostics['traceback'] = traceback.format_exc()
+        return Response(diagnostics, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
@@ -529,10 +569,15 @@ def mobile_mission_complete(request, mission_id):
 def generate_truck_qr(request, truck_id):
     """
     Generate QR code for truck registration
-    QR contains truck UUID and backend URL
+    QR contains truck UUID and backend URL (dynamic, not hardcoded)
     """
     try:
         truck = FleetTruck.objects.get(id=truck_id)
+
+        # ✅ FIXED: Use dynamic backend URL instead of hardcoded IP
+        protocol = 'https' if request.is_secure() else 'http'
+        host = request.get_host()  # Gets 'localhost:8000' or 'example.com' etc
+        backend_url = f'{protocol}://{host}/api/v1'
 
         # Create QR code data - MUST include type for mobile app recognition
         qr_data = json.dumps({
@@ -540,7 +585,7 @@ def generate_truck_qr(request, truck_id):
             'truck_id': str(truck.id),
             'truck_identifier': truck.truck_identifier,
             'plate': truck.plate or '',
-            'backend_url': 'http://192.168.1.100:8000/api/v1',
+            'backend_url': backend_url,
             'timestamp': datetime.now().isoformat(),
         })
 
@@ -727,6 +772,23 @@ def generate_mission_qr(request, mission_id):
                 {'error': 'Mission must be assigned to a driver and truck'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        # ✅ FIXED: Validate coordinates exist before conversion
+        required_coords = [
+            mission.destination_latitude, mission.destination_longitude,
+            mission.origin_latitude, mission.origin_longitude
+        ]
+        
+        if any(c is None for c in required_coords):
+            return Response({
+                'error': 'Mission is missing coordinate data',
+                'missing_coords': [
+                    'destination_latitude' if mission.destination_latitude is None else None,
+                    'destination_longitude' if mission.destination_longitude is None else None,
+                    'origin_latitude' if mission.origin_latitude is None else None,
+                    'origin_longitude' if mission.origin_longitude is None else None,
+                ]
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         # Create QR code data
         qr_data = json.dumps({
@@ -734,8 +796,8 @@ def generate_mission_qr(request, mission_id):
             'mission_id': str(mission.id),
             'driver_id': str(driver.id),
             'truck_id': str(truck.id),
-            'driver_name': driver.name,
-            'driver_phone': driver.phone_number,
+            'driver_name': driver.get_display_name(),  # ✅ FIXED: Use actual method instead of .name
+            'driver_phone': driver.phone,  # ✅ FIXED: Use correct field name
             'destination_latitude': float(mission.destination_latitude),
             'destination_longitude': float(mission.destination_longitude),
             'origin_latitude': float(mission.origin_latitude),
