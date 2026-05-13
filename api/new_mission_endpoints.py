@@ -100,6 +100,12 @@ def start_mission_tracking(request):
         mission.status = 'enroute'
         mission.driver = driver
         mission.started_at = timezone.now()
+        
+        # ✅ FIXED: Initialize current_location to origin coordinates
+        # This ensures the truck pin appears on the map when mission starts
+        if mission.origin and not mission.current_location:
+            mission.current_location = mission.origin
+        
         mission.save()
         
         # Cache mission tracking session

@@ -382,7 +382,6 @@ def mobile_driver_profile(request, driver_id):
 
 
 @api_view(['GET'])
-@api_view(['GET'])
 @permission_classes([AllowAny])
 def mobile_driver_current_mission(request, driver_id):
     """

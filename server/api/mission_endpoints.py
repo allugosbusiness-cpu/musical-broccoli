@@ -107,6 +107,11 @@ def update_mission_status(request, mission_id):
             mission.status = new_status
             mission.updated_at = timezone.now()
             
+            # ✅ FIXED: Initialize current_location to origin when mission starts
+            # This ensures the truck pin appears on the map when mission transitions to enroute
+            if new_status == 'enroute' and old_status != 'enroute' and mission.origin and not mission.current_location:
+                mission.current_location = mission.origin
+            
             # Update truck status and current location
             if mission.truck:
                 mission.truck.status = 'enroute' if new_status == 'enroute' else 'idle'
