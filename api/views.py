@@ -633,6 +633,23 @@ class AlertViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ['truck', 'alert_type', 'is_resolved']
     ordering = ['-timestamp']
+    pagination_class = None  # Can add pagination if needed
+    
+    def get_queryset(self):
+        """Override queryset to add limit and select_related for performance"""
+        queryset = super().get_queryset()
+        
+        # Add limit parameter support (default 100, max 1000)
+        limit = self.request.query_params.get('limit', 100)
+        try:
+            limit = min(int(limit), 1000)  # Cap at 1000
+        except (ValueError, TypeError):
+            limit = 100
+        
+        # Optimize with select_related if truck is a FK
+        queryset = queryset.select_related('truck').order_by('-timestamp')[:limit]
+        
+        return queryset
     
     def create(self, request, *args, **kwargs):
         """Override create to prevent duplicate alerts within 5 seconds"""

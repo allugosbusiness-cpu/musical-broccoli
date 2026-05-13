@@ -177,10 +177,20 @@ export const createCheckpoint = async (truckId, data) => {
   }
 };
 
-// Alerts
+// Alerts - with extended timeout (30s) for large alert batches
 export const getAlerts = async (filters = {}) => {
   try {
-    const response = await api.get('/alerts/', { params: filters });
+    // Alerts can have large response sizes, use longer timeout (30 seconds instead of 15)
+    // Also add limit parameter to prevent loading thousands of alerts (default 100)
+    const params = {
+      limit: 100,  // Get last 100 alerts
+      ...filters   // Can override with custom limit if needed
+    };
+    
+    const response = await api.get('/alerts/', { 
+      params,
+      timeout: 30000  // 30 seconds for alerts endpoint
+    });
     return response.data.results || response.data;
   } catch (error) {
     console.error('Error fetching alerts:', error);
