@@ -314,94 +314,105 @@ def mobile_driver_profile(request, driver_id):
 @permission_classes([AllowAny])
 def mobile_driver_current_mission(request, driver_id):
     """
-    Get current mission for driver
-    Returns the active (enroute) mission or test data if not found
+    Get current mission for driver with robust error handling
+    Returns the active (enroute) mission with proper coordinate handling
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
+        # ✅ Get driver with defensive checks
         driver = FleetDriver.objects.get(id=driver_id)
-
-        mission = FleetMission.objects.filter(
-            truck=driver.truck,
-            status='enroute'
-        ).first()
-
-        if not mission:
-            # Return test data if no active mission
+        
+        if not driver.truck:
+            logger.warning(f"Driver {driver_id} has no truck assigned")
             return Response({
-                'id': '00000000-0000-0000-0000-000000000001',
-                'mission_number': 'TEST-MISSION-001',
-                'status': 'enroute',
-                'distance_total_m': 12500,
-                'progress_pct': 0,
-                'origin': {
-                    'lat': 6.9271,
-                    'lon': 33.7347
-                },
-                'destination': {
-                    'lat': 6.8,
-                    'lon': 33.5
-                },
-                'created_at': timezone.now().isoformat(),
-                'updated_at': timezone.now().isoformat(),
-                '_note': 'Using test data - no active mission'
+                'error': 'Driver has no truck assigned',
+                'id': None,
+                'mission_number': None,
+                'status': None,
             }, status=status.HTTP_200_OK)
 
-        # Extract origin/destination coordinates from JSON fields
-        origin = mission.origin if isinstance(mission.origin, dict) else {'lat': 0, 'lng': 0}
-        destination = mission.destination if isinstance(mission.destination, dict) else {'lat': 0, 'lng': 0}
+        # ✅ Get active mission - use Q to avoid None issues
+        mission = FleetMission.objects.filter(
+            truck_id=driver.truck.id,
+            status__in=['enroute', 'in_progress']
+        ).order_by('-created_at').first()
+
+        if not mission:
+            # Return empty mission (not test data) to indicate no active mission
+            return Response({
+                'id': None,
+                'mission_number': None,
+                'status': None,
+                'distance_total_m': 0,
+                'progress_pct': 0,
+                'origin': None,
+                'destination': None,
+                'current_location': None,
+                'created_at': None,
+                'updated_at': None,
+                '_note': 'No active mission'
+            }, status=status.HTTP_200_OK)
+
+        # ✅ Safely extract coordinates from JSON fields
+        try:
+            origin = mission.origin if isinstance(mission.origin, dict) else None
+            destination = mission.destination if isinstance(mission.destination, dict) else None
+            current_location = mission.current_location if isinstance(mission.current_location, dict) else None
+            
+            # Ensure coordinates are normalized (use 'lat'/'lon' format)
+            if origin:
+                origin = {'lat': float(origin.get('lat') or origin.get('latitude') or 0), 
+                         'lon': float(origin.get('lon') or origin.get('longitude') or 0)}
+            if destination:
+                destination = {'lat': float(destination.get('lat') or destination.get('latitude') or 0),
+                              'lon': float(destination.get('lon') or destination.get('longitude') or 0)}
+            if current_location:
+                current_location = {'lat': float(current_location.get('lat') or current_location.get('latitude') or 0),
+                                   'lon': float(current_location.get('lon') or current_location.get('longitude') or 0)}
+        except (TypeError, ValueError, AttributeError) as e:
+            logger.error(f"Error parsing mission coordinates for {mission.id}: {str(e)}")
+            return Response({
+                'error': f'Error parsing mission data: {str(e)}',
+                'id': str(mission.id),
+                'mission_number': mission.mission_number,
+                'status': mission.status,
+            }, status=status.HTTP_200_OK)
         
         return Response({
             'id': str(mission.id),
             'mission_number': mission.mission_number,
             'status': mission.status,
-            'distance_total_m': float(mission.distance_total_m),
-            'progress_pct': float(mission.progress_pct),
+            'distance_total_m': float(mission.distance_total_m or 0),
+            'progress_pct': float(mission.progress_pct or 0),
             'origin': origin,
             'destination': destination,
-            'created_at': mission.created_at.isoformat(),
-            'updated_at': mission.updated_at.isoformat(),
+            'current_location': current_location,
+            'created_at': mission.created_at.isoformat() if mission.created_at else None,
+            'updated_at': mission.updated_at.isoformat() if mission.updated_at else None,
         }, status=status.HTTP_200_OK)
 
     except FleetDriver.DoesNotExist:
-        # Return test data for test driver
+        logger.warning(f"Driver {driver_id} not found")
         return Response({
-            'id': '00000000-0000-0000-0000-000000000001',
-            'mission_number': 'TEST-MISSION-001',
-            'status': 'enroute',
-            'distance_total_m': 12500,
-            'progress_pct': 0,
-            'origin': {
-                'lat': 6.9271,
-                'lon': 33.7347
-            },
-            'destination': {
-                'lat': 6.8,
-                'lon': 33.5
-            },
-            'created_at': timezone.now().isoformat(),
-            'updated_at': timezone.now().isoformat(),
-            '_note': 'Using test data - driver not found'
-        }, status=status.HTTP_200_OK)
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Current mission error for driver {driver_id}: {str(e)}", exc_info=True)
+            'error': 'Driver not found',
+            'id': None,
+            'mission_number': None,
+            'status': None,
+        }, status=status.HTTP_404_NOT_FOUND)
         
-        # Return test data on error as well
+    except Exception as e:
+        logger.error(f"❌ ERROR in GET /mobile/driver/{driver_id}/current-mission/: {str(e)}", exc_info=True)
         return Response({
-            'id': '00000000-0000-0000-0000-000000000001',
-            'mission_number': 'TEST-MISSION-001',
-            'status': 'enroute',
-            'distance_total_m': 12500,
-            'progress_pct': 0,
-            'origin': {'lat': 6.9271, 'lng': 33.7347},
-            'destination': {'lat': 6.8, 'lng': 33.5},
-            'created_at': timezone.now().isoformat(),
-            'updated_at': timezone.now().isoformat(),
-            '_error': str(e),
-            '_note': 'Returned test data due to error'
-        }, status=status.HTTP_200_OK)
-def mobile_driver_missions(request, driver_id):
+            'error': f'Server error: {str(e)}',
+            'id': None,
+            'mission_number': None,
+            'status': None,
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
     """
     Get mission history for driver
     """
