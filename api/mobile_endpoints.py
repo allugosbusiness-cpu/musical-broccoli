@@ -12,6 +12,7 @@ from django.utils import timezone
 from django.db.models import Q
 import json
 import qrcode
+import uuid
 from io import BytesIO
 import base64
 from datetime import datetime, timedelta
@@ -834,7 +835,6 @@ def start_mission_tracking(request):
         
     except FleetMission.DoesNotExist:
         # For test missions, return mock tracking session
-        import uuid
         tracking_id = str(uuid.uuid4())
         from django.core.cache import cache
         cache.set(f'mission_tracking_{tracking_id}', {
@@ -859,7 +859,6 @@ def start_mission_tracking(request):
         }, status=status.HTTP_200_OK)
     except FleetDriver.DoesNotExist:
         # For test driver, return mock tracking session
-        import uuid
         tracking_id = str(uuid.uuid4())
         from django.core.cache import cache
         cache.set(f'mission_tracking_{tracking_id}', {
