@@ -877,6 +877,12 @@ def start_mission_tracking(request):
         mission.status = 'enroute'
         mission.driver = driver
         mission.started_at = timezone.now()
+        # Initialize current location with origin so map can display truck immediately
+        if mission.origin and isinstance(mission.origin, dict):
+            mission.current_location = {
+                'lat': mission.origin.get('lat') or mission.origin.get('latitude'),
+                'lon': mission.origin.get('lon') or mission.origin.get('longitude')
+            }
         mission.save()
         
         # Cache mission tracking session
