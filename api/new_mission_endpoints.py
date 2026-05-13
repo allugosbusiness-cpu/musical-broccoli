@@ -64,11 +64,15 @@ def start_mission_tracking(request):
     """
     Start tracking for a mission
     Accepts either mission_id or mission_number
+    Optional: latitude, longitude for driver's current location
     """
     try:
         driver_id = request.data.get('driver_id')
         mission_id = request.data.get('mission_id')
         mission_number = request.data.get('mission_number')
+        # ✅ NEW: Accept current location from mobile app
+        current_latitude = request.data.get('latitude')
+        current_longitude = request.data.get('longitude')
         
         if not driver_id:
             return Response(
@@ -101,9 +105,24 @@ def start_mission_tracking(request):
         mission.driver = driver
         mission.started_at = timezone.now()
         
-        # ✅ FIXED: Initialize current_location to origin coordinates
-        # This ensures the truck pin appears on the map when mission starts
-        if mission.origin and not mission.current_location:
+        # ✅ FIXED: Initialize current_location with driver's actual current location if provided
+        # Otherwise fallback to origin coordinates
+        # This ensures the truck pin appears on the map at the correct location immediately
+        if current_latitude is not None and current_longitude is not None:
+            # Use driver's current location for better accuracy
+            try:
+                mission.current_location = {
+                    'lat': float(current_latitude),
+                    'lon': float(current_longitude)
+                }
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f'✅ Mission {mission.id} initialized with driver current location: ({current_latitude}, {current_longitude})')
+            except (ValueError, TypeError) as e:
+                # If conversion fails, fall back to origin
+                if mission.origin and not mission.current_location:
+                    mission.current_location = mission.origin
+        elif mission.origin and not mission.current_location:
             mission.current_location = mission.origin
         
         mission.save()
@@ -125,6 +144,7 @@ def start_mission_tracking(request):
             'status': mission.status,
             'origin': mission.origin,
             'destination': mission.destination,
+            'current_location': mission.current_location,
             'driver_name': driver.get_display_name(),
             'tracking_id': str(mission.id),
             'message': f'Started tracking mission {mission.mission_number}'
