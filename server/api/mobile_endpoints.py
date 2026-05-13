@@ -292,13 +292,15 @@ def mobile_driver_profile(request, driver_id):
 def mobile_driver_current_mission(request, driver_id):
     """
     Get current mission for driver
+    Returns mission details with current location and progress
     """
     try:
         driver = FleetDriver.objects.get(id=driver_id)
 
+        # Look for missions in 'enroute' or 'in_progress' status
         mission = FleetMission.objects.filter(
             truck=driver.truck,
-            status='in_progress'
+            status__in=['enroute', 'in_progress']
         ).first()
 
         if not mission:
@@ -307,22 +309,43 @@ def mobile_driver_current_mission(request, driver_id):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        # Extract coordinates from mission - support both old and new field formats
+        origin_data = mission.origin if isinstance(mission.origin, dict) else {
+            'lat': mission.origin_latitude if hasattr(mission, 'origin_latitude') else 0,
+            'lon': mission.origin_longitude if hasattr(mission, 'origin_longitude') else 0
+        }
+        destination_data = mission.destination if isinstance(mission.destination, dict) else {
+            'lat': mission.destination_latitude if hasattr(mission, 'destination_latitude') else 0,
+            'lon': mission.destination_longitude if hasattr(mission, 'destination_longitude') else 0
+        }
+        current_location_data = mission.current_location if isinstance(mission.current_location, dict) else None
+
+        # Ensure current_location exists for map rendering
+        if not current_location_data and origin_data:
+            current_location_data = origin_data
+
         return Response({
             'id': str(mission.id),
             'mission_number': mission.mission_number,
             'status': mission.status,
-            'distance_total_m': mission.distance_total_m,
-            'progress_pct': mission.progress_pct,
+            'distance_total_m': float(mission.distance_total_m) if mission.distance_total_m else 0,
+            'progress_pct': float(mission.progress_pct) if mission.progress_pct else 0,
             'origin': {
-                'lat': float(mission.origin_latitude),
-                'lon': float(mission.origin_longitude)
+                'lat': float(origin_data.get('lat') or origin_data.get('latitude', 0)),
+                'lon': float(origin_data.get('lon') or origin_data.get('longitude', 0))
             },
             'destination': {
-                'lat': float(mission.destination_latitude),
-                'lon': float(mission.destination_longitude)
+                'lat': float(destination_data.get('lat') or destination_data.get('latitude', 0)),
+                'lon': float(destination_data.get('lon') or destination_data.get('longitude', 0))
             },
-            'created_at': mission.created_at.isoformat(),
-            'updated_at': mission.updated_at.isoformat(),
+            'current_location': {
+                'lat': float(current_location_data.get('lat') or current_location_data.get('latitude', 0)),
+                'lon': float(current_location_data.get('lon') or current_location_data.get('longitude', 0))
+            } if current_location_data else None,
+            'driver_id': str(driver.id),
+            'truck_id': str(mission.truck.id),
+            'created_at': mission.created_at.isoformat() if mission.created_at else None,
+            'updated_at': mission.updated_at.isoformat() if mission.updated_at else None,
         }, status=status.HTTP_200_OK)
 
     except FleetDriver.DoesNotExist:
@@ -341,6 +364,7 @@ def mobile_driver_current_mission(request, driver_id):
 def mobile_driver_missions(request, driver_id):
     """
     Get mission history for driver
+    Returns list of missions with coordinates in both old and new formats
     """
     try:
         driver = FleetDriver.objects.get(id=driver_id)
@@ -352,22 +376,32 @@ def mobile_driver_missions(request, driver_id):
 
         data = []
         for mission in missions:
+            # Extract coordinates from mission - support both old and new field formats
+            origin_data = mission.origin if isinstance(mission.origin, dict) else {
+                'lat': mission.origin_latitude if hasattr(mission, 'origin_latitude') else 0,
+                'lon': mission.origin_longitude if hasattr(mission, 'origin_longitude') else 0
+            }
+            destination_data = mission.destination if isinstance(mission.destination, dict) else {
+                'lat': mission.destination_latitude if hasattr(mission, 'destination_latitude') else 0,
+                'lon': mission.destination_longitude if hasattr(mission, 'destination_longitude') else 0
+            }
+            
             data.append({
                 'id': str(mission.id),
                 'mission_number': mission.mission_number,
                 'status': mission.status,
-                'distance_total_m': mission.distance_total_m,
-                'progress_pct': mission.progress_pct,
+                'distance_total_m': float(mission.distance_total_m) if mission.distance_total_m else 0,
+                'progress_pct': float(mission.progress_pct) if mission.progress_pct else 0,
                 'origin': {
-                    'lat': float(mission.origin_latitude),
-                    'lon': float(mission.origin_longitude)
+                    'lat': float(origin_data.get('lat') or origin_data.get('latitude', 0)),
+                    'lon': float(origin_data.get('lon') or origin_data.get('longitude', 0))
                 },
                 'destination': {
-                    'lat': float(mission.destination_latitude),
-                    'lon': float(mission.destination_longitude)
+                    'lat': float(destination_data.get('lat') or destination_data.get('latitude', 0)),
+                    'lon': float(destination_data.get('lon') or destination_data.get('longitude', 0))
                 },
-                'created_at': mission.created_at.isoformat(),
-                'updated_at': mission.updated_at.isoformat(),
+                'created_at': mission.created_at.isoformat() if mission.created_at else None,
+                'updated_at': mission.updated_at.isoformat() if mission.updated_at else None,
             })
 
         return Response(data, status=status.HTTP_200_OK)
