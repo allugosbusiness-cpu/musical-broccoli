@@ -469,6 +469,11 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
     plate: '',
     make: '',
     model: '',
+    year: new Date().getFullYear(),
+    vin: '',
+    telematics_id: '',
+    fuel_capacity_liters: 100,
+    maintenance_due_date: '',
     status: 'IDLE'
   });
 
@@ -480,6 +485,11 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
       plate: truck.plate || '',
       make: truck.make || '',
       model: truck.model || '',
+      year: truck.year || new Date().getFullYear(),
+      vin: truck.vin || '',
+      telematics_id: truck.telematics_id || '',
+      fuel_capacity_liters: truck.fuel_capacity_liters || 100,
+      maintenance_due_date: truck.maintenance_due_date || '',
       status: truck.status || 'IDLE'
     });
     setEditingId(truck.id);
@@ -507,6 +517,11 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
           plate: '',
           make: '',
           model: '',
+          year: new Date().getFullYear(),
+          vin: '',
+          telematics_id: '',
+          fuel_capacity_liters: 100,
+          maintenance_due_date: '',
           status: 'IDLE'
         });
       }
@@ -661,46 +676,86 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <input
-                type="text"
-                placeholder="Truck Identifier"
-                value={formData.truck_identifier}
-                onChange={(e) => setFormData({ ...formData, truck_identifier: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
-                required
-              />
-              <input
-                type="text"
-                placeholder="License Plate"
-                value={formData.plate}
-                onChange={(e) => setFormData({ ...formData, plate: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
-                required
-              />
-              <input
-                type="text"
-                placeholder="Make"
-                value={formData.make}
-                onChange={(e) => setFormData({ ...formData, make: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
-              />
-              <input
-                type="text"
-                placeholder="Model"
-                value={formData.model}
-                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
-              />
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
-              >
-                {statusOptions.map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
+            <form onSubmit={handleSubmit} className="space-y-3 max-h-96 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  placeholder="Truck Identifier"
+                  value={formData.truck_identifier}
+                  onChange={(e) => setFormData({ ...formData, truck_identifier: e.target.value })}
+                  className="col-span-2 px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="License Plate"
+                  value={formData.plate}
+                  onChange={(e) => setFormData({ ...formData, plate: e.target.value })}
+                  className="col-span-2 px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Make"
+                  value={formData.make}
+                  onChange={(e) => setFormData({ ...formData, make: e.target.value })}
+                  className="px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
+                />
+                <input
+                  type="text"
+                  placeholder="Model"
+                  value={formData.model}
+                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                  className="px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
+                />
+                <input
+                  type="number"
+                  placeholder="Year"
+                  value={formData.year}
+                  onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
+                  className="px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
+                  min="1990"
+                />
+                <input
+                  type="text"
+                  placeholder="VIN"
+                  value={formData.vin}
+                  onChange={(e) => setFormData({ ...formData, vin: e.target.value })}
+                  className="px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
+                />
+                <input
+                  type="text"
+                  placeholder="Telematics ID"
+                  value={formData.telematics_id}
+                  onChange={(e) => setFormData({ ...formData, telematics_id: e.target.value })}
+                  className="col-span-2 px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
+                />
+                <input
+                  type="number"
+                  placeholder="Fuel Capacity (L)"
+                  value={formData.fuel_capacity_liters}
+                  onChange={(e) => setFormData({ ...formData, fuel_capacity_liters: parseFloat(e.target.value) })}
+                  className="col-span-2 px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
+                  min="10"
+                  step="0.1"
+                />
+                <input
+                  type="date"
+                  placeholder="Maintenance Due"
+                  value={formData.maintenance_due_date}
+                  onChange={(e) => setFormData({ ...formData, maintenance_due_date: e.target.value })}
+                  className="col-span-2 px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
+                />
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="col-span-2 px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
+                >
+                  {statusOptions.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
               <button
                 type="submit"
                 className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition flex items-center justify-center gap-2"

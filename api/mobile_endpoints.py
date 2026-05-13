@@ -631,10 +631,14 @@ def validate_driver_pin(request):
     """
     Validate PIN code and register driver to truck
     PIN is 6-digit alphanumeric code sent to driver via SMS or displayed on dashboard
+    ✅ NEW: Accepts latitude/longitude to update truck location immediately on linking
     """
     try:
         pin = request.data.get('pin', '').upper()
         phone_number = request.data.get('phone_number', '')
+        # ✅ NEW: Get current location from mobile app
+        latitude = request.data.get('latitude')
+        longitude = request.data.get('longitude')
 
         if not pin or not phone_number:
             return Response(
@@ -687,7 +691,22 @@ def validate_driver_pin(request):
         # Link driver to truck
         driver.truck = truck_found
         driver.is_active = True
+        # ✅ NEW: Update driver's current location if provided
+        if latitude is not None and longitude is not None:
+            driver.latitude = float(latitude)
+            driver.longitude = float(longitude)
+            driver.last_location_update = timezone.now()
         driver.save()
+
+        # ✅ NEW: Override truck's current location with driver's actual location
+        if latitude is not None and longitude is not None:
+            truck_found.last_latitude = float(latitude)
+            truck_found.last_longitude = float(longitude)
+            truck_found.last_location_ts = timezone.now()
+            truck_found.save()
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f'✅ Truck {truck_found.truck_identifier} location updated on driver link: ({latitude}, {longitude})')
 
         # Generate tracking ID and auth token
         import uuid
@@ -712,6 +731,7 @@ def validate_driver_pin(request):
             'truck_name': truck_found.truck_identifier,
             'phone_number': phone_number,
             'gps_tracking_enabled': True,
+            'location_synced': latitude is not None and longitude is not None,
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
