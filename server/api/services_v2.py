@@ -146,6 +146,9 @@ class TruckService:
                     fuel_capacity_liters=100, admin_id=None):
         """Create new truck (admin only)"""
         try:
+            # ✅ NEW: Set default coordinates to Harare center if not provided
+            # This ensures trucks appear on map immediately
+            from decimal import Decimal
             truck = FleetTruck.objects.create(
                 fleet_id=fleet_id,
                 truck_identifier=truck_identifier,
@@ -156,7 +159,11 @@ class TruckService:
                 model=model,
                 year=year,
                 fuel_capacity_liters=fuel_capacity_liters,
-                status=TruckStatus.IDLE
+                status=TruckStatus.IDLE,
+                # ✅ NEW: Default coordinates to Harare city center
+                last_latitude=Decimal('-17.8252'),
+                last_longitude=Decimal('31.0335'),
+                last_location_ts=timezone.now()
             )
             
             if admin_id:
@@ -168,10 +175,10 @@ class TruckService:
                     new_values={'truck_identifier': truck_identifier, 'plate': plate}
                 )
             
-            logger.info(f"Truck created: {truck.id} ({plate})")
+            logger.info(f"✅ Truck created: {truck.id} ({plate}) at default location (-17.8252, 31.0335)")
             return truck
         except Exception as e:
-            logger.error(f"Failed to create truck: {e}")
+            logger.error(f"❌ Failed to create truck: {e}")
             raise ValidationError(f"Failed to create truck: {str(e)}")
     
     @staticmethod

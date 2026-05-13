@@ -30,10 +30,17 @@ export default function AdminDashboard({ onSelectTruck = () => {}, onSelectDrive
   const trucksPage = useMemo(() => trucks.slice(0, ITEMS_PER_PAGE), [trucks]);
   const missionsPage = useMemo(() => missions.slice(0, ITEMS_PER_PAGE), [missions]);
 
-  // Fetch data on mount and tab change (NO auto-refresh to avoid form flickering)
+  // Fetch data on mount AND tab change
   useEffect(() => {
     fetchData();
   }, [activeTab]);
+
+  // Also fetch on component mount
+  useEffect(() => {
+    if (trucks.length === 0 && drivers.length === 0 && missions.length === 0) {
+      fetchData();
+    }
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -219,9 +226,15 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Validate required fields
+      if (!formData.first_name || !formData.last_name || !formData.phone) {
+        setError('First name, last name, and phone are required');
+        return;
+      }
+
       if (editingId) {
         await updateV1Driver(editingId, formData);
-        setSuccess('Driver updated successfully');
+        setSuccess(`✅ Driver ${formData.first_name} ${formData.last_name} updated successfully`);
         setEditingId(null);
       } else {
         // Generate a UUIDv4 for fleet_id
@@ -229,8 +242,10 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
           const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
           return v.toString(16);
         });
+        console.log('📝 Creating driver with data:', { ...formData, fleet_id: fleetId });
         const newDriver = await createV1Driver({ ...formData, fleet_id: fleetId });
-        setSuccess('Driver created successfully');
+        console.log('✅ Driver created:', newDriver);
+        setSuccess(`✅ Driver ${formData.first_name} ${formData.last_name} created successfully`);
         // Keep form open but clear fields for next entry
         setFormData({
           first_name: '',
@@ -243,12 +258,15 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
       }
       // Refresh data without closing form
       onRefresh();
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(null), 3000);
+      // Clear success message after 5 seconds (longer to see it)
+      setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
-      console.error('Error saving driver:', error);
-      setError('Failed to save driver');
-      setTimeout(() => setError(null), 3000);
+      console.error('❌ Error saving driver:', error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to save driver';
+      console.error('   Error details:', errorMsg);
+      setError(`⚠️ Failed to save driver: ${errorMsg}`);
+      // Keep error visible longer (10 seconds)
+      setTimeout(() => setError(null), 10000);
     }
   };
 
@@ -499,9 +517,15 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Validate required fields
+      if (!formData.truck_identifier || !formData.plate) {
+        setError('Truck identifier and plate are required');
+        return;
+      }
+
       if (editingId) {
         await updateV1Truck(editingId, formData);
-        setSuccess('Truck updated successfully');
+        setSuccess('✅ Truck updated successfully');
         setEditingId(null);
       } else {
         // Generate a UUIDv4 for fleet_id
@@ -509,8 +533,10 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
           const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
           return v.toString(16);
         });
-        await createV1Truck({ ...formData, fleet_id: fleetId });
-        setSuccess('Truck created successfully');
+        console.log('📝 Creating truck with data:', { ...formData, fleet_id: fleetId });
+        const response = await createV1Truck({ ...formData, fleet_id: fleetId });
+        console.log('✅ Truck created:', response);
+        setSuccess(`✅ Truck ${formData.truck_identifier} created successfully`);
         // Keep form open but clear fields for next entry
         setFormData({
           truck_identifier: '',
@@ -527,12 +553,15 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
       }
       // Refresh data without closing form
       onRefresh();
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(null), 3000);
+      // Clear success message after 5 seconds (longer to see it)
+      setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
-      console.error('Error saving truck:', error);
-      setError('Failed to save truck');
-      setTimeout(() => setError(null), 3000);
+      console.error('❌ Error saving truck:', error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to save truck';
+      console.error('   Error details:', errorMsg);
+      setError(`⚠️ Failed to save truck: ${errorMsg}`);
+      // Keep error visible longer (10 seconds)
+      setTimeout(() => setError(null), 10000);
     }
   };
 
