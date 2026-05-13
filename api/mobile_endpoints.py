@@ -875,6 +875,19 @@ def get_available_missions(request, driver_id):
             status__in=['planned', 'assigned']
         ).order_by('-created_at')
         
+        # If very few missions for this truck, also show missions without truck assignment
+        # This handles cases where missions exist but aren't linked to the truck yet
+        if missions.count() < 5:
+            missions_without_truck = FleetMission.objects.filter(
+                truck__isnull=True,
+                status__in=['planned', 'assigned']
+            ).order_by('-created_at')[:10]
+            
+            all_missions_list = list(missions) + list(missions_without_truck)
+            missions = all_missions_list
+        else:
+            missions = list(missions)
+        
         missions_data = []
         for mission in missions:
             missions_data.append({
@@ -895,7 +908,7 @@ def get_available_missions(request, driver_id):
             'truck_name': truck.truck_identifier,
             'missions': missions_data,
             'total_count': len(missions_data),
-            '_debug': f'Found {len(missions_data)} real missions from database'
+            '_debug': f'Truck: {truck.truck_identifier} - Found {len(missions_data)} available missions'
         }, status=status.HTTP_200_OK)
         
     except FleetDriver.DoesNotExist:
