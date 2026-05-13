@@ -259,18 +259,22 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
       return;
     }
     
-    // ✅ FIXED: Use explicit null/undefined checks instead of truthy checks
-    // This prevents treating valid 0° coordinates as missing
-    if (truck.latitude === null || truck.latitude === undefined ||
-        truck.longitude === null || truck.longitude === undefined) {
-      console.warn(`⚠️ Missing coordinates for truck ${truck.identifier}`);
-      return;
-    }
+    // ✅ IMPROVED: Use default location if coordinates missing
+    // Priority: real-time truck coords > default fallback (Harare center)
+    let markerLat = truck.latitude;
+    let markerLon = truck.longitude;
+    let locationPending = false;
+    const defaultCoords = { lat: -17.8252, lon: 31.0335 }; // Harare center
     
-    // ✅ FIXED: Validate coordinates are numbers and finite
-    if (!Number.isFinite(truck.latitude) || !Number.isFinite(truck.longitude)) {
-      console.warn(`⚠️ Invalid coordinates for truck ${truck.identifier}: ${truck.latitude}, ${truck.longitude}`);
-      return;
+    // Check if we have valid coordinates
+    if (markerLat === null || markerLat === undefined ||
+        markerLon === null || markerLon === undefined ||
+        !Number.isFinite(markerLat) || !Number.isFinite(markerLon)) {
+      
+      console.warn(`⚠️ No real-time coordinates for truck ${truck.identifier}, using default location`);
+      markerLat = defaultCoords.lat;
+      markerLon = defaultCoords.lon;
+      locationPending = true;
     }
 
     // Remove old marker if exists
@@ -296,6 +300,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
         <div style="
           position: relative;
           text-align: center;
+          opacity: ${locationPending ? '0.6' : '1'};
         ">
           <div style="
             width: 40px;
@@ -312,6 +317,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             cursor: pointer;
             margin: 0 auto;
+            ${locationPending ? 'animation: pulse 2s infinite;' : ''}
           ">
             🚚
           </div>
@@ -329,7 +335,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
             white-space: nowrap;
             box-shadow: 0 1px 4px rgba(0,0,0,0.2);
           ">
-            ${truck.identifier}
+            ${truck.identifier} ${locationPending ? '(pending)' : ''}
           </div>
         </div>
       `,
@@ -339,15 +345,16 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
       popupAnchor: [0, -70],
     });
 
-    const marker = L.marker([truck.latitude, truck.longitude], { icon: customIcon })
+    const marker = L.marker([markerLat, markerLon], { icon: customIcon })
       .bindPopup(`
         <div style="font-family: sans-serif; width: 220px;">
           <strong style="color: ${truckColor};">📍 ${truck.plate}</strong>
           <p style="margin: 5px 0;"><strong>Truck ID:</strong> ${truck.identifier}</p>
           <p style="margin: 5px 0;"><strong>Status:</strong> <span style="color: ${truckColor}; font-weight: bold;">${truck.status.toUpperCase()}</span></p>
           <p style="margin: 5px 0;"><strong>Location:</strong> ${truck.location_name}</p>
-          <p style="margin: 5px 0;"><strong>Coordinates:</strong> ${truck.latitude.toFixed(4)}, ${truck.longitude.toFixed(4)}</p>
+          <p style="margin: 5px 0;"><strong>Coordinates:</strong> ${markerLat.toFixed(4)}, ${markerLon.toFixed(4)}</p>
           <p style="margin: 5px 0;"><strong>Speed:</strong> ${truck.speed || 0} km/h</p>
+          ${locationPending ? '<p style="margin: 5px 0; color: #f59e0b;"><em>\u26a0️ Location update pending...</em></p>' : ''}
         </div>
       `, { maxWidth: 250, maxHeight: 300 })
       .addTo(map.current);
@@ -367,14 +374,14 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
       console.log(`✨ Auto-highlighting truck: ${truck.identifier}`);
       marker.openPopup();
       if (map.current) {
-        map.current.setView([truck.latitude, truck.longitude], map.current.getZoom());
+        map.current.setView([markerLat, markerLon], map.current.getZoom());
       }
     }
 
     markersRef.current[truck.id] = marker;
 
     // Log marker creation
-    console.log(`📍 Marker added for ${truck.identifier} at ${truck.latitude.toFixed(3)}, ${truck.longitude.toFixed(3)}`);
+    console.log(`📋 Marker added for ${truck.identifier} at ${markerLat.toFixed(3)}, ${markerLon.toFixed(3)}${locationPending ? ' (pending real-time update)' : ''}`);
   };
 
   /**
@@ -387,7 +394,10 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
     }
 
     const marker = markersRef.current[truck.id];
-    marker.setLatLng([truck.latitude, truck.longitude]);
+    const defaultCoords = { lat: -17.8252, lon: 31.0335 }; // Harare center
+    const markerLat = (truck.latitude !== null && truck.latitude !== undefined && Number.isFinite(truck.latitude)) ? truck.latitude : defaultCoords.lat;
+    const markerLon = (truck.longitude !== null && truck.longitude !== undefined && Number.isFinite(truck.longitude)) ? truck.longitude : defaultCoords.lon;
+    marker.setLatLng([markerLat, markerLon]);
   };
 
   /**
