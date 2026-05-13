@@ -485,6 +485,7 @@ def mobile_driver_current_mission(request, driver_id):
 
 
 @api_view(['GET'])
+def mobile_driver_missions(request, driver_id):
     """
     Get mission history for driver
     """
