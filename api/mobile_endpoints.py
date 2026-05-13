@@ -326,20 +326,18 @@ def mobile_driver_current_mission(request, driver_id):
                 '_note': 'Using test data - no active mission'
             }, status=status.HTTP_200_OK)
 
+        # Extract origin/destination coordinates from JSON fields
+        origin = mission.origin if isinstance(mission.origin, dict) else {'lat': 0, 'lng': 0}
+        destination = mission.destination if isinstance(mission.destination, dict) else {'lat': 0, 'lng': 0}
+        
         return Response({
             'id': str(mission.id),
             'mission_number': mission.mission_number,
             'status': mission.status,
-            'distance_total_m': mission.distance_total_m,
-            'progress_pct': mission.progress_pct,
-            'origin': {
-                'lat': float(mission.origin_latitude),
-                'lon': float(mission.origin_longitude)
-            },
-            'destination': {
-                'lat': float(mission.destination_latitude),
-                'lon': float(mission.destination_longitude)
-            },
+            'distance_total_m': float(mission.distance_total_m),
+            'progress_pct': float(mission.progress_pct),
+            'origin': origin,
+            'destination': destination,
             'created_at': mission.created_at.isoformat(),
             'updated_at': mission.updated_at.isoformat(),
         }, status=status.HTTP_200_OK)
