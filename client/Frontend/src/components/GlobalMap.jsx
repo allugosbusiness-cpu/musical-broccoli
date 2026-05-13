@@ -545,13 +545,11 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
           console.log(`🗺️ Adding markers to map for ${transformedTrucks.length} trucks...`);
           transformedTrucks.forEach((truck, idx) => {
             console.log(`  📍 Adding marker ${idx + 1}/${transformedTrucks.length}: ${truck.identifier}`);
-            if (truck.latitude && truck.longitude) {
-              addTruckMarker(truck);
-            } else {
-              console.warn(`    ⚠️ Skipping marker - missing coordinates for ${truck.identifier}`);
-            }
+            // Show ALL trucks, even if coordinates are 0,0 (default fallback)
+            // This ensures all trucks appear on the map
+            addTruckMarker(truck);
           });
-          console.log(`✅ All markers added to map`);
+          console.log(`✅ All ${transformedTrucks.length} markers added to map`);
         }
 
         setLoading(false);

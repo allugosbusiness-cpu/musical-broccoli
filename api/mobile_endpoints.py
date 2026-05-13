@@ -145,6 +145,26 @@ def mobile_location_update(request):
         driver.updated_at = timezone.now()
         driver.save()
 
+        # Update truck's location as well (critical for map display!)
+        if driver.truck:
+            driver.truck.last_latitude = latitude
+            driver.truck.last_longitude = longitude
+            driver.truck.speed_kmh = speed
+            driver.truck.updated_at = timezone.now()
+            # Update mission's current location if active mission exists
+            active_mission = FleetMission.objects.filter(
+                truck=driver.truck,
+                status='enroute'
+            ).first()
+            if active_mission:
+                active_mission.current_location = {
+                    'lat': latitude,
+                    'lon': longitude
+                }
+                active_mission.speed_kmh = speed
+                active_mission.save(update_fields=['current_location', 'speed_kmh', 'updated_at'])
+            driver.truck.save()
+
         # Store location history
         TruckLocation.objects.create(
             truck=driver.truck,

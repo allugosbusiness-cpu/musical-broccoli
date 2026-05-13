@@ -417,6 +417,25 @@ def get_trucks_with_mission_data():
         status = get_truck_status_from_missions(truck.id)
         fuel_data = calculate_truck_fuel_consumption(truck.id)
         
+        # Ensure we always have latitude/longitude - use truck's own coords if no mission data
+        latitude = None
+        longitude = None
+        
+        if location and isinstance(location, dict):
+            latitude = location.get('lat') or location.get('latitude')
+            longitude = location.get('lon') or location.get('longitude')
+        
+        # Fall back to truck's stored latitude/longitude if no mission location
+        if latitude is None or longitude is None:
+            latitude = float(truck.last_latitude) if truck.last_latitude else None
+            longitude = float(truck.last_longitude) if truck.last_longitude else None
+        
+        # If STILL no coordinates, use default/zero (don't skip the truck)
+        if latitude is None:
+            latitude = 0.0
+        if longitude is None:
+            longitude = 0.0
+        
         result.append({
             'id': str(truck.id),
             'truck_identifier': truck.truck_identifier,
@@ -425,8 +444,8 @@ def get_trucks_with_mission_data():
             'model': truck.model,
             'status': status,
             'location': location,
-            'latitude': float(truck.last_latitude) if truck.last_latitude else None,
-            'longitude': float(truck.last_longitude) if truck.last_longitude else None,
+            'latitude': latitude,
+            'longitude': longitude,
             'fuel_consumed_liters': float(fuel_data['fuel_consumed_liters']),
             'distance_travelled_km': float(fuel_data['distance_travelled_km']),
             'fuel_rate_per_100km': fuel_data['fuel_rate_per_100km'],
