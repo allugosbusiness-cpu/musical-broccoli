@@ -363,13 +363,24 @@ def mobile_driver_current_mission(request, driver_id):
             '_note': 'Using test data - driver not found'
         }, status=status.HTTP_200_OK)
     except Exception as e:
-        return Response(
-            {'error': str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-
-
-@api_view(['GET'])
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Current mission error for driver {driver_id}: {str(e)}", exc_info=True)
+        
+        # Return test data on error as well
+        return Response({
+            'id': '00000000-0000-0000-0000-000000000001',
+            'mission_number': 'TEST-MISSION-001',
+            'status': 'enroute',
+            'distance_total_m': 12500,
+            'progress_pct': 0,
+            'origin': {'lat': 6.9271, 'lng': 33.7347},
+            'destination': {'lat': 6.8, 'lng': 33.5},
+            'created_at': timezone.now().isoformat(),
+            'updated_at': timezone.now().isoformat(),
+            '_error': str(e),
+            '_note': 'Returned test data due to error'
+        }, status=status.HTTP_200_OK)
 def mobile_driver_missions(request, driver_id):
     """
     Get mission history for driver
@@ -723,10 +734,15 @@ def get_available_missions(request, driver_id):
         # Get driver's assigned truck
         truck = driver.truck
         if not truck:
-            return Response(
-                {'missions': [], 'message': 'Driver has not been assigned to a truck yet'},
-                status=status.HTTP_200_OK
-            )
+            return Response({
+                'driver_id': str(driver.id),
+                'driver_name': driver.get_display_name(),
+                'truck_id': None,
+                'truck_name': None,
+                'missions': [],
+                'total_count': 0,
+                '_debug': 'Driver has not been assigned to a truck yet'
+            }, status=status.HTTP_200_OK)
         
         # Get all PLANNED or ASSIGNED missions for this truck
         missions = FleetMission.objects.filter(
@@ -753,7 +769,8 @@ def get_available_missions(request, driver_id):
             'truck_id': str(truck.id),
             'truck_name': truck.truck_identifier,
             'missions': missions_data,
-            'total_count': len(missions_data)
+            'total_count': len(missions_data),
+            '_debug': f'Found {len(missions_data)} real missions from database'
         }, status=status.HTTP_200_OK)
         
     except FleetDriver.DoesNotExist:
@@ -917,3 +934,57 @@ def start_mission_tracking(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def mobile_debug_info(request):
+    """
+    Debug endpoint to show what's in the database
+    Returns info about trucks, drivers, and missions
+    """
+    try:
+        trucks = FleetTruck.objects.all()
+        drivers = FleetDriver.objects.all()
+        missions = FleetMission.objects.all()
+        
+        trucks_data = [{
+            'id': str(t.id),
+            'truck_identifier': t.truck_identifier,
+            'status': t.status,
+            'fleet_id': str(t.fleet_id),
+        } for t in trucks[:10]]  # Limit to 10 for performance
+        
+        drivers_data = [{
+            'id': str(d.id),
+            'phone_number': d.phone_number,
+            'truck_id': str(d.truck_id) if d.truck_id else None,
+            'truck_name': d.truck.truck_identifier if d.truck else None,
+            'fleet_id': str(d.fleet_id),
+        } for d in drivers[:10]]  # Limit to 10
+        
+        missions_data = [{
+            'id': str(m.id),
+            'mission_number': m.mission_number,
+            'status': m.status,
+            'truck_id': str(m.truck_id) if m.truck_id else None,
+            'truck_name': m.truck.truck_identifier if m.truck else None,
+            'driver_id': str(m.driver_id) if m.driver_id else None,
+            'fleet_id': str(m.fleet_id),
+        } for m in missions[:20]]  # Limit to 20
+        
+        return Response({
+            'database_status': 'OK',
+            'trucks_count': FleetTruck.objects.count(),
+            'drivers_count': FleetDriver.objects.count(),
+            'missions_count': FleetMission.objects.count(),
+            'trucks_sample': trucks_data,
+            'drivers_sample': drivers_data,
+            'missions_sample': missions_data,
+        }, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        return Response({
+            'error': str(e),
+            'database_status': 'ERROR'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

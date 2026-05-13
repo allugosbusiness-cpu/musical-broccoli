@@ -19,7 +19,8 @@ from .mobile_endpoints import (
     mobile_driver_registration, mobile_location_update, mobile_alert,
     mobile_driver_profile, mobile_driver_current_mission, mobile_driver_missions,
     mobile_mission_complete, generate_truck_qr, generate_mission_qr,
-    validate_driver_pin, generate_driver_pin, get_available_missions, start_mission_tracking
+    validate_driver_pin, generate_driver_pin, get_available_missions, start_mission_tracking,
+    mobile_debug_info
 )
 from .delivery_endpoints import (
     mission_delivery_confirmed, driver_status, mission_details
@@ -97,6 +98,7 @@ urlpatterns = [
     path('v1/mobile/truck/<str:truck_id>/generate-pin/', generate_driver_pin, name='generate-driver-pin'),
     path('v1/mobile/validate-pin/', validate_driver_pin, name='validate-driver-pin'),
     path('v1/mobile/mission/start-tracking/', start_mission_tracking, name='start-mission-tracking'),
+    path('v1/mobile/debug/', mobile_debug_info, name='mobile-debug-info'),
     # Delivery confirmation endpoints
     path('v1/mobile/mission/<str:mission_id>/delivery/', mission_delivery_confirmed, name='mission-delivery-confirmed'),
     path('v1/mobile/driver/<str:driver_id>/status/', driver_status, name='driver-status'),
