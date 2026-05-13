@@ -16,7 +16,7 @@ from .dashboard_endpoints import (
     recalculate_performance, sync_truck_data, mission_route_geometry
 )
 from .mobile_endpoints import (
-    mobile_driver_registration, mobile_location_update, mobile_alert,
+    mobile_health_check, mobile_driver_registration, mobile_location_update, mobile_alert,
     mobile_driver_profile, mobile_driver_current_mission, mobile_driver_missions,
     mobile_mission_complete, generate_truck_qr, generate_mission_qr,
     validate_driver_pin, generate_driver_pin, get_available_missions, start_mission_tracking,
@@ -73,6 +73,8 @@ urlpatterns = [
     path('', include(router.urls)),
     path('v1/', include(router_v1.urls)),
     path('v1/calculate-distance/', calculate_distance, name='calculate-distance'),
+    # Health check endpoint
+    path('v1/health/', mobile_health_check, name='health-check'),
     # Dashboard endpoints
     path('v1/dashboard/summary/', dashboard_summary, name='dashboard-summary'),
     path('v1/dashboard/drivers/', drivers_list_with_performance, name='dashboard-drivers'),

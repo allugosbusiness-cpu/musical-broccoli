@@ -22,6 +22,38 @@ from .models import Alert
 from .serializers import TruckSerializer, AlertSerializer
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def mobile_health_check(request):
+    """
+    ✅ Health check endpoint for mobile app
+    Diagnostic endpoint to verify backend is responding
+    """
+    try:
+        # Check database connectivity
+        driver_count = FleetDriver.objects.count()
+        truck_count = FleetTruck.objects.count()
+        mission_count = FleetMission.objects.count()
+        
+        return Response({
+            'status': 'healthy',
+            'timestamp': timezone.now().isoformat(),
+            'database': {
+                'drivers': driver_count,
+                'trucks': truck_count,
+                'missions': mission_count,
+            },
+            'message': '✅ Backend is operational',
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({
+            'status': 'unhealthy',
+            'timestamp': timezone.now().isoformat(),
+            'error': str(e),
+            'message': '❌ Backend error or database unavailable',
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def mobile_driver_registration(request):
