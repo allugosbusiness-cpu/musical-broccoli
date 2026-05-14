@@ -979,11 +979,17 @@ def start_mission_tracking(request):
     """
     Start tracking for a mission
     Accepts either mission_id or mission_number
+    ✅ UPDATED: Accepts latitude/longitude, records location history for audit trail
     """
     try:
         driver_id = request.data.get('driver_id')
         mission_id = request.data.get('mission_id')
         mission_number = request.data.get('mission_number')
+        # ✅ NEW: Get current location from mobile app for audit trail
+        latitude = request.data.get('latitude')
+        longitude = request.data.get('longitude')
+        accuracy = request.data.get('accuracy', 0)
+        altitude = request.data.get('altitude', 0)
         
         if not driver_id:
             return Response(
@@ -1021,7 +1027,32 @@ def start_mission_tracking(request):
                 'lat': mission.origin.get('lat') or mission.origin.get('latitude'),
                 'lon': mission.origin.get('lon') or mission.origin.get('longitude')
             }
+        
+        # ✅ NEW: Override mission location with driver's actual location if provided
+        if latitude is not None and longitude is not None:
+            mission.current_location = {
+                'lat': float(latitude),
+                'lon': float(longitude)
+            }
+        
         mission.save()
+        
+        # ✅ NEW: Record location history entry for audit trail
+        if latitude is not None and longitude is not None:
+            from api.models_v2 import TruckLocation
+            TruckLocation.objects.create(
+                truck=mission.truck,
+                driver=driver,
+                latitude=float(latitude),
+                longitude=float(longitude),
+                speed=0,
+                accuracy=float(accuracy) if accuracy else 0,
+                altitude=float(altitude) if altitude else 0,
+                timestamp=timezone.now()
+            )
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f'✅ Mission {mission.mission_number} location recorded on start: ({latitude}, {longitude})')
         
         # Cache mission tracking session
         from django.core.cache import cache
@@ -1042,7 +1073,8 @@ def start_mission_tracking(request):
             'destination': mission.destination,
             'driver_name': driver.get_display_name(),
             'tracking_id': str(mission.id),
-            'message': f'Started tracking mission {mission.mission_number}'
+            'message': f'Started tracking mission {mission.mission_number}',
+            'location_synced': latitude is not None and longitude is not None
         }, status=status.HTTP_200_OK)
         
     except FleetMission.DoesNotExist:

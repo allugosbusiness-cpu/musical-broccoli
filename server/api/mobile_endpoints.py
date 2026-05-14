@@ -514,10 +514,16 @@ def validate_driver_pin(request):
     """
     Validate PIN code and register driver to truck
     PIN is 6-digit alphanumeric code sent to driver via SMS or displayed on dashboard
+    ✅ UPDATED: Accepts latitude/longitude, records location history for audit trail
     """
     try:
         pin = request.data.get('pin', '').upper()
         phone_number = request.data.get('phone_number', '')
+        # ✅ NEW: Get current location from mobile app for audit trail
+        latitude = request.data.get('latitude')
+        longitude = request.data.get('longitude')
+        accuracy = request.data.get('accuracy', 0)
+        altitude = request.data.get('altitude', 0)
 
         if not pin or not phone_number:
             return Response(
@@ -534,7 +540,7 @@ def validate_driver_pin(request):
 
         # Get truck by PIN from cache
         from django.core.cache import cache
-        from api.models_v2 import FleetTruck, FleetDriver
+        from api.models_v2 import FleetTruck, FleetDriver, TruckLocation
         
         # Try to find PIN in active registrations (in a real app, store PINs properly)
         # For now, we'll search through recent trucks
@@ -570,7 +576,34 @@ def validate_driver_pin(request):
         # Link driver to truck
         driver.truck = truck_found
         driver.is_active = True
+        # ✅ NEW: Update driver's current location if provided
+        if latitude is not None and longitude is not None:
+            driver.latitude = float(latitude)
+            driver.longitude = float(longitude)
+            driver.last_location_update = timezone.now()
         driver.save()
+
+        # ✅ NEW: Override truck's current location with driver's actual location
+        if latitude is not None and longitude is not None:
+            truck_found.last_latitude = float(latitude)
+            truck_found.last_longitude = float(longitude)
+            truck_found.last_location_ts = timezone.now()
+            truck_found.save()
+            
+            # ✅ NEW: Record location history entry for audit trail
+            TruckLocation.objects.create(
+                truck=truck_found,
+                driver=driver,
+                latitude=float(latitude),
+                longitude=float(longitude),
+                speed=0,
+                accuracy=float(accuracy) if accuracy else 0,
+                altitude=float(altitude) if altitude else 0,
+                timestamp=timezone.now()
+            )
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f'✅ Truck {truck_found.truck_identifier} location recorded on driver link: ({latitude}, {longitude})')
 
         # Generate tracking ID and auth token
         import uuid
@@ -595,6 +628,7 @@ def validate_driver_pin(request):
             'truck_name': truck_found.truck_identifier,
             'phone_number': phone_number,
             'gps_tracking_enabled': True,
+            'location_synced': latitude is not None and longitude is not None,
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
@@ -826,11 +860,17 @@ def start_mission_tracking(request):
     """
     Start tracking for a mission
     Accepts either mission_id or mission_number
+    ✅ UPDATED: Accepts latitude/longitude, records location history for audit trail
     """
     try:
         driver_id = request.data.get('driver_id')
         mission_id = request.data.get('mission_id')
         mission_number = request.data.get('mission_number')
+        # ✅ NEW: Get current location from mobile app for audit trail
+        latitude = request.data.get('latitude')
+        longitude = request.data.get('longitude')
+        accuracy = request.data.get('accuracy', 0)
+        altitude = request.data.get('altitude', 0)
         
         if not driver_id:
             return Response(
@@ -868,7 +908,31 @@ def start_mission_tracking(request):
         if mission.origin and not mission.current_location:
             mission.current_location = mission.origin
         
+        # ✅ NEW: Override mission location with driver's actual location if provided
+        if latitude is not None and longitude is not None:
+            mission.current_location = {
+                'lat': float(latitude),
+                'lng': float(longitude)
+            }
+        
         mission.save()
+        
+        # ✅ NEW: Record location history entry for audit trail
+        if latitude is not None and longitude is not None:
+            from api.models_v2 import TruckLocation
+            TruckLocation.objects.create(
+                truck=mission.truck,
+                driver=driver,
+                latitude=float(latitude),
+                longitude=float(longitude),
+                speed=0,
+                accuracy=float(accuracy) if accuracy else 0,
+                altitude=float(altitude) if altitude else 0,
+                timestamp=timezone.now()
+            )
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f'✅ Mission {mission.mission_number} location recorded on start: ({latitude}, {longitude})')
         
         # Cache mission tracking session
         from django.core.cache import cache
@@ -891,7 +955,8 @@ def start_mission_tracking(request):
             'destination': mission.destination,
             'driver_name': driver_name,
             'tracking_id': str(mission.id),
-            'message': f'Started tracking mission {mission.mission_number}'
+            'message': f'Started tracking mission {mission.mission_number}',
+            'location_synced': latitude is not None and longitude is not None
         }, status=status.HTTP_200_OK)
         
     except FleetMission.DoesNotExist:
