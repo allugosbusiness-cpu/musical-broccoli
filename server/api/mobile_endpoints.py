@@ -144,6 +144,17 @@ def mobile_location_update(request):
         driver.updated_at = timezone.now()
         driver.save()
 
+        # ✅ CRITICAL: Also update truck's current location so web app can see it
+        if driver.truck:
+            driver.truck.last_latitude = float(latitude)
+            driver.truck.last_longitude = float(longitude)
+            driver.truck.current_location = {
+                'lat': float(latitude),
+                'lng': float(longitude),
+                'timestamp': timezone.now().isoformat()
+            }
+            driver.truck.save()
+
         # Store location history
         TruckLocation.objects.create(
             truck=driver.truck,
@@ -917,7 +928,7 @@ def start_mission_tracking(request):
         
         mission.save()
         
-        # ✅ NEW: Record location history entry for audit trail
+        # ✅ NEW: Record location history entry for audit trail AND update truck's current coordinates
         if latitude is not None and longitude is not None:
             from api.models_v2 import TruckLocation
             TruckLocation.objects.create(
@@ -930,6 +941,17 @@ def start_mission_tracking(request):
                 altitude=float(altitude) if altitude else 0,
                 timestamp=timezone.now()
             )
+            
+            # ✅ CRITICAL: Update truck's current location fields so web app can access them
+            mission.truck.last_latitude = float(latitude)
+            mission.truck.last_longitude = float(longitude)
+            mission.truck.current_location = {
+                'lat': float(latitude),
+                'lng': float(longitude),
+                'timestamp': timezone.now().isoformat()
+            }
+            mission.truck.save()
+            
             import logging
             logger = logging.getLogger(__name__)
             logger.info(f'✅ Mission {mission.mission_number} location recorded on start: ({latitude}, {longitude})')
