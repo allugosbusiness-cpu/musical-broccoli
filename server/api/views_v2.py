@@ -67,7 +67,24 @@ class TruckSerializer(serializers.ModelSerializer):
             'assigned_driver', 'assigned_driver_name', 'maintenance_due_date',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'fuel_consumed_pct']
+        read_only_fields = [
+            'id', 'created_at', 'updated_at', 'fuel_consumed_pct', 'fuel_consumed_liters',
+            'odometer_km', 'kilometers_travelled_km', 'is_moving', 'last_latitude',
+            'last_longitude', 'last_location_ts', 'assigned_driver', 'assigned_driver_name'
+        ]
+        extra_kwargs = {
+            'fleet_id': {'required': True},
+            'truck_identifier': {'required': True},
+            'plate': {'required': True},
+            'vin': {'required': False, 'allow_null': True},
+            'telematics_id': {'required': False, 'allow_null': True},
+            'make': {'required': False, 'allow_null': True},
+            'model': {'required': False, 'allow_null': True},
+            'year': {'required': False, 'allow_null': True},
+            'fuel_capacity_liters': {'required': False, 'default': 100},
+            'status': {'required': False, 'default': 'IDLE'},
+            'maintenance_due_date': {'required': False, 'allow_null': True},
+        }
     
     def get_assigned_driver_name(self, obj):
         if obj.assigned_driver:
