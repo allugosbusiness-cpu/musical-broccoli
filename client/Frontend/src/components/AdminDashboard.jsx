@@ -740,7 +740,7 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-3 max-h-96 overflow-y-auto">
+            <form onSubmit={(e) => { console.log('🔴 [FORM EVENT] Submit event fired'); handleSubmit(e); }} className="space-y-3 max-h-96 overflow-y-auto">
               <div className="grid grid-cols-2 gap-3">
                 <input
                   type="text"
