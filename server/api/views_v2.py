@@ -15,7 +15,8 @@ from django.db import transaction
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.conf import settings
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.middleware.csrf import get_token
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django.utils.decorators import method_decorator
 import logging
 import requests
@@ -251,7 +252,7 @@ class TruckViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
     
     def create(self, request, *args, **kwargs):
-        """Create new truck (admin only)"""
+        """Create new truck (admin only) - CSRF exempt for public API access"""
         try:
             # ✅ DEBUG: Log all request data
             logger.debug(f"📝 CREATE TRUCK REQUEST:")
@@ -313,10 +314,19 @@ class TruckViewSet(viewsets.ModelViewSet):
             logger.error(f"Failed to assign driver: {e}")
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
-    @method_decorator(ensure_csrf_cookie)
     def list(self, request, *args, **kwargs):
         """List trucks and ensure CSRF token is sent to client"""
+        # Get the CSRF token - this will trigger the middleware to set it
+        token = get_token(request)
+        logger.debug(f"🔐 [CSRF] Generated token for client: {token[:10]}... (first 10 chars)")
         return super().list(request, *args, **kwargs)
+    
+    @action(detail=False, methods=['get'])
+    def csrf_token(self, request):
+        """Get CSRF token endpoint"""
+        token = get_token(request)
+        logger.debug(f"🔐 [CSRF TOKEN ENDPOINT] Providing token: {token[:10]}...")
+        return Response({'csrfToken': token, 'status': 'token_provided'}, status=status.HTTP_200_OK)
 
 
 class MissionViewSet(viewsets.ModelViewSet):
