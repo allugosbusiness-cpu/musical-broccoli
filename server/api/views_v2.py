@@ -15,6 +15,8 @@ from django.db import transaction
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.conf import settings
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.utils.decorators import method_decorator
 import logging
 import requests
 import traceback
@@ -310,6 +312,11 @@ class TruckViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Failed to assign driver: {e}")
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @method_decorator(ensure_csrf_cookie)
+    def list(self, request, *args, **kwargs):
+        """List trucks and ensure CSRF token is sent to client"""
+        return super().list(request, *args, **kwargs)
 
 
 class MissionViewSet(viewsets.ModelViewSet):
