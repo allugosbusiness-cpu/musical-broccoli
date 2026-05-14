@@ -33,10 +33,12 @@ export default function TruckAdmin() {
 
   const fetchTrucks = async () => {
     try {
+      console.log('📥 [API] Fetching trucks from v1 API...');
       const data = await getV1Trucks();
+      console.log('✅ [API] Trucks fetched:', data);
       setTrucks(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Error fetching trucks:', error);
+      console.error('❌ [API] Error fetching trucks:', error);
       setError('Failed to load trucks');
     }
   };
@@ -87,6 +89,7 @@ export default function TruckAdmin() {
   // ✅ UPDATED: Submit handler with proper validation and v2 API
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('📋 [FORM] Submit triggered');
     setLoading(true);
     setError(null);
     setSuccess(null);
@@ -94,13 +97,17 @@ export default function TruckAdmin() {
     try {
       // ✅ VALIDATE: Check required fields
       if (!formData.truck_identifier || !formData.plate) {
+        console.error('❌ [FORM] Validation failed - missing required fields');
         setError('Truck identifier and plate are required');
         setLoading(false);
         return;
       }
 
+      console.log('✅ [FORM] Validation passed, formData:', JSON.stringify(formData, null, 2));
+
       if (editingId) {
         // Update existing truck
+        console.log('📝 [FORM] Updating truck:', editingId);
         await updateV1Truck(editingId, formData);
         setSuccess(`✅ Truck ${formData.truck_identifier} updated successfully!`);
         setEditingId(null);
@@ -110,8 +117,10 @@ export default function TruckAdmin() {
           const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
           return v.toString(16);
         });
-        console.log('📝 Creating truck with data:', { ...formData, fleet_id: fleetId });
-        await createV1Truck({ ...formData, fleet_id: fleetId });
+        console.log('📝 [FORM] Creating new truck with fleetId:', fleetId);
+        console.log('📝 [FORM] Truck data:', JSON.stringify({ ...formData, fleet_id: fleetId }, null, 2));
+        const result = await createV1Truck({ ...formData, fleet_id: fleetId });
+        console.log('✅ [FORM] Truck created, result:', result);
         setSuccess(`✅ Truck ${formData.truck_identifier} created successfully!`);
         // Keep form open but clear fields for next entry
         setFormData({
@@ -134,8 +143,12 @@ export default function TruckAdmin() {
         if (editingId) setShowForm(false);
       }, 5000);
     } catch (err) {
-      console.error('❌ Error saving truck:', err);
+      console.error('❌ [FORM ERROR] Error saving truck:', err);
+      console.error('   Error type:', err.name);
+      console.error('   Error message:', err.message);
       console.error('   Full error response:', err.response?.data);
+      console.error('   Response status:', err.response?.status);
+      console.error('   Response headers:', err.response?.headers);
       
       // Extract detailed error message
       let errorMsg = 'Failed to save truck';
@@ -147,8 +160,11 @@ export default function TruckAdmin() {
         errorMsg = Object.entries(err.response.data)
           .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
           .join(' | ');
+      } else if (err.message) {
+        errorMsg = err.message;
       }
       
+      console.error('   Extracted error message:', errorMsg);
       setError(`⚠️ Failed to save truck: ${errorMsg}`);
       setTimeout(() => setError(null), 10000);
     } finally {

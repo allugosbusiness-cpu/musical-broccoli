@@ -750,16 +750,26 @@ export const getV1Truck = async (id) => {
 
 export const createV1Truck = async (data) => {
   try {
+    console.log('🚚 [API] Creating truck with data:', JSON.stringify(data, null, 2));
+    
     // Add default coordinates if not provided (Harare city center)
     const enhancedData = {
       ...data,
       last_latitude: data.last_latitude || -17.8252,
       last_longitude: data.last_longitude || 31.0335
     };
+    
+    console.log('📤 [API] POST /trucks/ with:', JSON.stringify(enhancedData, null, 2));
     const response = await apiV1.post('/trucks/', enhancedData);
+    
+    console.log('✅ [API] Truck created successfully:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Error creating v1 truck:', error);
+    console.error('❌ [API] Error creating v1 truck:', error);
+    console.error('   Response Status:', error.response?.status);
+    console.error('   Response Data:', error.response?.data);
+    console.error('   Response Headers:', error.response?.headers);
+    console.error('   Request Config:', error.config);
     throw error;
   }
 };
