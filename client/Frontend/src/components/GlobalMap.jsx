@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+import 'leaflet.markercluster';
 import { getDashboardTrucks, getDashboardMissions, getMissionRouteGeometry } from '../services/api';
 import { reverseGeocode } from '../services/geocoding';
 import { getCoordinates } from '../data/locations';
@@ -60,6 +63,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
   const mapRef = useRef(null);
   const map = useRef(null);
   const markersRef = useRef({});
+  const markerClusterGroup = useRef(null);  // ✅ NEW: Marker cluster group for overlapping trucks
   const matchedLayersRef = useRef({});      // Persistent matched routes (FINAL)
   const rawPreviewLayersRef = useRef({});   // Debug preview layers only
   const trailLayersRef = useRef({});        // Trail polylines
@@ -131,10 +135,38 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
       const matchedGroup = L.featureGroup().addTo(map.current);
       const rawPreviewGroup = L.featureGroup().addTo(map.current);
 
+      // ✅ NEW: Create marker cluster group to handle overlapping truck markers
+      markerClusterGroup.current = L.markerClusterGroup({
+        maxClusterRadius: 60,  // Cluster trucks within 60px
+        iconCreateFunction: (cluster) => {
+          const count = cluster.getChildCount();
+          const size = count < 10 ? 'small' : count < 100 ? 'medium' : 'large';
+          return L.divIcon({
+            html: `<div style="
+              background-color: #ef4444;
+              color: white;
+              border-radius: 50%;
+              width: ${size === 'small' ? 30 : size === 'medium' ? 40 : 50}px;
+              height: ${size === 'small' ? 30 : size === 'medium' ? 40 : 50}px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-weight: bold;
+              font-size: ${size === 'small' ? 12 : size === 'medium' ? 14 : 16}px;
+              border: 2px solid white;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            ">${count}</div>`,
+            className: 'truck-cluster',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
+          });
+        },
+      }).addTo(map.current);
+
       window.matchedGroup = matchedGroup;
       window.rawPreviewGroup = rawPreviewGroup;
 
-      console.log('✅ Map initialized with feature groups');
+      console.log('✅ Map initialized with feature groups and marker clustering');
     } catch (error) {
       console.error('❌ Map initialization error:', error);
     }
@@ -357,7 +389,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
           ${locationPending ? '<p style="margin: 5px 0; color: #f59e0b;"><em>\u26a0️ Location update pending...</em></p>' : ''}
         </div>
       `, { maxWidth: 250, maxHeight: 300 })
-      .addTo(map.current);
+      .addTo(markerClusterGroup.current);  // ✅ CHANGED: Add to cluster group instead of map.current
 
     // ✅ FIXED: Add click event handler for marker selection
     marker.on('click', () => {
