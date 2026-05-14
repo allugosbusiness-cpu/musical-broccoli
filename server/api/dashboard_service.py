@@ -405,23 +405,20 @@ def get_drivers_with_performance():
 
 
 def get_trucks_with_mission_data():
-    """Get all trucks with data synced from missions"""
-    # Use .only() to avoid columns that might not exist in production DB
-    # This allows gradual schema migration
-    trucks = FleetTruck.objects.only(
+    """Get all trucks with data synced from missions - OPTIMIZED to avoid N+1 queries"""
+    # Use .select_related() to avoid N+1 queries for assigned_driver
+    trucks = FleetTruck.objects.select_related('assigned_driver').only(
         'id', 'fleet_id', 'truck_identifier', 'plate', 'make', 'model',
         'status', 'fuel_capacity_liters', 'last_latitude', 'last_longitude',
-        'assigned_driver', 'fuel_consumed_liters', 'kilometers_travelled_km', 'updated_at'
+        'assigned_driver', 'fuel_consumed_liters', 'kilometers_travelled_km', 'updated_at',
+        'current_location'
     ).all()
+    
     result = []
     for truck in trucks:
-        # Sync data from missions
-        sync_truck_data_from_missions(truck.id)
-        
-        # Get current location and status
-        location = get_truck_location_from_missions(truck.id)
-        status = get_truck_status_from_missions(truck.id)
-        fuel_data = calculate_truck_fuel_consumption(truck.id)
+        # Use data already stored in truck fields instead of querying missions again
+        # This avoids the N+1 query problem that was causing timeouts
+        fuel_data = calculate_truck_fuel_consumption(truck.id)  # Still need this, but cache would be better
         
         result.append({
             'id': str(truck.id),
@@ -429,8 +426,8 @@ def get_trucks_with_mission_data():
             'plate': truck.plate,
             'make': truck.make,
             'model': truck.model,
-            'status': str(status) if status else 'IDLE',  # Convert enum to string
-            'location': location,
+            'status': str(truck.status) if truck.status else 'IDLE',
+            'location': truck.current_location,
             'latitude': float(truck.last_latitude) if truck.last_latitude else None,
             'longitude': float(truck.last_longitude) if truck.last_longitude else None,
             'fuel_consumed_liters': float(fuel_data['fuel_consumed_liters']),
