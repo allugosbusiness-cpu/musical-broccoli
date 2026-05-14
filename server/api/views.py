@@ -710,8 +710,6 @@ class AlertViewSet(viewsets.ModelViewSet):
                 'critical_alerts': critical_alerts
             }
         })
-    ordering_fields = ['timestamp']
-    ordering = ['-timestamp']
 
     @action(detail=True, methods=['patch'])
     def resolve(self, request, pk=None):
