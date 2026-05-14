@@ -516,15 +516,21 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('📋 [FORM] Truck save clicked - form data:', JSON.stringify(formData, null, 2));
     try {
       // Validate required fields
       if (!formData.truck_identifier || !formData.plate) {
+        console.error('❌ [FORM] Validation failed - missing truck_identifier or plate');
         setError('Truck identifier and plate are required');
         return;
       }
 
+      console.log('✅ [FORM] Validation passed');
+
       if (editingId) {
+        console.log('📝 [FORM] Updating existing truck:', editingId);
         await updateV1Truck(editingId, formData);
+        console.log('✅ [FORM] Truck updated successfully');
         setSuccess('✅ Truck updated successfully');
         setEditingId(null);
       } else {
@@ -533,9 +539,10 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
           const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
           return v.toString(16);
         });
-        console.log('📝 Creating truck with data:', { ...formData, fleet_id: fleetId });
+        console.log('📝 [FORM] Creating NEW truck with fleetId:', fleetId);
+        console.log('📝 [FORM] Truck data to send:', JSON.stringify({ ...formData, fleet_id: fleetId }, null, 2));
         const response = await createV1Truck({ ...formData, fleet_id: fleetId });
-        console.log('✅ Truck created:', response);
+        console.log('✅ [FORM] Truck created successfully, response:', response);
         setSuccess(`✅ Truck ${formData.truck_identifier} created successfully`);
         // Keep form open but clear fields for next entry
         setFormData({
@@ -552,14 +559,18 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
         });
       }
       // Refresh data without closing form
+      console.log('🔄 [FORM] Calling onRefresh to reload trucks');
       onRefresh();
       // Clear success message after 5 seconds (longer to see it)
       setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
-      console.error('❌ Error saving truck:', error);
-      console.error('   Full error response:', error.response?.data);
-      console.error('   Error status:', error.response?.status);
-      console.error('   Error config:', error.config?.data);
+      console.error('❌ [FORM ERROR] Error saving truck:', error);
+      console.error('   Error name:', error.name);
+      console.error('   Error message:', error.message);
+      console.error('   Response status:', error.response?.status);
+      console.error('   Response data:', error.response?.data);
+      console.error('   Response headers:', error.response?.headers);
+      console.error('   Full error:', error);
       
       // Extract error message from various possible locations
       let errorMsg = 'Failed to save truck';
