@@ -14,8 +14,10 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.db import transaction
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
+from django.conf import settings
 import logging
 import requests
+import traceback
 
 from .models_v2 import (
     FleetDriver, FleetTruck, FleetMission, FleetMissionStop, FleetMissionEvent, 
@@ -231,7 +233,19 @@ class TruckViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """Create new truck (admin only)"""
         try:
+            # ✅ DEBUG: Log all request data
+            logger.debug(f"📝 Create truck request data: {request.data}")
+            
             admin_id = request.user.id if hasattr(request.user, 'id') else None
+            
+            # ✅ VALIDATE: Check required fields before calling service
+            required_fields = ['fleet_id', 'truck_identifier', 'plate']
+            missing_fields = [f for f in required_fields if not request.data.get(f)]
+            if missing_fields:
+                error_msg = f"Missing required fields: {', '.join(missing_fields)}"
+                logger.error(f"❌ {error_msg}")
+                return Response({'error': error_msg}, status=status.HTTP_400_BAD_REQUEST)
+            
             truck = TruckService.create_truck(
                 fleet_id=request.data.get('fleet_id'),
                 truck_identifier=request.data.get('truck_identifier'),
@@ -244,10 +258,18 @@ class TruckViewSet(viewsets.ModelViewSet):
                 fuel_capacity_liters=request.data.get('fuel_capacity_liters', 100),
                 admin_id=admin_id
             )
+            logger.info(f"✅ Truck created successfully: {truck.id} ({truck.plate})")
             serializer = self.get_serializer(truck)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
-            logger.error(f"Failed to create truck: {e}")
+            logger.error(f"❌ Failed to create truck: {e}")
+            logger.error(f"   Traceback: {traceback.format_exc()}")
+            error_detail = {
+                'error': str(e),
+                'type': type(e).__name__,
+                'details': traceback.format_exc() if settings.DEBUG else None
+            }
+            return Response(error_detail, status=status.HTTP_400_BAD_REQUEST)
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=True, methods=['patch'])

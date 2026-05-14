@@ -557,8 +557,32 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
       setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
       console.error('❌ Error saving truck:', error);
-      const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to save truck';
-      console.error('   Error details:', errorMsg);
+      console.error('   Full error response:', error.response?.data);
+      console.error('   Error status:', error.response?.status);
+      console.error('   Error config:', error.config?.data);
+      
+      // Extract error message from various possible locations
+      let errorMsg = 'Failed to save truck';
+      if (error.response?.data?.error) {
+        errorMsg = error.response.data.error;
+      } else if (error.response?.data?.detail) {
+        errorMsg = error.response.data.detail;
+      } else if (error.response?.data?.non_field_errors) {
+        errorMsg = Array.isArray(error.response.data.non_field_errors) 
+          ? error.response.data.non_field_errors.join(', ')
+          : error.response.data.non_field_errors;
+      } else if (typeof error.response?.data === 'string') {
+        errorMsg = error.response.data;
+      } else if (error.response?.data) {
+        // Show all validation errors
+        errorMsg = Object.entries(error.response.data)
+          .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+          .join(' | ');
+      } else {
+        errorMsg = error.message || 'Failed to save truck';
+      }
+      
+      console.error('   Parsed error message:', errorMsg);
       setError(`⚠️ Failed to save truck: ${errorMsg}`);
       // Keep error visible longer (10 seconds)
       setTimeout(() => setError(null), 10000);
