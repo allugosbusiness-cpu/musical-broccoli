@@ -630,9 +630,10 @@ class CargoViewSet(viewsets.ModelViewSet):
 class AlertViewSet(viewsets.ModelViewSet):
     queryset = Alert.objects.all()
     serializer_class = AlertSerializer
-    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filter_backends = [DjangoFilterBackend]  # Removed OrderingFilter to fix slicing issue
     filterset_fields = ['truck', 'alert_type', 'is_resolved']
-    ordering = ['-timestamp']
+    # Note: Ordering removed due to Django ORM slicing issue - DRF pagination incompatible
+    # ordering = ['-timestamp']
     
     def create(self, request, *args, **kwargs):
         """Override create to prevent duplicate alerts within 5 seconds"""
