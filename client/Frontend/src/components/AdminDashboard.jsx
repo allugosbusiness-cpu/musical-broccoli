@@ -544,6 +544,8 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
         const response = await createV1Truck({ ...formData, fleet_id: fleetId });
         console.log('✅ [FORM] Truck created successfully, response:', response);
         setSuccess(`✅ Truck ${formData.truck_identifier} created successfully`);
+        // Show alert immediately so user knows it worked
+        alert(`✅ SUCCESS!\n\nTruck "${formData.truck_identifier}" created successfully!\n\nPlate: ${formData.plate}`);
         // Keep form open but clear fields for next entry
         setFormData({
           truck_identifier: '',
@@ -595,6 +597,8 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
       
       console.error('   Parsed error message:', errorMsg);
       setError(`⚠️ Failed to save truck: ${errorMsg}`);
+      // Show alert immediately so user sees the error
+      alert(`❌ Truck Creation Failed!\n\n${errorMsg}`);
       // Keep error visible longer (10 seconds)
       setTimeout(() => setError(null), 10000);
     }
