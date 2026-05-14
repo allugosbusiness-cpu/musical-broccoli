@@ -784,14 +784,23 @@ export const createV1Truck = async (data) => {
     console.log('📤 [API] POST /trucks/ with:', JSON.stringify(enhancedData, null, 2));
     const response = await apiV1.post('/trucks/', enhancedData);
     
-    console.log('✅ [API] Truck created successfully:', response.data);
+    console.log('✅ [API] Response status:', response.status);
+    console.log('✅ [API] Response headers:', response.headers);
+    console.log('✅ [API] Truck created successfully:', JSON.stringify(response.data, null, 2));
     return response.data;
   } catch (error) {
-    console.error('❌ [API] Error creating v1 truck:', error);
+    console.error('❌ [API] Error creating v1 truck:');
+    console.error('   Error name:', error.name);
+    console.error('   Error message:', error.message);
+    console.error('   Error code:', error.code);
     console.error('   Response Status:', error.response?.status);
+    console.error('   Response StatusText:', error.response?.statusText);
     console.error('   Response Data:', error.response?.data);
     console.error('   Response Headers:', error.response?.headers);
-    console.error('   Request Config:', error.config);
+    console.error('   Request URL:', error.config?.url);
+    console.error('   Request method:', error.config?.method);
+    console.error('   Request headers:', error.config?.headers);
+    console.error('   Full error object:', error);
     throw error;
   }
 };
