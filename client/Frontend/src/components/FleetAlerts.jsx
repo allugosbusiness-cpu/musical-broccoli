@@ -41,7 +41,9 @@ export default function FleetAlerts({ selectedDriver = null, refreshTrigger = 0 
           setAlerts(sorted);
         }
       } catch (error) {
-        console.error('Error fetching alerts:', error);
+        console.error('Error fetching alerts (silently continuing):', error.message);
+        // Silently fail - don't block the page - just show no alerts
+        setAlerts([]);
       } finally {
         setLoading(false);
       }
