@@ -546,6 +546,10 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
         setSuccess(`✅ Truck ${formData.truck_identifier} created successfully`);
         // Show alert immediately so user knows it worked
         alert(`✅ SUCCESS!\n\nTruck "${formData.truck_identifier}" created successfully!\n\nPlate: ${formData.plate}`);
+        // Refetch trucks list to show new truck
+        const dashboardData = await getDashboardTrucks();
+        setTrucks(Array.isArray(dashboardData) ? dashboardData : []);
+        console.log('✅ [FORM] Trucks list refreshed, new total:', Array.isArray(dashboardData) ? dashboardData.length : 0);
         // Keep form open but clear fields for next entry
         setFormData({
           truck_identifier: '',
