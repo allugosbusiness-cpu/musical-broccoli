@@ -822,6 +822,10 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
               </div>
               <button
                 type="submit"
+                onClick={(e) => {
+                  console.log('🔴 [BUTTON CLICK] Save button clicked directly');
+                  // Don't prevent default - let form submission work
+                }}
                 className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition flex items-center justify-center gap-2"
               >
                 <Save size={18} />

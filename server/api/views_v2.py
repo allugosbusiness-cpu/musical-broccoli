@@ -252,7 +252,12 @@ class TruckViewSet(viewsets.ModelViewSet):
         """Create new truck (admin only)"""
         try:
             # ✅ DEBUG: Log all request data
-            logger.debug(f"📝 Create truck request data: {request.data}")
+            logger.debug(f"📝 CREATE TRUCK REQUEST:")
+            logger.debug(f"   Method: {request.method}")
+            logger.debug(f"   URL: {request.build_absolute_uri()}")
+            logger.debug(f"   Headers: {dict(request.headers)}")
+            logger.debug(f"   Body data: {request.data}")
+            logger.debug(f"   Content-Type: {request.content_type}")
             
             admin_id = request.user.id if hasattr(request.user, 'id') else None
             
