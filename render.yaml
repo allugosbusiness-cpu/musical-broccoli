@@ -7,7 +7,7 @@ services:
     startCommand: cd server && python manage.py migrate --noinput && gunicorn Logistics.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --worker-class sync --timeout 60 --log-level info
     envVars:
       - key: DEBUG
-        value: "false"
+        value: "true"
       - key: SECRET_KEY
         generateValue: true
       - key: ALLOWED_HOSTS
