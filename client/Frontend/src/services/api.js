@@ -876,6 +876,78 @@ export const deleteV1Mission = async (id) => {
   }
 };
 
+// ✅ NEW: Location tracking and updates
+export const updateTruckLocationTracking = async (truckId, latitude, longitude, speedKmh = 0, timestamp = null) => {
+  try {
+    const response = await apiV1.post('/truck-tracking/location-speed/', {
+      truck_id: truckId,
+      latitude,
+      longitude,
+      speed_kmh: speedKmh,
+      timestamp: timestamp || new Date().toISOString()
+    });
+    console.log('✅ Truck location updated:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating truck location:', error);
+    throw error;
+  }
+};
+
+export const getTruckCurrentLocation = async (truckId) => {
+  try {
+    const response = await apiV1.get(`/truck-tracking/location-speed/${truckId}/`);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting truck location:', error);
+    return null;
+  }
+};
+
+export const getAllTrucksLocations = async () => {
+  try {
+    const response = await apiV1.get('/truck-tracking/all-locations/');
+    return response.data;
+  } catch (error) {
+    console.error('Error getting all trucks locations:', error);
+    return [];
+  }
+};
+
+export const reverseGeocodeLocation = async (latitude, longitude) => {
+  try {
+    const response = await apiV1.get('/locations/reverse-geocode/', {
+      params: { lat: latitude, lon: longitude }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error reverse geocoding location:', error);
+    return {
+      lat: latitude,
+      lon: longitude,
+      name: `Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+      accuracy: 'custom'
+    };
+  }
+};
+
+export const sendMissionLocationUpdate = async (missionId, latitude, longitude, status = null) => {
+  try {
+    const data = {
+      current_latitude: latitude,
+      current_longitude: longitude
+    };
+    if (status) data.status = status;
+    
+    const response = await apiV1.patch(`/api-missions/${missionId}/status/`, data);
+    console.log('✅ Mission location updated:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating mission location:', error);
+    throw error;
+  }
+};
+
 // V1 Disputes
 export const getV1Disputes = async (filters = {}) => {
   try {

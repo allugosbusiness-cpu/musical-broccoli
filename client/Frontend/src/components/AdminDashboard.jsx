@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Edit2, Trash2, X, Save, AlertCircle, RefreshCw, Eye, QrCode } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, AlertCircle, RefreshCw, Eye, QrCode, MapPin } from 'lucide-react';
 import DriverQRCodeModal from './DriverQRCodeModal';
 import { ZIMBABWE_LOCATIONS } from '../data/zimbabweLocations';
 import { 
@@ -8,7 +8,7 @@ import {
   createV1Truck, updateV1Truck, deleteV1Truck,
   createV1Driver, updateV1Driver, deleteV1Driver,
   createV1Mission, updateV1Mission, deleteV1Mission,
-  recalculatePerformance, syncTruckData
+  recalculatePerformance, syncTruckData, updateTruckLocationTracking
 } from '../services/api';
 
 export default function AdminDashboard({ onSelectTruck = () => {}, onSelectDriver = () => {}, onDataChanged = () => {} }) {
@@ -482,6 +482,13 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
   const [editingId, setEditingId] = useState(null);
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [selectedTruckForLocation, setSelectedTruckForLocation] = useState(null);
+  const [locationUpdateData, setLocationUpdateData] = useState({
+    latitude: '',
+    longitude: '',
+    speed_kmh: 0
+  });
   const [formData, setFormData] = useState({
     truck_identifier: '',
     plate: '',
@@ -496,6 +503,52 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
   });
 
   const statusOptions = ['IDLE', 'ENROUTE', 'MAINTENANCE', 'DECOMMISSIONED'];
+
+  const handleUpdateLocation = (truck) => {
+    // ✅ NEW: Allow updating truck location in real-time
+    setSelectedTruckForLocation(truck);
+    setLocationUpdateData({
+      latitude: truck.last_latitude || '',
+      longitude: truck.last_longitude || '',
+      speed_kmh: truck.speed_kmh || 0
+    });
+    setShowLocationModal(true);
+  };
+
+  const handleSubmitLocationUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      if (!locationUpdateData.latitude || !locationUpdateData.longitude) {
+        setError('Latitude and longitude are required');
+        return;
+      }
+
+      const lat = parseFloat(locationUpdateData.latitude);
+      const lon = parseFloat(locationUpdateData.longitude);
+
+      if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        setError('Invalid coordinates. Lat: -90 to 90, Lon: -180 to 180');
+        return;
+      }
+
+      await updateTruckLocationTracking(
+        selectedTruckForLocation.id,
+        lat,
+        lon,
+        parseFloat(locationUpdateData.speed_kmh) || 0
+      );
+
+      setSuccess(`✅ Location updated for ${selectedTruckForLocation.truck_identifier}`);
+      setShowLocationModal(false);
+      onRefresh();
+      
+      const timer = setTimeout(() => setSuccess(null), 3000);
+      return () => clearTimeout(timer);
+    } catch (err) {
+      console.error('Error updating location:', err);
+      setError('Failed to update truck location');
+    }
+  };
 
   const handleEdit = (truck) => {
     setFormData({
@@ -696,6 +749,13 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
                       <Eye size={16} />
                     </button>
                     <button
+                      onClick={() => handleUpdateLocation(truck)}
+                      className="p-2 text-purple-400 hover:bg-purple-900/30 rounded transition"
+                      title="Update Location"
+                    >
+                      <MapPin size={16} />
+                    </button>
+                    <button
                       onClick={() => handleEdit(truck)}
                       className="p-2 text-blue-400 hover:bg-blue-900/30 rounded transition"
                     >
@@ -714,6 +774,101 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
           </tbody>
         </table>
       </div>
+
+      {/* Location Update Modal */}
+      {showLocationModal && selectedTruckForLocation && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-slate-800 rounded-lg p-6 max-w-md w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <MapPin size={20} />
+                Update Location
+              </h2>
+              <button onClick={() => setShowLocationModal(false)} className="text-slate-400 hover:text-white">
+                <X size={20} />
+              </button>
+            </div>
+            
+            {error && (
+              <div className="mb-4 p-3 bg-red-900/50 border border-red-700 text-red-300 rounded text-sm">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitLocationUpdate} className="space-y-3">
+              <div>
+                <label className="block text-slate-300 text-sm font-medium mb-1">
+                  Truck: {selectedTruckForLocation.truck_identifier}
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 text-sm font-medium mb-1">Latitude</label>
+                <input
+                  type="number"
+                  step="0.0001"
+                  min="-90"
+                  max="90"
+                  placeholder="-17.8 to 17.8"
+                  value={locationUpdateData.latitude}
+                  onChange={(e) => setLocationUpdateData({ ...locationUpdateData, latitude: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-purple-500 outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 text-sm font-medium mb-1">Longitude</label>
+                <input
+                  type="number"
+                  step="0.0001"
+                  min="-180"
+                  max="180"
+                  placeholder="31.0 to 32.8"
+                  value={locationUpdateData.longitude}
+                  onChange={(e) => setLocationUpdateData({ ...locationUpdateData, longitude: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-purple-500 outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 text-sm font-medium mb-1">Speed (km/h) - Optional</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  placeholder="0"
+                  value={locationUpdateData.speed_kmh}
+                  onChange={(e) => setLocationUpdateData({ ...locationUpdateData, speed_kmh: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-purple-500 outline-none"
+                />
+              </div>
+
+              <div className="text-xs text-slate-400 bg-slate-700/50 p-2 rounded">
+                💡 Enter coordinates or use format: lat,lon (e.g., -17.8,31.0)
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded transition flex items-center justify-center gap-2"
+                >
+                  <Save size={16} />
+                  Update Location
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowLocationModal(false)}
+                  className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Form Modal */}
       {showForm && (
@@ -892,7 +1047,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
     }
   }, [drivers]);
 
-  // Handle location search
+  // Handle location search - accepts both name search and direct coordinate input
   const handleLocationSearch = (type, searchTerm) => {
     setLocationSearch(prev => ({ ...prev, [type]: searchTerm }));
     
@@ -901,6 +1056,27 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
       return;
     }
 
+    // Check if input is coordinate format: "lat,lon" or "lat, lon"
+    const coordMatch = searchTerm.trim().match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
+    if (coordMatch) {
+      const lat = parseFloat(coordMatch[1]);
+      const lon = parseFloat(coordMatch[2]);
+      // Validate coordinate ranges
+      if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+        // ✅ Accept custom coordinates
+        setLocationSuggestions(prev => ({ 
+          ...prev, 
+          [type]: [{ 
+            lat, 
+            lon, 
+            name: `Custom Location (${lat.toFixed(4)}, ${lon.toFixed(4)})`
+          }]
+        }));
+        return;
+      }
+    }
+
+    // Otherwise search from ZIMBABWE_LOCATIONS
     const filtered = ZIMBABWE_LOCATIONS.filter(loc =>
       loc.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -1488,7 +1664,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Origin Location (search: Molus, Mutare, Harare...)"
+                  placeholder="Origin (search location or enter coords: -17.8,31.0)"
                   value={locationSearch.origin}
                   onChange={(e) => handleLocationSearch('origin', e.target.value)}
                   className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
@@ -1514,7 +1690,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Current Location (search: Molus, Mutare, Harare...)"
+                  placeholder="Current Location (search location or enter coords: -17.85,31.05)"
                   value={locationSearch.current_location}
                   onChange={(e) => handleLocationSearch('current_location', e.target.value)}
                   className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
@@ -1540,7 +1716,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Destination Location (search: Molus, Mutare, Harare...)"
+                  placeholder="Destination (search location or enter coords: -18.0,31.1)"
                   value={locationSearch.destination}
                   onChange={(e) => handleLocationSearch('destination', e.target.value)}
                   className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"

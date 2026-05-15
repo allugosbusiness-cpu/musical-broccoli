@@ -1,12 +1,18 @@
 /**
  * Reverse Geocoding Service
  * Converts coordinates (lat, lon) to human-readable addresses
+ * Priority: Backend API > Nominatim/OpenStreetMap
  */
 
 // Cache to avoid repeated API calls for the same coordinates
 const geocodeCache = new Map();
 
 const NOMINATIM_API = 'https://nominatim.openstreetmap.org/reverse';
+
+const getApiV1Base = () => {
+  if (import.meta.env.MODE === 'development') return 'http://localhost:8000/api/v1';
+  return 'https://pulsetrack-back.onrender.com/api/v1';
+};
 
 export const reverseGeocode = async (lat, lon) => {
   // Create cache key
@@ -18,6 +24,32 @@ export const reverseGeocode = async (lat, lon) => {
   }
 
   try {
+    // ✅ NEW: Try backend API first (faster, supports custom locations)
+    try {
+      const apiResponse = await fetch(
+        `${getApiV1Base()}/locations/reverse-geocode/?lat=${lat}&lon=${lon}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+
+      if (apiResponse.ok) {
+        const apiData = await apiResponse.json();
+        if (apiData.name) {
+          const result = apiData.name;
+          geocodeCache.set(cacheKey, result);
+          console.log(`✅ Reverse geocoding (backend): ${lat.toFixed(4)}, ${lon.toFixed(4)} → ${result}`);
+          return result;
+        }
+      }
+    } catch (apiError) {
+      console.warn('⚠️ Backend reverse geocoding failed, trying Nominatim:', apiError.message);
+    }
+
+    // Fallback to Nominatim API
     const response = await fetch(
       `${NOMINATIM_API}?format=json&lat=${lat}&lon=${lon}&zoom=16&addressdetails=1`,
       {
@@ -53,11 +85,14 @@ export const reverseGeocode = async (lat, lon) => {
     
     // Cache the result
     geocodeCache.set(cacheKey, result);
+    console.log(`✅ Reverse geocoding (Nominatim): ${lat.toFixed(4)}, ${lon.toFixed(4)} → ${result}`);
     return result;
   } catch (error) {
     console.error('❌ Reverse geocoding error:', error);
     // Return coordinates as fallback
-    return `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
+    const fallback = `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
+    geocodeCache.set(cacheKey, fallback);
+    return fallback;
   }
 };
 

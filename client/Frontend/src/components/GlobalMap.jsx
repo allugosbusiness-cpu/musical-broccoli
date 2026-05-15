@@ -7,9 +7,11 @@ import 'leaflet.markercluster';
 import { getDashboardTrucks, getDashboardMissions, getMissionRouteGeometry } from '../services/api';
 import { reverseGeocode } from '../services/geocoding';
 import { getCoordinates } from '../data/locations';
+import { locationSyncService } from '../services/locationSyncService';
 import RoadMatchedTrailSystem from './RoadMatchedTrailSystem';
 import DriverEventAlerts from './DriverEventAlerts';
 import { driverEventTracker } from '../services/driverEventTracker';
+import { extractCoordinates, isValidCoordinate, getLocationStatus } from '../utils/locationExtractor';
 import '../styles/trailStyles.css';
 
 // Helper to get API base URL for v1 endpoints
@@ -78,6 +80,9 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
   const [showRawTraces, setShowRawTraces] = useState(false);
   const [legend, setLegend] = useState([]);
   const [selectedTruckData, setSelectedTruckData] = useState(null);
+  
+  // ✅ NEW: Cache to prevent duplicate updates to same truck location
+  const lastTruckHashRef = useRef({});  // Tracks hash of last known truck state
 
   // ✅ FIXED: Sync selected truck data when selection changes
   useEffect(() => {
@@ -167,6 +172,31 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
       window.rawPreviewGroup = rawPreviewGroup;
 
       console.log('✅ Map initialized with feature groups and marker clustering');
+
+      // ✅ NEW: Auto-refresh truck locations when user pans/zooms map
+      // Debounced to avoid excessive API calls
+      let autoRefreshTimeout;
+      const handleMapInteraction = () => {
+        clearTimeout(autoRefreshTimeout);
+        // Refresh after 2 seconds of no map movement
+        autoRefreshTimeout = setTimeout(() => {
+          console.log('🔄 Auto-refreshing truck locations after map interaction');
+          // Force location sync to get latest data
+          locationSyncService.forceSyncNow().catch(err => console.warn('Auto-refresh error:', err));
+        }, 2000);
+      };
+
+      // Listen for map interactions
+      map.current.on('moveend', handleMapInteraction);
+      map.current.on('zoomend', handleMapInteraction);
+
+      return () => {
+        clearTimeout(autoRefreshTimeout);
+        if (map.current) {
+          map.current.off('moveend', handleMapInteraction);
+          map.current.off('zoomend', handleMapInteraction);
+        }
+      };
     } catch (error) {
       console.error('❌ Map initialization error:', error);
     }
@@ -283,6 +313,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
       lat: truck.latitude,
       lon: truck.longitude,
       status: truck.status,
+      location_status: truck.location_status,
       hasMap: !!map.current,
     });
 
@@ -291,19 +322,15 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
       return;
     }
     
-    // ✅ IMPROVED: Use default location if coordinates missing
-    // Priority: real-time truck coords > default fallback (Harare center)
+    // ✅ IMPROVED: Use robust validation and default fallback
     let markerLat = truck.latitude;
     let markerLon = truck.longitude;
-    let locationPending = false;
+    let locationPending = truck.location_status === 'pending';
     const defaultCoords = { lat: -17.8252, lon: 31.0335 }; // Harare center
     
-    // Check if we have valid coordinates
-    if (markerLat === null || markerLat === undefined ||
-        markerLon === null || markerLon === undefined ||
-        !Number.isFinite(markerLat) || !Number.isFinite(markerLon)) {
-      
-      console.warn(`⚠️ No real-time coordinates for truck ${truck.identifier}, using default location`);
+    // Check if we have valid coordinates using utility function
+    if (!isValidCoordinate(markerLat, markerLon)) {
+      console.warn(`⚠️ Invalid coordinates for truck ${truck.identifier} (status: ${truck.location_status}), using default location`);
       markerLat = defaultCoords.lat;
       markerLon = defaultCoords.lon;
       locationPending = true;
@@ -312,7 +339,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
     // Remove old marker if exists
     if (markersRef.current[truck.id]) {
       console.log(`🗑️ Removing old marker for truck ${truck.identifier}`);
-      map.current.removeLayer(markersRef.current[truck.id]);
+      markerClusterGroup.current.removeLayer(markersRef.current[truck.id]);
     }
 
     // Create custom icon for truck with name label
@@ -427,9 +454,18 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
 
     const marker = markersRef.current[truck.id];
     const defaultCoords = { lat: -17.8252, lon: 31.0335 }; // Harare center
-    const markerLat = (truck.latitude !== null && truck.latitude !== undefined && Number.isFinite(truck.latitude)) ? truck.latitude : defaultCoords.lat;
-    const markerLon = (truck.longitude !== null && truck.longitude !== undefined && Number.isFinite(truck.longitude)) ? truck.longitude : defaultCoords.lon;
+    
+    // ✅ IMPROVED: Use robust validation
+    let markerLat = truck.latitude;
+    let markerLon = truck.longitude;
+    
+    if (!isValidCoordinate(markerLat, markerLon)) {
+      markerLat = defaultCoords.lat;
+      markerLon = defaultCoords.lon;
+    }
+    
     marker.setLatLng([markerLat, markerLon]);
+    console.log(`✅ Updated marker for ${truck.identifier} → [${markerLat.toFixed(4)}, ${markerLon.toFixed(4)}]`);
   };
 
   /**
@@ -535,25 +571,21 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
         const transformedTrucks = await Promise.all(trucksArray.map(async (truck, index) => {
           console.log(`  🔄 Transforming truck ${index + 1}/${trucksArray.length}:`, truck.truck_identifier);
           
-          // ✅ FIXED: Standardized coordinate extraction with proper null handling
-        // Priority: mission location > truck coordinates
-        let coordLat = truck.latitude;  // Start with truck coordinate
-        let coordLon = truck.longitude;
-        
-        // Override with mission location if available
-        if (truck.location) {
-          if (typeof truck.location.lat !== 'undefined' && truck.location.lat !== null) {
-            coordLat = truck.location.lat;
-          }
-          if (typeof truck.location.lon !== 'undefined' && truck.location.lon !== null) {
-            coordLon = truck.location.lon;
-          }
-        }
+          // ✅ NEW: Use robust location extractor - handles all coordinate formats
+          const { lat: coordLat, lon: coordLon, source } = extractCoordinates(truck);
+          const locationStatus = getLocationStatus(truck);
+          
+          console.log(`    📍 Location extraction: source=${source}, status=${locationStatus}, coords=[${coordLat?.toFixed(4)}, ${coordLon?.toFixed(4)}]`);
           
           // Get address from coordinates
           let location_name = 'Unknown Location';
-          if (Number.isFinite(coordLat) && Number.isFinite(coordLon)) {
-            location_name = await reverseGeocode(coordLat, coordLon);
+          if (isValidCoordinate(coordLat, coordLon)) {
+            try {
+              location_name = await reverseGeocode(coordLat, coordLon);
+            } catch (err) {
+              console.warn(`⚠️ Geocoding failed for truck ${truck.truck_identifier}:`, err.message);
+              location_name = `Location (${coordLat.toFixed(4)}, ${coordLon.toFixed(4)})`;
+            }
           }
           
           // Assign unique color to each truck based on index
@@ -564,13 +596,15 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
             plate: truck.plate,
             identifier: truck.truck_identifier,
             status: truck.status === 'enroute' ? 'moving' : truck.status === 'idle' ? 'stopped' : truck.status,
-            location: (coordLat && coordLon) ? `${coordLat.toFixed(3)}, ${coordLon.toFixed(3)}` : null,
+            location: (isValidCoordinate(coordLat, coordLon)) ? `${coordLat.toFixed(3)}, ${coordLon.toFixed(3)}` : null,
             location_name: location_name,
             latitude: coordLat,
             longitude: coordLon,
+            location_status: locationStatus,  // ✅ NEW: Track location status for UI
+            location_source: source,  // ✅ NEW: Track data source for debugging
             route_color: routeColor,  // Unique color for this truck
             route_geojson: null,  // Will be fetched separately if needed
-            speed: 0,
+            speed: truck.speed_kmh || 0,
             progress: 0,
           };
           
@@ -604,14 +638,18 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
 
         // Add truck markers to map (only if map is ready)
         if (map.current) {
-          console.log(`🗺️ Adding markers to map for ${transformedTrucks.length} trucks...`);
+          console.log(`🗺️ Adding/updating markers to map for ${transformedTrucks.length} trucks...`);
           transformedTrucks.forEach((truck, idx) => {
-            console.log(`  📍 Adding marker ${idx + 1}/${transformedTrucks.length}: ${truck.identifier}`);
-            // Show ALL trucks, even if coordinates are 0,0 (default fallback)
-            // This ensures all trucks appear on the map
-            addTruckMarker(truck);
+            // ✅ UPDATE instead of ADD: Check if marker exists
+            if (markersRef.current[truck.id]) {
+              console.log(`  🔄 Updating marker for: ${truck.identifier} → lat=${truck.latitude?.toFixed(4)}, lon=${truck.longitude?.toFixed(4)}`);
+              updateTruckMarker(truck);  // Update position
+            } else {
+              console.log(`  📍 Adding new marker ${idx + 1}/${transformedTrucks.length}: ${truck.identifier}`);
+              addTruckMarker(truck);  // Add new marker
+            }
           });
-          console.log(`✅ All ${transformedTrucks.length} markers added to map`);
+          console.log(`✅ All ${transformedTrucks.length} markers processed`);
         }
 
         setLoading(false);
@@ -622,9 +660,87 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
     };
 
     fetchTrucks();
-    const interval = setInterval(fetchTrucks, 30000); // Update every 30 seconds
+    
+    // ✅ CRITICAL FIX: Poll for real-time truck updates every 5 seconds
+    // This ensures mobile app location updates appear on map immediately
+    const interval = setInterval(fetchTrucks, 5000); // Update EVERY 5 SECONDS (was 30s)
     return () => clearInterval(interval);
   }, [map.current, previousTrucks, highlightedTruck, refreshTrigger]);
+
+  /**
+   * ✅ NEW: Real-time location sync from backend
+   * Updates truck markers when locations change from mobile app
+   */
+  useEffect(() => {
+    if (!map.current) return;
+
+    console.log('📡 Setting up location sync service...');
+    
+    // Subscribe to location updates
+    const unsubscribe = locationSyncService.subscribe((locationUpdate) => {
+      console.log(`📍 Location update received for ${locationUpdate.truck_identifier}:`, {
+        lat: locationUpdate.latitude?.toFixed(4),
+        lon: locationUpdate.longitude?.toFixed(4),
+        speed: locationUpdate.speed_kmh,
+        source: locationUpdate.source,
+      });
+
+      // ✅ NEW: Deduplication - only update if location actually changed
+      const cacheKey = locationUpdate.truck_id;
+      const newHash = JSON.stringify({
+        lat: locationUpdate.latitude,
+        lon: locationUpdate.longitude,
+        speed: locationUpdate.speed_kmh
+      });
+      const oldHash = lastTruckHashRef.current[cacheKey];
+
+      if (newHash === oldHash) {
+        console.debug(`⏭️ Skipping duplicate update for ${locationUpdate.truck_identifier}`);
+        return;  // Skip - no change
+      }
+
+      // Update cache
+      lastTruckHashRef.current[cacheKey] = newHash;
+
+      // Find and update the truck in local state
+      setTrucks(prevTrucks => {
+        const updatedTrucks = prevTrucks.map(truck => {
+          if (truck.id === locationUpdate.truck_id) {
+            return {
+              ...truck,
+              latitude: locationUpdate.latitude,
+              longitude: locationUpdate.longitude,
+              speed: locationUpdate.speed_kmh,
+              location_source: locationUpdate.source,  // Track source of update
+            };
+          }
+          return truck;
+        });
+        return updatedTrucks;
+      });
+
+      // Update marker position if it exists
+      if (markersRef.current[locationUpdate.truck_id]) {
+        const marker = markersRef.current[locationUpdate.truck_id];
+        if (isValidCoordinate(locationUpdate.latitude, locationUpdate.longitude)) {
+          marker.setLatLng([locationUpdate.latitude, locationUpdate.longitude]);
+          console.log(`✅ Marker updated for ${locationUpdate.truck_identifier}`);
+        } else {
+          console.warn(`⚠️ Invalid coordinates for marker update: [${locationUpdate.latitude}, ${locationUpdate.longitude}]`);
+        }
+      }
+    });
+
+    // Start syncing
+    locationSyncService.startSync();
+    
+    // Cleanup
+    return () => {
+      unsubscribe();
+      locationSyncService.stopSync();
+      console.log('🛑 Location sync stopped');
+    };
+  }, [map.current]);
 
   /**
    * Update selectedTruckData when selectedTruck changes
@@ -715,7 +831,8 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
     };
 
     loadTrails();
-    const interval = setInterval(loadTrails, 15000);
+    // ✅ CRITICAL FIX: Reload trails every 5 seconds to show real-time movement
+    const interval = setInterval(loadTrails, 5000);  // Was 15s, now 5s for real-time
     return () => clearInterval(interval);
   }, [trucks]);
 

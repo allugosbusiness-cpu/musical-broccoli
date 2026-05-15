@@ -29,7 +29,7 @@ from .delivery_endpoints import (
     mission_delivery_confirmed, driver_status, mission_details
 )
 from .locations_endpoints import (
-    location_search, location_types, location_autocomplete
+    location_search, location_types, location_autocomplete, location_reverse_geocode
 )
 from .tracking_endpoints import (
     update_truck_location_speed, get_truck_current_location_speed, get_all_trucks_current_locations
@@ -81,6 +81,7 @@ urlpatterns = [
     path('v1/locations/search/', location_search, name='location-search'),
     path('v1/locations/types/', location_types, name='location-types'),
     path('v1/locations/autocomplete/', location_autocomplete, name='location-autocomplete'),
+    path('v1/locations/reverse-geocode/', location_reverse_geocode, name='location-reverse-geocode'),
     
     # Truck location and speed tracking endpoints (real-time from mobile app)
     path('v1/truck-tracking/location-speed/', update_truck_location_speed, name='update-truck-location-speed'),
