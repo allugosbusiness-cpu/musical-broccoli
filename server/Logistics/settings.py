@@ -28,15 +28,13 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-jog5cd&da78_mp8ugp*z6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-# Allow Railway, Render, Vercel frontend, localhost, and development hosts
+# Allow Railway, Vercel frontend, localhost, and development hosts
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '*.railway.app',
     'pulsetrack-backend*.railway.app',
     'pulsetrack*.railway.app',
-    '*.render.com',
-    'pulsetrack-back.onrender.com',
     '*.vercel.app',
     'pulsetrack-frontend*.vercel.app',
     '192.168.1.236',
@@ -157,13 +155,11 @@ if DEBUG:
     # Also allow all origins in development for flexibility
     CORS_ALLOW_ALL_ORIGINS = True
 else:
-    # Production: Allow Vercel frontend and set all origins to True for testing
-    CORS_ALLOWED_ORIGINS = [
-        'https://pulsetrack-frontend-henna.vercel.app',
-        'https://pulsetrack.example.com',
-        'https://app.pulsetrack.example.com',
-    ]
-    CORS_ALLOW_ALL_ORIGINS = True
+    # Production: Restrict to known origins
+    # Get from environment or use defaults
+    cors_origins = config('CORS_ALLOWED_ORIGINS', default='https://pulsetrack-frontend-henna.vercel.app,https://pulsetrack.example.com')
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins.split(',')]
+    CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -184,26 +180,6 @@ CORS_ALLOW_HEADERS = [
 CORS_EXPOSE_HEADERS = [
     'content-type',
     'x-csrftoken',
-]
-
-# CSRF trusted origins for cross-network mobile app and web frontend communication
-CSRF_TRUSTED_ORIGINS = [
-    # Render backend domains
-    'https://pulsetrack-back.onrender.com',
-    'https://*.render.com',
-    # Web frontend
-    'https://pulsetrack-frontend-henna.vercel.app',
-    'https://*.vercel.app',
-    # Local development (web frontend ports)
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:5175',
-    'http://127.0.0.1:5173',
-    # Mobile app cross-network communication
-    'http://localhost:8000',
-    'http://127.0.0.1:8000',
-    'http://192.168.1.236:8000',
-    'http://10.0.2.2:8000',
 ]
 
 
