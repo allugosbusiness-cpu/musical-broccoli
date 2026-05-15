@@ -33,10 +33,10 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '*.railway.app',
-    'pulsetrack-backend*.railway.app',
+    'pulsetrack-back*.railway.app',
     'pulsetrack*.railway.app',
     '*.vercel.app',
-    'pulsetrack-frontend*.vercel.app',
+    'pulsetrack-frontend-henna*.vercel.app',
     '192.168.1.236',
     '*'  # For development flexibility
 ]
@@ -136,6 +136,7 @@ REST_FRAMEWORK = {
 if DEBUG:
     # Development: Allow localhost and common Vite dev ports
     CORS_ALLOWED_ORIGINS = [
+         'https://pulsetrack-frontend-henna.vercel.app',
         'http://localhost:5173',
         'http://localhost:5174',
         'http://localhost:5175',
@@ -158,7 +159,7 @@ else:
     # Production: Allow CORS while we debug the 500 errors
     # TODO: Restrict to specific origins once backend is stable
     CORS_ALLOW_ALL_ORIGINS = True
-    cors_origins = config('CORS_ALLOWED_ORIGINS', default='https://pulsetrack-frontend-henna.vercel.app,https://pulsetrack.example.com')
+    cors_origins = config('CORS_ALLOWED_ORIGINS', default='https://pulsetrack-frontend-henna.vercel.app')
     CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins.split(',')]
 
 CORS_ALLOW_CREDENTIALS = True
