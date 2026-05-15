@@ -33,11 +33,11 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '*.railway.app',
-    'pulsetrack-backend*.railway.app',
-    'pulsetrack*.railway.app',
+    'https://pulsetrack-back*.onrender.com',
+    'pulsetrack-back*.onrender.com',
     '*.vercel.app',
-    'pulsetrack-frontend*.vercel.app',
-    '192.168.1.236',
+    'pulsetrack-frontend-henna*.vercel.app',
+    '192.168.1.87',
     '*'  # For development flexibility
 ]
 
@@ -151,6 +151,8 @@ if DEBUG:
         # For mobile app and other clients on same LAN
         'http://192.168.0.0:5173',  # Common router prefix
         'http://10.0.0.0:5173',      # Another common prefix
+        'http://192.168.1.87:8081',
+        'https://192.168.1.87:8081',
     ]
     # Also allow all origins in development for flexibility
     CORS_ALLOW_ALL_ORIGINS = True
@@ -158,7 +160,7 @@ else:
     # Production: Allow CORS while we debug the 500 errors
     # TODO: Restrict to specific origins once backend is stable
     CORS_ALLOW_ALL_ORIGINS = True
-    cors_origins = config('CORS_ALLOWED_ORIGINS', default='https://pulsetrack-frontend-henna.vercel.app,https://pulsetrack.example.com')
+    cors_origins = config('CORS_ALLOWED_ORIGINS', default='https://pulsetrack-frontend-henna.vercel.app,https://pulsetrack-back.onrender.com')
     CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins.split(',')]
 
 CORS_ALLOW_CREDENTIALS = True
