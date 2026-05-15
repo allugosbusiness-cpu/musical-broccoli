@@ -17,3 +17,4 @@ whitenoise
 psycopg2-binary
 qrcode[pil]
 Pillow
+cors
