@@ -122,6 +122,5 @@ urlpatterns = [
     path('v1/mobile/debug/', mobile_debug_info, name='mobile-debug-info'),
     # Delivery confirmation endpoints
     path('v1/mobile/mission/<str:mission_id>/delivery/', mission_delivery_confirmed, name='mission-delivery-confirmed'),
-    path('v1/mobile/driver/<str:driver_id>/status/', driver_status, name='driver-status'),
     path('v1/mission/<str:mission_id>/details/', mission_details, name='mission-details'),
 ]
