@@ -155,11 +155,11 @@ if DEBUG:
     # Also allow all origins in development for flexibility
     CORS_ALLOW_ALL_ORIGINS = True
 else:
-    # Production: Restrict to known origins
-    # Get from environment or use defaults
+    # Production: Allow CORS while we debug the 500 errors
+    # TODO: Restrict to specific origins once backend is stable
+    CORS_ALLOW_ALL_ORIGINS = True
     cors_origins = config('CORS_ALLOWED_ORIGINS', default='https://pulsetrack-frontend-henna.vercel.app,https://pulsetrack.example.com')
     CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins.split(',')]
-    CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ALLOW_CREDENTIALS = True
 
