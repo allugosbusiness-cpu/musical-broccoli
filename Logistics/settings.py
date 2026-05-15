@@ -38,13 +38,14 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '*.railway.app',
-    'pulsetrack-backend*.railway.app',
-    'pulsetrack*.railway.app',
-    '*.render.com',
-    'pulsetrack-backend.render.com',
+    'pulsetrack-back*.onrender.app',
+    'pulsetrack*.onrender.app',
+    '*.onrender.com',
+    'pulsetrack-back.onrender.com',
     '*.vercel.app',
-    'pulsetrack-frontend*.vercel.app',
+    'pulsetrack-frontend-henna*.vercel.app',
     '192.168.1.236',
+    '192.168.1.87',
     '*'  # For development flexibility
 ]
 
@@ -177,6 +178,7 @@ if DEBUG:
         # For mobile app and other clients on same LAN
         'http://192.168.0.0:5173',  # Common router prefix
         'http://10.0.0.0:5173',      # Another common prefix
+        'http://192.168.1.87:8081',
     ]
     # Also allow all origins in development for flexibility
     CORS_ALLOW_ALL_ORIGINS = True
@@ -184,8 +186,9 @@ else:
     # Production: Allow Vercel frontend and Render backend
     CORS_ALLOWED_ORIGINS = [
         'https://pulsetrack-frontend-henna.vercel.app',
-        'https://pulsetrack-backend.render.com',
+        'https://pulsetrack-back.onrender.com',
         'https://pulsetrack.example.com',
+        'https://192.168.1.87:8081',
         'https://app.pulsetrack.example.com',
     ]
     CORS_ALLOW_ALL_ORIGINS = True
@@ -241,6 +244,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://192.168.1.236:8000',
     'http://10.0.2.2:8000',
     'https://pulsetrack-back.onrender.com:8000',
+    'http://192.168.1.87:8081',
 ]
 
 # CSRF Cookie Settings - Allow frontend to read and send CSRF token
