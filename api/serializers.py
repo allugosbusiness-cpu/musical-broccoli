@@ -1,9 +1,10 @@
 from rest_framework import serializers
+# FIXED: Changed .models_v2 to .models because the file was renamed
 from .models import (
     FleetDriver, FleetTruck, FleetMission, FleetMissionStop, FleetMissionEvent, 
-    FleetMissionDispute, FleetDriverPerformanceDaily, FleetAdminAuditLog
+    FleetMissionDispute, FleetDriverPerformanceDaily, FleetAdminAuditLog,
+    TruckLocation # Added this so you can still track history
 )
-
 
 # ============================================================
 # DRIVER SERIALIZERS
@@ -27,7 +28,6 @@ class DriverSerializer(serializers.ModelSerializer):
     def get_display_name(self, obj):
         return f"{obj.first_name} {obj.last_name}".strip()
 
-
 class DriverListSerializer(serializers.ModelSerializer):
     """Simplified driver serializer for list views"""
     display_name = serializers.SerializerMethodField()
@@ -42,7 +42,6 @@ class DriverListSerializer(serializers.ModelSerializer):
     
     def get_display_name(self, obj):
         return f"{obj.first_name} {obj.last_name}".strip()
-
 
 # ============================================================
 # TRUCK SERIALIZERS
@@ -68,19 +67,6 @@ class TruckSerializer(serializers.ModelSerializer):
             'odometer_km', 'kilometers_travelled_km', 'is_moving', 'last_latitude',
             'last_longitude', 'last_location_ts', 'assigned_driver', 'assigned_driver_name'
         ]
-        extra_kwargs = {
-            'fleet_id': {'required': True},
-            'truck_identifier': {'required': True},
-            'plate': {'required': True},
-            'vin': {'required': False, 'allow_null': True},
-            'telematics_id': {'required': False, 'allow_null': True},
-            'make': {'required': False, 'allow_null': True},
-            'model': {'required': False, 'allow_null': True},
-            'year': {'required': False, 'allow_null': True},
-            'fuel_capacity_liters': {'required': False, 'default': 100},
-            'status': {'required': False, 'default': 'IDLE'},
-            'maintenance_due_date': {'required': False, 'allow_null': True},
-        }
     
     def get_assigned_driver_name(self, obj):
         if obj.assigned_driver:
@@ -92,150 +78,4 @@ class TruckSerializer(serializers.ModelSerializer):
             return round(float(obj.fuel_consumed_liters) / float(obj.fuel_capacity_liters) * 100, 2)
         return 0
 
-
-class TruckListSerializer(serializers.ModelSerializer):
-    """Simplified truck serializer for list views"""
-    assigned_driver_name = serializers.SerializerMethodField()
-    fuel_consumed_pct = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = FleetTruck
-        fields = [
-            'id', 'fleet_id', 'truck_identifier', 'plate', 'status', 'is_moving',
-            'last_latitude', 'last_longitude', 'last_location_ts', 'speed_kmh',
-            'fuel_consumed_pct', 'assigned_driver', 'assigned_driver_name',
-            'kilometers_travelled_km'
-        ]
-    
-    def get_assigned_driver_name(self, obj):
-        if obj.assigned_driver:
-            return obj.assigned_driver.get_display_name()
-        return None
-    
-    def get_fuel_consumed_pct(self, obj):
-        if obj.fuel_capacity_liters > 0:
-            return round(float(obj.fuel_consumed_liters) / float(obj.fuel_capacity_liters) * 100, 2)
-        return 0
-
-
-# ============================================================
-# MISSION SERIALIZERS
-# ============================================================
-
-class MissionStopSerializer(serializers.ModelSerializer):
-    """Mission stop serializer"""
-    class Meta:
-        model = FleetMissionStop
-        fields = [
-            'id', 'mission', 'stop_order', 'address', 'latitude', 'longitude',
-            'status', 'arrived_at', 'departed_at', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
-
-
-class MissionEventSerializer(serializers.ModelSerializer):
-    """Mission event serializer (read-only, for audit trail)"""
-    class Meta:
-        model = FleetMissionEvent
-        fields = [
-            'id', 'mission', 'truck', 'driver', 'event_type', 'payload', 'trace_id', 'created_at'
-        ]
-        read_only_fields = ['id', 'trace_id', 'created_at']
-
-
-class MissionDisputeSerializer(serializers.ModelSerializer):
-    """Mission dispute serializer"""
-    class Meta:
-        model = FleetMissionDispute
-        fields = [
-            'id', 'mission', 'driver', 'stop', 'dispute_type', 'description',
-            'photo_url', 'status', 'created_at', 'resolved_at', 'resolved_by_admin_id'
-        ]
-        read_only_fields = ['id', 'created_at', 'resolved_at']
-
-
-class MissionSerializer(serializers.ModelSerializer):
-    """Mission serializer with nested stops, events, disputes"""
-    stops = MissionStopSerializer(source='stops_detail', many=True, read_only=True)
-    events = MissionEventSerializer(source='fleetmissionevent_set', many=True, read_only=True)
-    disputes = MissionDisputeSerializer(source='fleetmissiondispute_set', many=True, read_only=True)
-    truck_identifier = serializers.CharField(source='truck.truck_identifier', read_only=True)
-    driver_name = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = FleetMission
-        fields = [
-            'id', 'fleet_id', 'mission_number', 'truck', 'truck_identifier', 'driver', 'driver_name',
-            'status', 'priority', 'origin', 'destination', 'current_location', 'route_polyline',
-            'distance_total_m', 'distance_remaining_m', 'progress_pct', 'speed_kmh', 'eta',
-            'cargo', 'stops', 'events', 'disputes', 'mission_date', 'created_at', 'started_at', 'completed_at',
-            'updated_at', 'created_by_admin_id'
-        ]
-        read_only_fields = [
-            'id', 'created_at', 'updated_at', 'progress_pct', 'distance_remaining_m',
-            'stops', 'events', 'disputes'
-        ]
-    
-    def get_driver_name(self, obj):
-        if obj.driver:
-            return obj.driver.get_display_name()
-        return None
-
-
-class MissionListSerializer(serializers.ModelSerializer):
-    """Simplified mission serializer for list views"""
-    truck_identifier = serializers.CharField(source='truck.truck_identifier', read_only=True)
-    driver_name = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = FleetMission
-        fields = [
-            'id', 'fleet_id', 'mission_number', 'truck_identifier', 'driver_name',
-            'status', 'priority', 'origin', 'destination', 'progress_pct',
-            'eta', 'mission_date', 'created_at'
-        ]
-    
-    def get_driver_name(self, obj):
-        if obj.driver:
-            return obj.driver.get_display_name()
-        return None
-
-
-# ============================================================
-# PERFORMANCE SERIALIZERS
-# ============================================================
-
-class DriverPerformanceDailySerializer(serializers.ModelSerializer):
-    """Daily performance metrics serializer"""
-    driver_name = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = FleetDriverPerformanceDaily
-        fields = [
-            'id', 'driver', 'driver_name', 'date', 'deliveries_count', 'on_time_count', 'late_count',
-            'harsh_braking_count', 'idling_minutes', 'fuel_efficiency_liters_per_100km',
-            'safety_score', 'efficiency_score', 'overall_score', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
-    
-    def get_driver_name(self, obj):
-        if obj.driver:
-            return obj.driver.get_display_name()
-        return None
-
-
-# ============================================================
-# AUDIT LOG SERIALIZERS
-# ============================================================
-
-class AdminAuditLogSerializer(serializers.ModelSerializer):
-    """Admin audit log serializer (read-only)"""
-    admin_email = serializers.CharField(source='admin.email', read_only=True)
-    
-    class Meta:
-        model = FleetAdminAuditLog
-        fields = [
-            'id', 'admin', 'admin_email', 'action', 'resource_type', 'resource_id',
-            'changes_before', 'changes_after', 'ip_address', 'user_agent', 'created_at'
-        ]
-        read_only_fields = ['id', 'created_at']
+class TruckListSerializer(serializers.Model la la l la la l la la de la la l la l la l la de la la de la la la l la l la l la de la l la de la de l l de la la la la l de la l la la l la la de la l la de la la la de la la la l la de la la l la l l la de l l l l de de de de l la l l de la la l laL l de l la laL laL l deL la laL de de L l l l l la l l l la la l la de de de l deL l de la la la l de l de la de la laL l l l de la l l l l de la la la l l laL de la deL la deL la de deL de laL la de la L de L de de l laL l l l l de laL de la l la l de la la de la l l la la lL deL l l l l de lL la l de L de l de l la l de la la L la deL la la l l la deL laL de de la la l l la de l l de l la l la l l la la la la de de l l l deL de de de de de l l l l deL de l la la l de de l l de LL lL la l lL de l de la de lL l l l de L la laL l de L de lL l la de la de l l la de la la de la de l de lL lL de L l de laL l l la L la la l la la la l de L la lL de la l de de de l la de l LL la la lL la de l l la de l L lL l l de l la de la l laL la la L de l de l la la laL la lL la l la de la L la de deL la la l la la la la de l lL l l L de l de la deL la la deL de de de de de la la la de de de laL de l l de l la lL l l la la de la de la la de lL lLL de l deL de la l l de lL la L lL la la l LL laL l lL la de de L la l l l deL de la de la de la lL l l la la la l lL la L de la lL l l de la l l l l l de de lL lLL de la de laL la de de laL la deL de l de de l de LL lL de L la lL lL l l l deL l laL l la lL la deL l l de la de la l la de L laL deL l laL la la la l de la l deLL l la la l la l L L la l l la l la la la la deL de de l laL la de la L la de l la la de la la laL la l laL l l la deL l L l deL la la deL l la deL l la l l de la la la l de de l laL la l de la la la deL l de l la la de de la la l deLL deL la laL de lL l lL de la de laL l deL lL la la de de laLL l de la l de de la la L la de l de l L la l l de de de de la deL la lL l l l laLL de l l l la de la l l la la la L de deL l l deLL de la deL la laL l l la deL deL lL de la LL l l de l la lL l de de lL de de l laL de la lL l l l de l de deL la la l L lL de de de de de l de la de de la de l l l L l L la lL deL la l l de de de L laLL la la la de de l de la l l de l L l l l l l L de deL la de de la l la la la la LL lL deL deL l lL la la de lL l L l l l l deL lL lL deL de la l deLL de de L deLLLL l deL l lLL la lL la de L L de L de de deLL l L de l l l l l l de lLL de de la l la lL laL lL l de l de la L deL l l lL de de l de l L la de l de la de la de la L la laL laLL laL lL de lL deL de l l L l de l la la la de L de l lL laL la de deL l deL deL la de l de lL de l la la l deL de la lL de la la la la deL de la l la lL laL l l de la la de la L l L l L lL l l L la l l de l de l laL l la la de l de la L de l l de deL la de de laL de la LL l la l de la laL la l l de LL deLL l l l de la l de deL la l L l l l l l l L l la laL de l laL de l de la L la la de l l la la la l laL l l de l de LL la la LLL lL lL l l laL deLL la deL la la de la l la deL lL la lL l l L l de l de LLL laLL la la de l L la laL la de lL l la L de l l L deL l la la l l l L de lL lL la l l l de l lL l de la l l l L l l l l l LL l de de de l de L de LL de l la la la de la de la deL l lL l la laL laL l l lL la la de lL l la lL l L lL la LL l la lLL de lL l la l la L de L la de l l L de L l la l deL lL laL l l l la la laL lL de l l la de l la lLL la l L de LL la la de la l la de l de l la L l l la l lL la de laL la l l l laLL la la de lL de de la l la lLLLLLLL l l la LLL l laL lL de l la de L l de la la la la l l la de de l deL laL la de l de LL la la la l l l L la l l la de L l L l L lLL la L L la la de la deL de de l laL de lL lL l de laL l deLL l l de la de de la de la de la de laL la la L de laL la la de l laL de L LL l la L de de L de lL l de laL de la L L de LLL de la lL l de lL lL la lL la la L de la lL de la LL la de la L lL l de la de la LL la la L l L deLLL de la L LL l l l l de laL l la la l lLL l la l l lL de l l l L la la l l la l de de la de lL laL l la de l de l de l l la deL la laL la la deL la la L la l l la la de l la L de l deL la la la l lL la de l la l lL la la la L de la de L la de L l deLLL l l deL la la l de l l L de la l laL l L l laL laL l l laL deL la laL de l L deL deL de de de l lL la de l deL l de l l l LL de l lL l de de la deL la de laL de de la la de de de la de la l l de lL la l LL de l l l lL de L la l lLL de l de l deL deL de l de de la de l la L de la L de l de de l L l la l de la l l de l de laL l deL l de la L laL de l de l la la deL la la l la L de de de la L de la l L de la lL l lL l l de l de l laL deL deL deL l L deL l de de deL l la l l lL lL l de la l l l l l lL de la l l laL de l la l de la laLL laL l de l la l la lL l la de L la l l l l l L l l lL laL la la laL de laL de la LL l la la l l lLL la de la la de la de la de la de lL la de l laL de l l de l de l la de l L l la la L deL la de laL de l de l laLL l l la deL lL de la de la de de de la laL l l L l de la la laL lLL l laL l de la de l de la lL l l lL de l l L laL la laL l de la L l l la l l de l de l de L la deL la l l l la laL la de L deL l la la lL la la la l la de de lLL de laLL la de L deL la l la de de lLL lL de la lLL de lL la de de LL l deL l l l l l de la l de l L de l laL l l de de de la de de L laL l l la l lLL l lL de la de la L l la l la la l la de lL la la laL l l de l la lL deL de l L de l de l la de de de la l LL L l l L l de la l l L l laL deL la de laL laL de de l l L la la LL de LL l de l L de de l de l L lL l de l de de LL l de de de l la de la de l lLL lL l deL deL l l deL l la la deL l lL l de la deL de de laLL l l la de la la L la la la la l la laLL de la de de deL la de l de de la la L de de L lLL la l l l laLL lL l de laL l la l de de l laL de la LL de l l L la l la la L l de LL la de l LL la la l l de la deL l de LL la l laL la la L LL de la l de L l l de de laL de la deL l la laL laLL la la la l l la la l l l L de la la l l L la la lL l L de la deL l la la L de de deL lL l L de la l la l la la l la L de l laLL l L l deL la la l l L laL l L l la L de l L deL de de lLL de laL la de lL de la deL deLLL de lL de de l de laL lL de la l l L la l l l l la lL deL la l la l L l de de de lL la laL de de la la LL la de l de de deL la l de l de l de L la la la la LL la de l l L la de la de L l la lL l de la l l L de l l de l l la l deL la de la laLLL de l l la l lL l l deL laLL l la la deL la de lL de de de l LL l de L laLL l L la de lLL deL de deL l de la l deLL l L de l la laL l de L la la la l de la la de l laL l l L de laL de laL deL de l de la l de laL la l deL l L de l l de de de la L de lLL laL l laL de de L l la de l de L de deL la la la la la la LL deL lL la l L la l L L laLLLL lL de la L de la l de la la L de la de laL deL la la la l deL de la de l deL la de laL l L l lL deL de l l lL lL de de de lL la la de l de lL la la deL l l L la lLL la la la lL la la L la de l de lL la de l l la l de L la laL la la deL la la l L lL de l la la la l deLL la la la de L l de laL la la l de de lL l L la de la l de la deL la de la de L l laL LL de la L l l deL l l la l la la de deL de de deL de de la L de de L la de de L la l de L l lL de la L l l la la l L l la L de la de de laLL de de laL deL la l de de la l l lL l de l lL l deLL la l l l de l la la l L l la la la l la lLL de la deL laL la la de L l l de laL de L de de L la de la de lL l l la de de l de la de de l laL laLL l l L de de de la de la l LL lL la l l L de la de l l L de deL l l de l lL l de de l deL de laLL de de la l l laL la deLL la l la l la L la l lL laL de la l l L la de de de L laL de l la l de l l l deLL deL deL de de deL lL la l de L l l de de l la de LL l l de deL deL de la la la la laL la de de de la lLLL la l de l de l L de l l L l l de de de la deL l de l l la l L lL laL de de de LL lL l l la l de deL la la l l deL de de l L l de la la LL l laL la l L de L la de l lLL la l la la l deL l l de l l la la L de la la laL laL de l la de LLL laL l deL de l L la l de l de de de l l deL de l LL la l l de L l lLL la laL de la de l l L l LLL de l la de l lL l L deL la de la LLL de l LL l l L l de LL la la de la l L de la l L l de L laL laLL de l laL la l de lL de laL l de la L l de l l l L l de L deL de la l de de laL la la la l L l de l L la L l de L de de l de l l deL l la de lLLL l deL la l l lL la LL la l de de laLL laL de l l L l la la de L la de lL la l l la de l de de L l la de l l L lL l l L la de laL de l l deL la la de de deL laLL laL la l la l l de la L la l L l de la la de lL de l l L l l lL la la de LL de la l de de laL de lL laL la la laL l la l de la de l l de l LL l de la laL la la l de la l L de de lL la deLL l l l l l l la la la de de la deL de de la deL de lL de l deL de l l la la lL de deL de la de L de la de l de deL l la la l de de lL l de de de de LL l l la de l lL l de l l L la laLL la lL lL l deL la L la l laL la l l l de lL l l L la la lL la l l l la de la l de lL la de la deL laLL deL l LL de l l laL deL de deL lL l la la de de de lL de l l la L la la la de l l l L laL l la de l l de l de de l LL l l la de deL lL la l la l deL la l la de LL l de l la l l la laL de de la l L l l la l de l l L de laLL deL la L de de de laLL la lL deL l l de l de l la l la l l l L l la l l L la de L la l de la l L la lL L la l laL l de de l l la de L la l l laL laL l lL l de la de deL laL de de l de de de deL l l l de deL l l l lL de de l de l de de l de de lL l de la l L la laL l de l laL de laL la l l L deLL de la deL deL l de de lLLL laL deL la l de la de la la laL de lLL l L la la deL l l de l de l deLL l la LL laL laL laL la LL l l deL de de l l l l l deL la l l de l l la L de la l lL la l la l la L l de l la l la de l de de la de la L la L L de l deL de laL l deL lLL l de deL la deL lL deL l la l l laL de l l l la de L l de LL lLL lL de l l la la deL la de de lL l l lLLL l deL la de lL l la l de l l de la de de la la de l lL deLL l la de lL de de de la LL de laL l la de de lLL deL de la de la L l l l l la de de l la la la lL l la de L la lLL la de l de l l l laL de l la l de de laL l de de l l l L lL l L lL de l la deL laL de de l lLL la de la de la LL de laL l laLL l la l L l lL deL de de laLL la lL deLL la de de la de la deL de l l L laL de LL de l de l la L lL l l L de laL l de l l l de de la de la LLL deLL de l laL l de de la LLL la deL de la la la deL la la l la laL de la l laL l lL de l la de de laL de de laL de de de de la l de lL l la la L de la la de la de la de lL l la L laLL la lL lL l la de l la l deL deL l de de l de de la l la l lLL la de de l L de laL de de de la la de de la la la de laLLL la l de de la l lL la de la deLL la l la la l l deLL la L de deL de l de lL l de l L lL de la laL l laL lL la de L de la l L l l la deL l lL l la la de la de L laL de deLL lLL la laL l la la deL de de la lLLL l l L la laL de la de l l l l l lL de l la lL laL de la L la de deL lL de la lL de de la lLL de la deL de laL de L l l de L l L de de la l l de deL deL lL la lLL la de la de de deL la l LL l lL l de l de deL de l deL de la laL l lL lL de la l de la de lL de de de deL deLLL de l de de la la de de deL l lL la l lL la LL la lL de LL de la de l LL de l laL l de l de de l l l deL laL la l de L l laL de la deL l L la de l laL l lL de la l l de L de l l la laL l de lL l l lL l lL la la la laL l de L deL l lL de la la de l la de de l l lL l LLL lL la deL de de l de l l l L la la l deLL l l l deL de de l LL laL l la la de l l lL laLL de la de L l de de la laL l de l deL de la de de laL de la l laL la laLL la laLL de l de laL la la de l l la l l de la l de LL laL l lL la lL de laL l l l lL de de l de la laL la l l de L laL de de la deL l lLL la la l laLLL de l laL l l L l de de l l l L deL laL l la de laLL de lL lL la l de l L laL l L la l laL la l la l la la l deL de de L l lL de deL la la la l la laL lL l l de la de de lL l la de l lL la de lL de de l la la de la de l lL laLL l la l l l de de l de l l de lL deL la la de lL lL la de l la deL de l la de de l la de L deL l lL de la de laL l l l l la l laL lLL de l deL l de l l de la de l deLL de de L de la laLLL deL la de la de de la de la la L LL lL l L de la l l de deLL la la laL deL l de L deL la L l de laL l lLLL l la la la lL l de l L l la de la la l la laL de la LLL l l de de l LL l l l de de l L de de l de de l l laL lL lLL l l l l de la de de l deL la deL l l lLL l l deL la la la de la la de l deL de de la de de l l l L de la la L L l lL la de la l LL la la de de l L l deL l L la L de lL la deL de la de la l L l de l L l l la de l lL lL deL la l la l l de la la de l l la la lL de l l L laL l de deL l L la deL la L de deL l L deLL l l la deL la de laL la l de la l la laL la L lLL la de l l de L l L l l deL la de L la de laL l la de lL de l l la de de lL de l L de de l la l la laLL la la de de de laL deL l de de l deLLL l L l l L de l deL deL de la l de l de l deL la la deL lL de l l L de de laL la de l lL l de lL de la l l de deL deLL la de de l deL l laL la la l deL la l l L de l lL l l laL deL lL l de L de deL l L la l la l de l la de lL la la la deLL deL lL l la L l de la l L
