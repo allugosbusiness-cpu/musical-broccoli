@@ -1,227 +1,241 @@
 from rest_framework import serializers
-from .models import (
-    Truck, Checkpoint, Cargo, Alert, KPI, Route, TrackPoint, Location, 
-    CurrentLocation, RouteOptimization, TruckFuel, FuelConsumption, FuelRefuel, FuelAlert
+from .models_v2 import (
+    FleetDriver, FleetTruck, FleetMission, FleetMissionStop, FleetMissionEvent, 
+    FleetMissionDispute, FleetDriverPerformanceDaily, FleetAdminAuditLog
 )
 
-class CheckpointSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Checkpoint
-        fields = ['id', 'name', 'detail', 'status', 'timestamp']
 
-class CargoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Cargo
-        fields = ['id', 'cargo_type', 'weight', 'origin', 'destination', 'description']
+# ============================================================
+# DRIVER SERIALIZERS
+# ============================================================
 
-class AlertSerializer(serializers.ModelSerializer):
-    driver_name = serializers.CharField(read_only=True)
+class DriverSerializer(serializers.ModelSerializer):
+    """Driver profile serializer with computed fields"""
+    display_name = serializers.SerializerMethodField()
     
     class Meta:
-        model = Alert
-        fields = ['id', 'truck', 'driver_name', 'alert_type', 'message', 'timestamp', 'is_resolved']
+        model = FleetDriver
+        fields = [
+            'id', 'fleet_id', 'first_name', 'last_name', 'display_name',
+            'phone', 'email', 'license_number', 'license_state', 'hire_date',
+            'status', 'on_duty', 'performance_mark', 'deliveries_count',
+            'last_active_at', 'achievements', 'photo_url', 'notes',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'performance_mark', 'deliveries_count']
+    
+    def get_display_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip()
+
+
+class DriverListSerializer(serializers.ModelSerializer):
+    """Simplified driver serializer for list views"""
+    display_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = FleetDriver
+        fields = [
+            'id', 'fleet_id', 'first_name', 'last_name', 'display_name',
+            'phone', 'email', 'status', 'on_duty', 'performance_mark', 
+            'deliveries_count', 'last_active_at'
+        ]
+    
+    def get_display_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip()
+
+
+# ============================================================
+# TRUCK SERIALIZERS
+# ============================================================
 
 class TruckSerializer(serializers.ModelSerializer):
-    checkpoints = CheckpointSerializer(many=True, read_only=True)
-    cargo_info = CargoSerializer(read_only=True)
-    alerts = AlertSerializer(many=True, read_only=True)
-    current_route_id = serializers.CharField(source='current_route.id', read_only=True, allow_null=True)
+    """Truck serializer with assigned driver details"""
+    assigned_driver_name = serializers.SerializerMethodField()
+    fuel_consumed_pct = serializers.SerializerMethodField()
     
     class Meta:
-        model = Truck
+        model = FleetTruck
         fields = [
-            'id', 'plate', 'driver', 'status', 'location', 'speed',
-            'eta', 'progress', 'cargo', 'weight', 'coordinates',
-            'origin', 'destination', 'origin_coordinates', 'destination_coordinates',
-            'route_color', 'route_geojson',
-            'current_route_id', 'auto_routing_enabled',
-            'total_distance', 'distance_travelled',
-            'checkpoints', 'cargo_info', 'alerts', 'last_updated', 'created_at'
+            'id', 'fleet_id', 'truck_identifier', 'plate', 'vin', 'telematics_id',
+            'make', 'model', 'year', 'fuel_capacity_liters', 'fuel_consumed_liters',
+            'fuel_consumed_pct', 'odometer_km', 'kilometers_travelled_km', 'status',
+            'is_moving', 'last_latitude', 'last_longitude', 'last_location_ts',
+            'assigned_driver', 'assigned_driver_name', 'maintenance_due_date',
+            'created_at', 'updated_at'
         ]
+        read_only_fields = [
+            'id', 'created_at', 'updated_at', 'fuel_consumed_pct', 'fuel_consumed_liters',
+            'odometer_km', 'kilometers_travelled_km', 'is_moving', 'last_latitude',
+            'last_longitude', 'last_location_ts', 'assigned_driver', 'assigned_driver_name'
+        ]
+        extra_kwargs = {
+            'fleet_id': {'required': True},
+            'truck_identifier': {'required': True},
+            'plate': {'required': True},
+            'vin': {'required': False, 'allow_null': True},
+            'telematics_id': {'required': False, 'allow_null': True},
+            'make': {'required': False, 'allow_null': True},
+            'model': {'required': False, 'allow_null': True},
+            'year': {'required': False, 'allow_null': True},
+            'fuel_capacity_liters': {'required': False, 'default': 100},
+            'status': {'required': False, 'default': 'IDLE'},
+            'maintenance_due_date': {'required': False, 'allow_null': True},
+        }
+    
+    def get_assigned_driver_name(self, obj):
+        if obj.assigned_driver:
+            return obj.assigned_driver.get_display_name()
+        return None
+    
+    def get_fuel_consumed_pct(self, obj):
+        if obj.fuel_capacity_liters > 0:
+            return round(float(obj.fuel_consumed_liters) / float(obj.fuel_capacity_liters) * 100, 2)
+        return 0
+
 
 class TruckListSerializer(serializers.ModelSerializer):
-    """Simplified serializer for list view - includes route data for map rendering"""
-    current_route_id = serializers.CharField(source='current_route.id', read_only=True, allow_null=True)
+    """Simplified truck serializer for list views"""
+    assigned_driver_name = serializers.SerializerMethodField()
+    fuel_consumed_pct = serializers.SerializerMethodField()
     
     class Meta:
-        model = Truck
+        model = FleetTruck
         fields = [
-            'id', 'plate', 'driver', 'status', 'location', 'speed',
-            'eta', 'progress', 'cargo', 'weight', 'last_updated',
-            'total_distance', 'distance_travelled', 'coordinates',
-            'origin', 'destination', 'origin_coordinates', 'destination_coordinates',
-            'route_color', 'route_geojson',
-            'current_route_id', 'auto_routing_enabled'
+            'id', 'fleet_id', 'truck_identifier', 'plate', 'status', 'is_moving',
+            'last_latitude', 'last_longitude', 'last_location_ts', 'speed_kmh',
+            'fuel_consumed_pct', 'assigned_driver', 'assigned_driver_name',
+            'kilometers_travelled_km'
         ]
+    
+    def get_assigned_driver_name(self, obj):
+        if obj.assigned_driver:
+            return obj.assigned_driver.get_display_name()
+        return None
+    
+    def get_fuel_consumed_pct(self, obj):
+        if obj.fuel_capacity_liters > 0:
+            return round(float(obj.fuel_consumed_liters) / float(obj.fuel_capacity_liters) * 100, 2)
+        return 0
 
-class KPISerializer(serializers.ModelSerializer):
+
+# ============================================================
+# MISSION SERIALIZERS
+# ============================================================
+
+class MissionStopSerializer(serializers.ModelSerializer):
+    """Mission stop serializer"""
     class Meta:
-        model = KPI
+        model = FleetMissionStop
         fields = [
-            'id', 'date', 'active_trucks', 'on_time_rate', 'avg_speed',
-            'total_deliveries', 'critical_alerts', 'timestamp'
+            'id', 'mission', 'stop_order', 'address', 'latitude', 'longitude',
+            'status', 'arrived_at', 'departed_at', 'created_at', 'updated_at'
         ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
-class RouteSerializer(serializers.ModelSerializer):
-    truck_plate = serializers.CharField(source='truck.plate', read_only=True)
-    driver_name = serializers.CharField(source='truck.driver', read_only=True)
+
+class MissionEventSerializer(serializers.ModelSerializer):
+    """Mission event serializer (read-only, for audit trail)"""
+    class Meta:
+        model = FleetMissionEvent
+        fields = [
+            'id', 'mission', 'truck', 'driver', 'event_type', 'payload', 'trace_id', 'created_at'
+        ]
+        read_only_fields = ['id', 'trace_id', 'created_at']
+
+
+class MissionDisputeSerializer(serializers.ModelSerializer):
+    """Mission dispute serializer"""
+    class Meta:
+        model = FleetMissionDispute
+        fields = [
+            'id', 'mission', 'driver', 'stop', 'dispute_type', 'description',
+            'photo_url', 'status', 'created_at', 'resolved_at', 'resolved_by_admin_id'
+        ]
+        read_only_fields = ['id', 'created_at', 'resolved_at']
+
+
+class MissionSerializer(serializers.ModelSerializer):
+    """Mission serializer with nested stops, events, disputes"""
+    stops = MissionStopSerializer(source='stops_detail', many=True, read_only=True)
+    events = MissionEventSerializer(source='fleetmissionevent_set', many=True, read_only=True)
+    disputes = MissionDisputeSerializer(source='fleetmissiondispute_set', many=True, read_only=True)
+    truck_identifier = serializers.CharField(source='truck.truck_identifier', read_only=True)
+    driver_name = serializers.SerializerMethodField()
     
     class Meta:
-        model = Route
+        model = FleetMission
         fields = [
-            'id', 'truck', 'truck_plate', 'driver_name',
-            'origin', 'destination', 'origin_coordinates', 'destination_coordinates',
-            'waypoints', 'distance_km', 'estimated_duration_hours', 'status',
-            'suggested_speeds', 'optimization_score', 'traffic_prediction', 'weather_factors',
-            'current_waypoint_index', 'distance_travelled_km', 'time_elapsed_hours',
-            'created_at', 'updated_at', 'started_at', 'completed_at'
+            'id', 'fleet_id', 'mission_number', 'truck', 'truck_identifier', 'driver', 'driver_name',
+            'status', 'priority', 'origin', 'destination', 'current_location', 'route_polyline',
+            'distance_total_m', 'distance_remaining_m', 'progress_pct', 'speed_kmh', 'eta',
+            'cargo', 'stops', 'events', 'disputes', 'mission_date', 'created_at', 'started_at', 'completed_at',
+            'updated_at', 'created_by_admin_id'
         ]
+        read_only_fields = [
+            'id', 'created_at', 'updated_at', 'progress_pct', 'distance_remaining_m',
+            'stops', 'events', 'disputes'
+        ]
+    
+    def get_driver_name(self, obj):
+        if obj.driver:
+            return obj.driver.get_display_name()
+        return None
 
 
-class TrackPointSerializer(serializers.ModelSerializer):
-    """Serializer for GPS track points (historical truck positions)"""
-    truck_plate = serializers.CharField(source='truck.plate', read_only=True)
+class MissionListSerializer(serializers.ModelSerializer):
+    """Simplified mission serializer for list views"""
+    truck_identifier = serializers.CharField(source='truck.truck_identifier', read_only=True)
+    driver_name = serializers.SerializerMethodField()
     
     class Meta:
-        model = TrackPoint
+        model = FleetMission
         fields = [
-            'id', 'truck', 'truck_plate', 'route',
-            'latitude', 'longitude',
-            'speed', 'heading', 'altitude', 'accuracy',
-            'timestamp', 'recorded_at'
+            'id', 'fleet_id', 'mission_number', 'truck_identifier', 'driver_name',
+            'status', 'priority', 'origin', 'destination', 'progress_pct',
+            'eta', 'mission_date', 'created_at'
         ]
-        read_only_fields = ['timestamp']
+    
+    def get_driver_name(self, obj):
+        if obj.driver:
+            return obj.driver.get_display_name()
+        return None
 
 
-class LocationSerializer(serializers.ModelSerializer):
-    """Serializer for Location entities (origin, destination, checkpoints)"""
-    class Meta:
-        model = Location
-        fields = [
-            'id', 'name', 'latitude', 'longitude', 'address',
-            'location_type', 'average_dwell_time_minutes',
-            'congestion_factor', 'accessibility_score',
-            'created_at', 'updated_at'
-        ]
-        read_only_fields = ['created_at', 'updated_at']
+# ============================================================
+# PERFORMANCE SERIALIZERS
+# ============================================================
 
-
-class CurrentLocationSerializer(serializers.ModelSerializer):
-    """Serializer for current truck location with ML predictions"""
-    truck_id = serializers.CharField(source='truck.id', read_only=True)
-    truck_plate = serializers.CharField(source='truck.plate', read_only=True)
+class DriverPerformanceDailySerializer(serializers.ModelSerializer):
+    """Daily performance metrics serializer"""
+    driver_name = serializers.SerializerMethodField()
     
     class Meta:
-        model = CurrentLocation
+        model = FleetDriverPerformanceDaily
         fields = [
-            'id', 'truck', 'truck_id', 'truck_plate',
-            'latitude', 'longitude', 'speed', 'heading', 'altitude', 'accuracy',
-            'predicted_next_location', 'predicted_arrival_time',
-            'predicted_fuel_consumption_liters', 'traffic_ahead',
-            'distance_to_next_checkpoint_km', 'distance_to_destination_km',
-            'time_to_destination_minutes',
-            'timestamp', 'recorded_at'
+            'id', 'driver', 'driver_name', 'date', 'deliveries_count', 'on_time_count', 'late_count',
+            'harsh_braking_count', 'idling_minutes', 'fuel_efficiency_liters_per_100km',
+            'safety_score', 'efficiency_score', 'overall_score', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['timestamp']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_driver_name(self, obj):
+        if obj.driver:
+            return obj.driver.get_display_name()
+        return None
 
 
-class RouteOptimizationSerializer(serializers.ModelSerializer):
-    """Serializer for ML-based route optimization results"""
-    truck_id = serializers.CharField(source='truck.id', read_only=True)
-    truck_plate = serializers.CharField(source='truck.plate', read_only=True)
+# ============================================================
+# AUDIT LOG SERIALIZERS
+# ============================================================
+
+class AdminAuditLogSerializer(serializers.ModelSerializer):
+    """Admin audit log serializer (read-only)"""
+    admin_email = serializers.CharField(source='admin.email', read_only=True)
     
     class Meta:
-        model = RouteOptimization
+        model = FleetAdminAuditLog
         fields = [
-            'id', 'truck', 'truck_id', 'truck_plate', 'route',
-            'original_distance_km', 'optimized_distance_km', 'distance_saved_percent',
-            'original_time_hours', 'optimized_time_hours', 'time_saved_percent',
-            'estimated_fuel_liters', 'fuel_cost_estimated', 'co2_emissions_kg',
-            'alternative_routes', 'model_version', 'confidence_score', 'reasoning',
-            'created_at', 'updated_at'
+            'id', 'admin', 'admin_email', 'action', 'resource_type', 'resource_id',
+            'changes_before', 'changes_after', 'ip_address', 'user_agent', 'created_at'
         ]
-        read_only_fields = ['created_at', 'updated_at']
-
-
-class TruckFuelSerializer(serializers.ModelSerializer):
-    """Serializer for truck fuel information"""
-    truck_id = serializers.CharField(source='truck.id', read_only=True)
-    truck_plate = serializers.CharField(source='truck.plate', read_only=True)
-    fuel_percentage = serializers.SerializerMethodField()
-    estimated_range_km = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = TruckFuel
-        fields = [
-            'id', 'truck', 'truck_id', 'truck_plate', 'vehicle_type',
-            'tank_capacity_liters', 'current_fuel_liters', 'fuel_efficiency_kmpl',
-            'fuel_percentage', 'estimated_range_km',
-            'warning_level_percent', 'critical_level_percent',
-            'total_fuel_consumed_liters', 'total_distance_traveled_km',
-            'last_refuel_date', 'last_refuel_amount',
-            'needs_refuel', 'is_low_fuel', 'is_critical_fuel',
-            'created_at', 'updated_at'
-        ]
-        read_only_fields = ['created_at', 'updated_at']
-    
-    def get_fuel_percentage(self, obj):
-        """Calculate fuel percentage"""
-        return round(obj.fuel_percentage(), 2)
-    
-    def get_estimated_range_km(self, obj):
-        """Calculate estimated range"""
-        return round(obj.estimated_range_km(), 2)
-
-
-class FuelConsumptionSerializer(serializers.ModelSerializer):
-    """Serializer for fuel consumption tracking"""
-    truck_id = serializers.CharField(source='truck.id', read_only=True)
-    truck_plate = serializers.CharField(source='truck.plate', read_only=True)
-    route_id = serializers.CharField(source='route.id', read_only=True, allow_null=True)
-    
-    class Meta:
-        model = FuelConsumption
-        fields = [
-            'id', 'truck', 'truck_id', 'truck_plate', 'route', 'route_id',
-            'consumption_type', 'consumption_liters', 'distance_km', 'duration_minutes',
-            'avg_speed_kmh', 'elevation_gain_m', 'elevation_loss_m', 'load_percent',
-            'weather_conditions', 'efficiency_kmpl', 'efficiency_mpg',
-            'fuel_before_liters', 'fuel_after_liters', 'consumption_factors',
-            'start_timestamp', 'end_timestamp', 'was_predicted',
-            'actual_vs_predicted_percent', 'created_at'
-        ]
-        read_only_fields = ['created_at']
-
-
-class FuelRefuelSerializer(serializers.ModelSerializer):
-    """Serializer for refueling events"""
-    truck_id = serializers.CharField(source='truck.id', read_only=True)
-    truck_plate = serializers.CharField(source='truck.plate', read_only=True)
-    
-    class Meta:
-        model = FuelRefuel
-        fields = [
-            'id', 'truck', 'truck_id', 'truck_plate', 'amount_liters', 'cost_usd',
-            'location', 'latitude', 'longitude',
-            'fuel_before_liters', 'fuel_after_liters', 'fuel_price_per_liter',
-            'refuel_timestamp', 'duration_minutes', 'driver_name', 'driver_notes',
-            'fuel_efficiency_kmpl_before', 'distance_since_last_refuel_km',
-            'created_at'
-        ]
-        read_only_fields = ['created_at']
-
-
-class FuelAlertSerializer(serializers.ModelSerializer):
-    """Serializer for fuel-related alerts"""
-    truck_id = serializers.CharField(source='truck.id', read_only=True)
-    truck_plate = serializers.CharField(source='truck.plate', read_only=True)
-    
-    class Meta:
-        model = FuelAlert
-        fields = [
-            'id', 'truck', 'truck_id', 'truck_plate', 'alert_type', 'severity',
-            'message', 'current_fuel_liters', 'current_fuel_percent',
-            'estimated_range_km', 'is_acknowledged', 'is_resolved',
-            'resolved_at', 'resolution_notes', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at']
