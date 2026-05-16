@@ -489,3 +489,20 @@ class DriverPerformanceViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
     filterset_fields = ['driver', 'date']
     ordering_fields = ['date', 'overall_score']
+
+class CheckpointViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for mission stops (formerly Checkpoints)
+    """
+    # We use FleetMissionStop because that is the V2 version of Checkpoint
+    queryset = FleetMissionStop.objects.all()
+    serializer_class = MissionStopSerializer
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # Filter by mission if mission_id is provided in query params
+        mission_id = self.request.query_params.get('mission_id', None)
+        if mission_id:
+            queryset = queryset.filter(mission_id=mission_id)
+        return queryset
+
