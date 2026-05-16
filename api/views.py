@@ -18,6 +18,7 @@ from django.conf import settings
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django.utils.decorators import method_decorator
+from .serializers import DriverSerializer, TruckSerializer, MissionSerializer
 from .models import FleetDriver, FleetTruck, FleetMission, TruckLocation
 import logging
 import requests
