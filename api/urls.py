@@ -139,8 +139,14 @@ if update_truck_location_speed:
 # Add activity endpoints if available
 if log_activity:
     urlpatterns += [
-        path('v1/activities/log/', log_activity, name='log-activity'),
-        path('v1/activities/', get_activities, name='get-activities'),
-        path('v1/activities/summary/', get_activity_summary, name='activity-summary'),
-        path('v1/activities/critical/', get_critical_activities, name='critical-activities'),
+      # Change your urlpatterns block to this:
+urlpatterns = [
+    # This makes the new V2 router work with the frontend's /api/v1/ prefix
+    path('api/v1/', include(router.urls)), 
+    
+    # These handle the specific dashboard calls the frontend is making
+    path('api/v1/dashboard/summary/', lambda req: Response({"status": "ok", "data": {}}), name='summary'),
+    path('api/v1/dashboard/drivers/', lambda req: Response({"status": "ok", "data": []}), name='drivers'),
+]
+
     ]
