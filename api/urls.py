@@ -4,7 +4,7 @@ from .views import (
     DriverViewSet, TruckViewSet, MissionViewSet, MissionDisputeViewSet, 
     DriverPerformanceViewSet, CheckpointViewSet
 )
-from .mission_endpoints import (
+from .new_mission_endpoints import (
     create_mission, update_mission_status, get_mission_details, save_mission_tracking_data
 )
 from .delivery_endpoints import (
