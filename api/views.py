@@ -20,6 +20,9 @@ from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django.utils.decorators import method_decorator
 from .serializers import DriverSerializer, TruckSerializer, MissionSerializer
 from .models import FleetDriver, FleetTruck, FleetMission, TruckLocation
+from .models import FleetMissionStop # <--- MUST BE HERE
+from .serializers import MissionStopSerializer # <--- MUST BE HERE
+
 import logging
 import requests
 import traceback
