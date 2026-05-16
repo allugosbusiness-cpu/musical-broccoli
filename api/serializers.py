@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models_v2 import (
+from .models import (
     FleetDriver, FleetTruck, FleetMission, FleetMissionStop, FleetMissionEvent, 
     FleetMissionDispute, FleetDriverPerformanceDaily, FleetAdminAuditLog
 )
