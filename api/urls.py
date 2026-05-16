@@ -1,13 +1,8 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    TruckViewSet, CheckpointViewSet, CargoViewSet, AlertViewSet, 
-    KPIViewSet, RouteViewSet, LocationViewSet, CurrentLocationViewSet,
-    RouteOptimizationViewSet
-)
-from .views_v2 import (
-    DriverViewSet as DriverViewSetV2, TruckViewSet as TruckViewSetV2,
-    MissionViewSet, MissionDisputeViewSet, DriverPerformanceViewSet
+    DriverViewSet, TruckViewSet, MissionViewSet, MissionDisputeViewSet, 
+    DriverPerformanceViewSet, CheckpointViewSet
 )
 from .osrm_endpoints import calculate_distance
 from .dashboard_endpoints import (
@@ -16,65 +11,64 @@ from .dashboard_endpoints import (
     recalculate_performance, sync_truck_data, mission_route_geometry
 )
 from .mobile_endpoints import (
-    mobile_health_check, mobile_driver_registration, mobile_location_update, mobile_alert,
+    mobile_driver_registration, mobile_location_update, mobile_alert,
     mobile_driver_profile, mobile_driver_current_mission, mobile_driver_missions,
     mobile_mission_complete, generate_truck_qr, generate_mission_qr,
-    validate_driver_pin, generate_driver_pin, get_available_missions, start_mission_tracking,
-    mobile_debug_info
+    validate_driver_pin, generate_driver_pin, get_available_missions, 
+    start_mission_tracking, mobile_debug_info
+)
+from .mission_endpoints import (
+    create_mission, update_mission_status, get_mission_details, save_mission_tracking_data
 )
 from .delivery_endpoints import (
     mission_delivery_confirmed, driver_status, mission_details
 )
-from .fuel_views import (
-    TruckFuelViewSet, FuelConsumptionViewSet, FuelAlertViewSet, FuelReportViewSet
+from .locations_endpoints import (
+    location_search, location_types, location_autocomplete, location_reverse_geocode
+)
+from .tracking_endpoints import (
+    update_truck_location_speed, get_truck_current_location_speed, get_all_trucks_current_locations
+)
+from .activities_endpoints import (
+    log_activity, get_activities, get_activity_summary, get_critical_activities
 )
 
-# Placeholder endpoints for activities (not yet implemented)
-from django.http import JsonResponse
-
-def get_activities(request):
-    """Placeholder for activities endpoint - returns empty list"""
-    return JsonResponse({'activities': [], 'total_count': 0})
-
-def get_activity_summary(request):
-    """Placeholder for activities summary endpoint"""
-    return JsonResponse({'total_count': 0})
-
-# Legacy router (v0)
-router = DefaultRouter()
-router.register(r'trucks', TruckViewSet, basename='truck')
-router.register(r'checkpoints', CheckpointViewSet, basename='checkpoint')
-router.register(r'cargo', CargoViewSet, basename='cargo')
-router.register(r'alerts', AlertViewSet, basename='alert')
-router.register(r'kpis', KPIViewSet, basename='kpi')
-router.register(r'routes', RouteViewSet, basename='route')
-router.register(r'locations', LocationViewSet, basename='location')
-router.register(r'current-locations', CurrentLocationViewSet, basename='current-location')
-router.register(r'route-optimizations', RouteOptimizationViewSet, basename='route-optimization')
-router.register(r'fuel', TruckFuelViewSet, basename='fuel')
-router.register(r'fuel-consumption', FuelConsumptionViewSet, basename='fuel-consumption')
-router.register(r'fuel-alerts', FuelAlertViewSet, basename='fuel-alert')
-router.register(r'fuel-reports', FuelReportViewSet, basename='fuel-report')
-
-# v1 router (new schema)
-router_v1 = DefaultRouter()
-router_v1.register(r'drivers', DriverViewSetV2, basename='driver-v1')
-router_v1.register(r'trucks', TruckViewSetV2, basename='truck-v1')
-router_v1.register(r'missions', MissionViewSet, basename='mission')
-router_v1.register(r'disputes', MissionDisputeViewSet, basename='dispute')
-router_v1.register(r'performance', DriverPerformanceViewSet, basename='performance')
-router_v1.register(r'alerts', AlertViewSet, basename='alert-v1')
-router_v1.register(r'fuel-alerts', FuelAlertViewSet, basename='fuel-alert-v1')
-router_v1.register(r'fuel', TruckFuelViewSet, basename='fuel-v1')
-router_v1.register(r'fuel-consumption', FuelConsumptionViewSet, basename='fuel-consumption-v1')
-router_v1.register(r'fuel-reports', FuelReportViewSet, basename='fuel-report-v1')
+# v2 router (new schema)
+router_v2 = DefaultRouter()
+router_v2.register(r'drivers', DriverViewSet, basename='driver')
+router_v2.register(r'trucks', TruckViewSet, basename='truck')
+router_v2.register(r'missions', MissionViewSet, basename='mission')
+router_v2.register(r'disputes', MissionDisputeViewSet, basename='dispute')
+router_v2.register(r'performance', DriverPerformanceViewSet, basename='performance')
+router_v2.register(r'checkpoints', CheckpointViewSet, basename='checkpoint')
 
 urlpatterns = [
-    path('', include(router.urls)),
-    path('v1/', include(router_v1.urls)),
+    path('v1/', include(router_v2.urls)),
     path('v1/calculate-distance/', calculate_distance, name='calculate-distance'),
-    # Health check endpoint
-    path('v1/health/', mobile_health_check, name='health-check'),
+    
+    # ✅ Mission management endpoints (custom paths to avoid router conflicts)
+    path('v1/api-missions/create/', create_mission, name='create-mission'),
+    path('v1/api-missions/<str:mission_id>/status/', update_mission_status, name='update-mission-status'),
+    path('v1/api-missions/<str:mission_id>/tracking/', save_mission_tracking_data, name='save-mission-tracking-data'),
+    path('v1/api-missions/<str:mission_id>/details/', get_mission_details, name='get-mission-details'),
+    
+    # Location suggestions endpoints
+    path('v1/locations/search/', location_search, name='location-search'),
+    path('v1/locations/types/', location_types, name='location-types'),
+    path('v1/locations/autocomplete/', location_autocomplete, name='location-autocomplete'),
+    path('v1/locations/reverse-geocode/', location_reverse_geocode, name='location-reverse-geocode'),
+    
+    # Truck location and speed tracking endpoints (real-time from mobile app)
+    path('v1/truck-tracking/location-speed/', update_truck_location_speed, name='update-truck-location-speed'),
+    path('v1/truck-tracking/location-speed/<str:truck_id>/', get_truck_current_location_speed, name='get-truck-location-speed'),
+    path('v1/truck-tracking/all-locations/', get_all_trucks_current_locations, name='get-all-trucks-locations'),
+    
+    # Activity logging and audit trail endpoints
+    path('v1/activities/log/', log_activity, name='log-activity'),
+    path('v1/activities/', get_activities, name='get-activities'),
+    path('v1/activities/summary/', get_activity_summary, name='activity-summary'),
+    path('v1/activities/critical/', get_critical_activities, name='critical-activities'),
+    
     # Dashboard endpoints
     path('v1/dashboard/summary/', dashboard_summary, name='dashboard-summary'),
     path('v1/dashboard/drivers/', drivers_list_with_performance, name='dashboard-drivers'),
@@ -83,6 +77,7 @@ urlpatterns = [
     path('v1/dashboard/missions/<str:mission_id>/route-geometry/', mission_route_geometry, name='mission-route-geometry'),
     path('v1/dashboard/recalculate-performance/', recalculate_performance, name='recalculate-performance'),
     path('v1/dashboard/sync-truck-data/', sync_truck_data, name='sync-truck-data'),
+    
     # Mobile app endpoints
     path('v1/mobile/driver-registration/', mobile_driver_registration, name='mobile-driver-registration'),
     path('v1/mobile/location-update/', mobile_location_update, name='mobile-location-update'),
@@ -103,9 +98,5 @@ urlpatterns = [
     path('v1/mobile/debug/', mobile_debug_info, name='mobile-debug-info'),
     # Delivery confirmation endpoints
     path('v1/mobile/mission/<str:mission_id>/delivery/', mission_delivery_confirmed, name='mission-delivery-confirmed'),
-    path('v1/mobile/driver/<str:driver_id>/status/', driver_status, name='driver-status'),
     path('v1/mission/<str:mission_id>/details/', mission_details, name='mission-details'),
-    # Activity tracking endpoints
-    path('v1/activities/', get_activities, name='activities'),
-    path('v1/activities/summary/', get_activity_summary, name='activities-summary'),
 ]
