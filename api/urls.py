@@ -4,10 +4,14 @@ from .views import (
     DriverViewSet, TruckViewSet, MissionViewSet, MissionDisputeViewSet, 
     DriverPerformanceViewSet, CheckpointViewSet
 )
+from .mission_endpoints import (
+    create_mission, update_mission_status, get_mission_details, save_mission_tracking_data
+)
+from .delivery_endpoints import (
+    mission_delivery_confirmed, driver_status, mission_details
+)
 
-# We only keep imports for files that ACTUALLY exist in your folder.
-# If any of these still cause a 'ModuleNotFoundError', simply put a # at the start of the line.
-
+# Try to import optional endpoints - these may not all exist
 try:
     from .osrm_endpoints import calculate_distance
 except ImportError:
@@ -20,7 +24,7 @@ try:
         recalculate_performance, sync_truck_data, mission_route_geometry
     )
 except ImportError:
-    dashboard_summary = None # This prevents the crash if the file is missing
+    dashboard_summary = dashboard_endpoints_missing = None
 
 try:
     from .mobile_endpoints import (
@@ -33,26 +37,26 @@ try:
 except ImportError:
     mobile_driver_registration = None
 
-# --- COMMENTED OUT THE GHOST FILES ---
-# These were causing the crashes because the files do not exist in V2
-# from .mission_endpoints import (...)
-# from .delivery_endpoints import (...)
-# from .locations_endpoints import (...)
-# from .tracking_endpoints import (...)
-# from .activities_endpoints import (...)
+try:
+    from .locations_endpoints import (
+        location_search, location_types, location_autocomplete, location_reverse_geocode
+    )
+except ImportError:
+    location_search = None
 
-# v2 router (new schema)
-router = DefaultRouter()
-router.register(r'drivers', DriverViewSet)
-router.register(r'trucks', TruckViewSet)
-router.register(r'missions', MissionViewSet)
-router.register(r'disputes', MissionDisputeViewSet)
-router.register(r'performance', DriverPerformanceViewSet)
-router.register(r'checkpoints', CheckpointViewSet)
+try:
+    from .tracking_endpoints import (
+        update_truck_location_speed, get_truck_current_location_speed, get_all_trucks_current_locations
+    )
+except ImportError:
+    update_truck_location_speed = None
 
-urlpatterns = [
-    path('', include(router.urls)),
-]
+try:
+    from .activities_endpoints import (
+        log_activity, get_activities, get_activity_summary, get_critical_activities
+    )
+except ImportError:
+    log_activity = None
 
 # v2 router (new schema)
 router_v2 = DefaultRouter()
@@ -65,59 +69,78 @@ router_v2.register(r'checkpoints', CheckpointViewSet, basename='checkpoint')
 
 urlpatterns = [
     path('v1/', include(router_v2.urls)),
-    path('v1/calculate-distance/', calculate_distance, name='calculate-distance'),
-    
-    # ✅ Mission management endpoints (custom paths to avoid router conflicts)
+]
+
+# Add optional endpoints only if they were imported successfully
+if calculate_distance:
+    urlpatterns += [path('v1/calculate-distance/', calculate_distance, name='calculate-distance')]
+
+# Mission management endpoints
+urlpatterns += [
     path('v1/api-missions/create/', create_mission, name='create-mission'),
     path('v1/api-missions/<str:mission_id>/status/', update_mission_status, name='update-mission-status'),
     path('v1/api-missions/<str:mission_id>/tracking/', save_mission_tracking_data, name='save-mission-tracking-data'),
     path('v1/api-missions/<str:mission_id>/details/', get_mission_details, name='get-mission-details'),
     
-    # Location suggestions endpoints
-    path('v1/locations/search/', location_search, name='location-search'),
-    path('v1/locations/types/', location_types, name='location-types'),
-    path('v1/locations/autocomplete/', location_autocomplete, name='location-autocomplete'),
-    path('v1/locations/reverse-geocode/', location_reverse_geocode, name='location-reverse-geocode'),
-    
-    # Truck location and speed tracking endpoints (real-time from mobile app)
-    path('v1/truck-tracking/location-speed/', update_truck_location_speed, name='update-truck-location-speed'),
-    path('v1/truck-tracking/location-speed/<str:truck_id>/', get_truck_current_location_speed, name='get-truck-location-speed'),
-    path('v1/truck-tracking/all-locations/', get_all_trucks_current_locations, name='get-all-trucks-locations'),
-    
-    # Activity logging and audit trail endpoints
-    path('v1/activities/log/', log_activity, name='log-activity'),
-    path('v1/activities/', get_activities, name='get-activities'),
-    path('v1/activities/summary/', get_activity_summary, name='activity-summary'),
-    path('v1/activities/critical/', get_critical_activities, name='critical-activities'),
-    
-    # Dashboard endpoints
-    path('v1/dashboard/summary/', dashboard_summary, name='dashboard-summary'),
-    path('v1/dashboard/drivers/', drivers_list_with_performance, name='dashboard-drivers'),
-    path('v1/dashboard/trucks/', trucks_list_with_mission_data, name='dashboard-trucks'),
-    path('v1/dashboard/missions/', missions_list_with_details, name='dashboard-missions'),
-    path('v1/dashboard/missions/<str:mission_id>/route-geometry/', mission_route_geometry, name='mission-route-geometry'),
-    path('v1/dashboard/recalculate-performance/', recalculate_performance, name='recalculate-performance'),
-    path('v1/dashboard/sync-truck-data/', sync_truck_data, name='sync-truck-data'),
-    
-    # Mobile app endpoints
-    path('v1/mobile/driver-registration/', mobile_driver_registration, name='mobile-driver-registration'),
-    path('v1/mobile/location-update/', mobile_location_update, name='mobile-location-update'),
-    path('v1/mobile/alert/', mobile_alert, name='mobile-alert'),
-    # Mission selection and tracking (MUST BE BEFORE generic driver/<id>/ route)
-    path('v1/mobile/driver/<str:driver_id>/available-missions/', get_available_missions, name='get-available-missions'),
-    path('v1/mobile/driver/<str:driver_id>/current-mission/', mobile_driver_current_mission, name='mobile-driver-current-mission'),
-    path('v1/mobile/driver/<str:driver_id>/missions/', mobile_driver_missions, name='mobile-driver-missions'),
-    path('v1/mobile/driver/<str:driver_id>/status/', driver_status, name='driver-status'),
-    # Generic driver profile endpoint (MUST BE LAST in driver/<id>/ group)
-    path('v1/mobile/driver/<str:driver_id>/', mobile_driver_profile, name='mobile-driver-profile'),
-    path('v1/mobile/mission/<str:mission_id>/complete/', mobile_mission_complete, name='mobile-mission-complete'),
-    path('v1/mobile/truck/<str:truck_id>/generate-qr/', generate_truck_qr, name='generate-truck-qr'),
-    path('v1/mobile/mission/<str:mission_id>/generate-qr/', generate_mission_qr, name='generate-mission-qr'),
-    path('v1/mobile/truck/<str:truck_id>/generate-pin/', generate_driver_pin, name='generate-driver-pin'),
-    path('v1/mobile/validate-pin/', validate_driver_pin, name='validate-driver-pin'),
-    path('v1/mobile/mission/start-tracking/', start_mission_tracking, name='start-mission-tracking'),
-    path('v1/mobile/debug/', mobile_debug_info, name='mobile-debug-info'),
     # Delivery confirmation endpoints
     path('v1/mobile/mission/<str:mission_id>/delivery/', mission_delivery_confirmed, name='mission-delivery-confirmed'),
     path('v1/mission/<str:mission_id>/details/', mission_details, name='mission-details'),
+    path('v1/mobile/driver/<str:driver_id>/status/', driver_status, name='driver-status'),
 ]
+
+# Add dashboard endpoints if available
+if dashboard_summary:
+    urlpatterns += [
+        path('v1/dashboard/summary/', dashboard_summary, name='dashboard-summary'),
+        path('v1/dashboard/drivers/', drivers_list_with_performance, name='dashboard-drivers'),
+        path('v1/dashboard/trucks/', trucks_list_with_mission_data, name='dashboard-trucks'),
+        path('v1/dashboard/missions/', missions_list_with_details, name='dashboard-missions'),
+        path('v1/dashboard/missions/<str:mission_id>/route-geometry/', mission_route_geometry, name='mission-route-geometry'),
+        path('v1/dashboard/recalculate-performance/', recalculate_performance, name='recalculate-performance'),
+        path('v1/dashboard/sync-truck-data/', sync_truck_data, name='sync-truck-data'),
+    ]
+
+# Add mobile endpoints if available
+if mobile_driver_registration:
+    urlpatterns += [
+        path('v1/mobile/driver-registration/', mobile_driver_registration, name='mobile-driver-registration'),
+        path('v1/mobile/location-update/', mobile_location_update, name='mobile-location-update'),
+        path('v1/mobile/alert/', mobile_alert, name='mobile-alert'),
+        path('v1/mobile/driver/<str:driver_id>/available-missions/', get_available_missions, name='get-available-missions'),
+        path('v1/mobile/driver/<str:driver_id>/current-mission/', mobile_driver_current_mission, name='mobile-driver-current-mission'),
+        path('v1/mobile/driver/<str:driver_id>/missions/', mobile_driver_missions, name='mobile-driver-missions'),
+        path('v1/mobile/driver/<str:driver_id>/', mobile_driver_profile, name='mobile-driver-profile'),
+        path('v1/mobile/mission/<str:mission_id>/complete/', mobile_mission_complete, name='mobile-mission-complete'),
+        path('v1/mobile/truck/<str:truck_id>/generate-qr/', generate_truck_qr, name='generate-truck-qr'),
+        path('v1/mobile/mission/<str:mission_id>/generate-qr/', generate_mission_qr, name='generate-mission-qr'),
+        path('v1/mobile/truck/<str:truck_id>/generate-pin/', generate_driver_pin, name='generate-driver-pin'),
+        path('v1/mobile/validate-pin/', validate_driver_pin, name='validate-driver-pin'),
+        path('v1/mobile/mission/start-tracking/', start_mission_tracking, name='start-mission-tracking'),
+        path('v1/mobile/debug/', mobile_debug_info, name='mobile-debug-info'),
+    ]
+
+# Add location endpoints if available
+if location_search:
+    urlpatterns += [
+        path('v1/locations/search/', location_search, name='location-search'),
+        path('v1/locations/types/', location_types, name='location-types'),
+        path('v1/locations/autocomplete/', location_autocomplete, name='location-autocomplete'),
+        path('v1/locations/reverse-geocode/', location_reverse_geocode, name='location-reverse-geocode'),
+    ]
+
+# Add tracking endpoints if available
+if update_truck_location_speed:
+    urlpatterns += [
+        path('v1/truck-tracking/location-speed/', update_truck_location_speed, name='update-truck-location-speed'),
+        path('v1/truck-tracking/location-speed/<str:truck_id>/', get_truck_current_location_speed, name='get-truck-location-speed'),
+        path('v1/truck-tracking/all-locations/', get_all_trucks_current_locations, name='get-all-trucks-locations'),
+    ]
+
+# Add activity endpoints if available
+if log_activity:
+    urlpatterns += [
+        path('v1/activities/log/', log_activity, name='log-activity'),
+        path('v1/activities/', get_activities, name='get-activities'),
+        path('v1/activities/summary/', get_activity_summary, name='activity-summary'),
+        path('v1/activities/critical/', get_critical_activities, name='critical-activities'),
+    ]
