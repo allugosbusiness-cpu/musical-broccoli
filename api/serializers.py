@@ -224,3 +224,6 @@ class AdminAuditLogSerializer(serializers.ModelSerializer):
             'old_values', 'new_values', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
+        
+# Alias for backward compatibility with mobile_endpoints.py
+AlertSerializer = ActivitySerializer
