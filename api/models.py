@@ -580,3 +580,14 @@ class FleetActivity(models.Model):
         if self.location_lat and self.location_lon:
             return f"{float(self.location_lat):.4f}, {float(self.location_lon):.4f}"
         return "Unknown"
+
+# ============================================================
+# GLOBAL ALIASES (The "Magic Bridge")
+# This prevents 500 errors in legacy endpoint files (dashboard, mobile, etc)
+# ============================================================
+Truck = FleetTruck
+Driver = FleetDriver
+Mission = FleetMission
+Location = TruckLocation
+Checkpoint = FleetMissionStop
+
