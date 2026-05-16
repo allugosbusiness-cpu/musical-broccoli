@@ -224,6 +224,20 @@ class AdminAuditLogSerializer(serializers.ModelSerializer):
             'old_values', 'new_values', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
-        
-# Alias for backward compatibility with mobile_endpoints.py
+# ============================================================
+# ACTIVITY SERIALIZER (The core for all alerts/logs)
+# ============================================================
+
+class ActivitySerializer(serializers.ModelSerializer):
+    """Comprehensive activity serializer for all events and alerts"""
+    class Meta:
+        model = FleetActivity
+        fields = '__all__'
+
+
+# ============================================================
+# COMPATIBILITY ALIASES (For backward compatibility with old code)
+# ============================================================
+
+# This allows mobile_endpoints.py and other files to find 'AlertSerializer'
 AlertSerializer = ActivitySerializer
