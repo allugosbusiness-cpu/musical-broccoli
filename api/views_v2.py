@@ -19,7 +19,7 @@ import logging
 import requests
 import traceback
 
-from .models_v2 import (
+from .models import (
     FleetDriver, FleetTruck, FleetMission, FleetMissionStop, FleetMissionEvent, 
     FleetMissionDispute, FleetDriverPerformanceDaily, FleetAdminAuditLog
 )
