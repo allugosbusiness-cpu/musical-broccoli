@@ -1,12 +1,12 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework.response import Response
 from .views import (
     DriverViewSet, TruckViewSet, MissionViewSet, MissionDisputeViewSet, 
     DriverPerformanceViewSet, CheckpointViewSet
 )
 
 # --- SAFE ENDPOINTS LOADING ---
-# We use try/except so the server doesn't crash if a file is missing
 try:
     from .osrm_endpoints import calculate_distance
 except ImportError:
@@ -43,16 +43,16 @@ router.register(r'checkpoints', CheckpointViewSet)
 
 # --- URL PATTERNS ---
 urlpatterns = [
-    # This maps all the router endpoints to /api/v1/
-    path('api/v1/', include(router.urls)),
+    # REMOVED 'api/' from the start. Now it's just 'v1/'
+    # This fixes the 'api/api/v1' double-prefix problem.
+    path('v1/', include(router.urls)),
     
-    # These are "Bridge" paths to stop the frontend from getting 404/500 errors
-    # while we fix the legacy dashboard logic
-    path('api/v1/dashboard/summary/', lambda req: Response({"status": "ok", "data": {}}), name='summary'),
-    path('api/v1/dashboard/drivers/', lambda req: Response({"status": "ok", "data": []}), name='drivers'),
-    path('api/v1/dashboard/trucks/', lambda req: Response({"status": "ok", "data": []}), name='trucks'),
-    path('api/v1/dashboard/missions/', lambda req: Response({"status": "ok", "data": []}), name='missions'),
+    # V1 Dashboard Bridges (Matched exactly to what your frontend is calling)
+    path('v1/dashboard/summary/', lambda req: Response({"status": "ok", "data": {}}), name='summary'),
+    path('v1/dashboard/drivers/', lambda req: Response({"status": "ok", "data": []}), name='drivers'),
+    path('v1/dashboard/trucks/', lambda req: Response({"status": "ok", "data": []}), name='trucks'),
+    path('v1/dashboard/missions/', lambda req: Response({"status": "ok", "data": []}), name='missions'),
+    
+    # Add the 'alerts' endpoint the frontend is looking for
+    path('v1/alerts/', lambda req: Response({"status": "ok", "data": []}), name='alerts'),
 ]
-
-# Helper to prevent the lambda from crashing if Response isn't imported
-from rest_framework.response import Response
