@@ -223,7 +223,7 @@ class FleetTruck(models.Model):
 # 3. FLEET MISSION MODEL
 # ============================================================
 
-class Mission(models.Model):
+class FleetMission(models.Model):
     """Mission/delivery with stops and tracking."""
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
