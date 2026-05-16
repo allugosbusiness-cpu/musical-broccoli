@@ -18,10 +18,7 @@ from django.conf import settings
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django.utils.decorators import method_decorator
-from .models import FleetMission as Mission
-from .models import FleetTruck as Truck
-from .models import FleetDriver as Driver
-from .models import TruckLocation as Location
+from .models import FleetDriver, FleetTruck, FleetMission, TruckLocation
 import logging
 import requests
 import traceback
