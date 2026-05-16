@@ -1,4 +1,5 @@
 from django.contrib import admin
+from .models import Checkpoint
 from .models import FleetTruck as Truck, FleetDriver as Driver, FleetMission as Mission, TruckLocation as Location
 # Note: If Checkpoint, Cargo, Alert, and KPI are NOT in your new models.py, 
 # you must remove them from this list or the app will crash again.
