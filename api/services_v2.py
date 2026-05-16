@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 import logging
 
-from .models_v2 import (
+from .models import (
     FleetDriver, FleetTruck, FleetMission, FleetMissionStop, FleetMissionEvent,
     FleetMissionDispute, FleetDriverPerformanceDaily, FleetAdminAuditLog,
     DriverStatus, TruckStatus, MissionStatus, MissionStopStatus, MissionEventType, DisputeStatus
