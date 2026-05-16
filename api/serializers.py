@@ -1,8 +1,15 @@
 from rest_framework import serializers
 from .models import (
-    FleetDriver, FleetTruck, FleetMission, FleetMissionStop, 
-    FleetMissionEvent, FleetMissionDispute, FleetDriverPerformanceDaily, 
-    FleetAdminAuditLog, TruckLocation
+    FleetDriver, 
+    FleetTruck, 
+    FleetMission, 
+    FleetMissionStop, 
+    FleetMissionEvent, 
+    FleetMissionDispute, 
+    FleetDriverPerformanceDaily, 
+    FleetAdminAuditLog, 
+    TruckLocation,
+    FleetActivity  # <--- This was the missing piece causing the crash
 )
 
 # ============================================================
@@ -224,8 +231,10 @@ class AdminAuditLogSerializer(serializers.ModelSerializer):
             'old_values', 'new_values', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
+
+
 # ============================================================
-# ACTIVITY SERIALIZER (The core for all alerts/logs)
+# ACTIVITY SERIALIZER (Compatibility layer)
 # ============================================================
 
 class ActivitySerializer(serializers.ModelSerializer):
@@ -233,11 +242,6 @@ class ActivitySerializer(serializers.ModelSerializer):
     class Meta:
         model = FleetActivity
         fields = '__all__'
-
-
-# ============================================================
-# COMPATIBILITY ALIASES (For backward compatibility with old code)
-# ============================================================
 
 # This allows mobile_endpoints.py and other files to find 'AlertSerializer'
 AlertSerializer = ActivitySerializer
