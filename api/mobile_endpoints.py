@@ -18,7 +18,6 @@ import base64
 from datetime import datetime, timedelta
 
 from .models import FleetDriver, FleetTruck, FleetMission, TruckLocation
-from .models import Alert
 from .serializers import TruckSerializer, AlertSerializer
 
 
