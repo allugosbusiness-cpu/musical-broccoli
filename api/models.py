@@ -102,7 +102,7 @@ class FleetDriver(models.Model):
     """Driver profile with performance tracking."""
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    fleet_id = models.UUIDField(db_index=True)
+    fleet_id = models.UUIDField(db_index=True, blank=True, null=True)
     
     first_name = models.CharField(max_length=100, db_index=True)
     last_name = models.CharField(max_length=100, db_index=True)
@@ -173,7 +173,7 @@ class FleetTruck(models.Model):
     """Truck vehicle with telemetry tracking."""
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    fleet_id = models.UUIDField(db_index=True)
+    fleet_id = models.UUIDField(db_index=True, blank=True, null=True)
     
     truck_identifier = models.CharField(max_length=100, unique=True, db_index=True)
     plate = models.CharField(max_length=20, unique=True, db_index=True)
