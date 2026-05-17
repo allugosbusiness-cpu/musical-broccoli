@@ -15,9 +15,7 @@ from .models import (
 )
 from .serializers import (
     DriverSerializer, 
-    DriverListSerializer, 
     TruckSerializer, 
-    TruckListSerializer, 
     MissionSerializer, 
     MissionStopSerializer, 
     MissionEventSerializer, 
