@@ -1,92 +1,179 @@
 from rest_framework import serializers
 from .models import (
-    FleetDriver, FleetTruck, FleetMission, FleetMissionStop, 
-    FleetMissionEvent, FleetMissionDispute, FleetDriverPerformanceDaily, 
+    FleetDriver, FleetTruck, FleetMission, FleetMissionStop,
+    FleetMissionEvent, FleetMissionDispute, FleetDriverPerformanceDaily,
     FleetAdminAuditLog, TruckLocation, FleetActivity
 )
-
-# ============================================================
-# TRUCK SERIALIZERS (Frontend Compatibility Layer)
-# ============================================================
-class TruckSerializer(serializers.ModelSerializer):
-    id = serializers.CharField(source='truck_identifier', read_only=True)
-    coordinates = serializers.SerializerMethodField()
-    driver = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = FleetTruck
-        fields = [
-            'id', 'plate', 'driver', 'status', 'coordinates', 
-            'last_latitude', 'last_longitude', 'speed_kmh', 
-            'truck_identifier', 'assigned_driver'
-        ]
-
-    def get_coordinates(self, obj):
-        if obj.last_latitude and obj.last_longitude:
-            return {'lat': float(obj.last_latitude), 'lng': float(obj.last_longitude)}
-        return {'lat': 0, 'lng': 0}
-
-    def get_driver(self, obj):
-        return obj.assigned_driver.get_display_name() if obj.assigned_driver else "Unassigned"
-
-class TruckListSerializer(serializers.ModelSerializer):
-    id = serializers.CharField(source='truck_identifier', read_only=True)
-    coordinates = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = FleetTruck
-        fields = ['id', 'plate', 'status', 'coordinates', 'speed_kmh']
-
-    def get_coordinates(self, obj):
-        if obj.last_latitude and obj.last_longitude:
-            return {'lat': float(obj.last_latitude), 'lng': float(obj.last_longitude)}
-        return {'lat': 0, 'lng': 0}
-
-# ============================================================
-# MISSION SERIALIZERS
-# ============================================================
-class MissionSerializer(serializers.ModelSerializer):
-    id = serializers.CharField(source='mission_number', read_only=True)
-    driver_name = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = FleetMission
-        fields = [
-            'id', 'mission_number', 'status', 'priority', 'origin', 
-            'destination', 'current_location', 'progress_pct', 'driver_name'
-        ]
-
-    def get_driver_name(self, obj):
-        return obj.driver.get_display_name() if obj.driver else "Unassigned"
-
-class MissionStopSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FleetMissionStop
-        fields = ['id', 'mission', 'stop_order', 'address', 'status']
 
 # ============================================================
 # DRIVER SERIALIZERS
 # ============================================================
 class DriverSerializer(serializers.ModelSerializer):
-    name = serializers.SerializerMethodField()
-    
+    display_name = serializers.SerializerMethodField()
     class Meta:
         model = FleetDriver
-        fields = ['id', 'name', 'phone_number', 'status', 'performance_mark']
+        fields = [
+            'id', 'fleet_id', 'first_name', 'last_name', 'display_name',
+            'phone', 'email', 'license_number', 'license_state', 'hire_date',
+            'status', 'on_duty', 'performance_mark', 'deliveries_count',
+            'last_active_at', 'achievements', 'photo_url', 'notes',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'performance_mark', 'deliveries_count']
+    
+    def get_display_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip()
 
-    def get_name(self, obj):
-        return obj.get_display_name()
+class DriverListSerializer(serializers.ModelSerializer):
+    display_name = serializers.SerializerMethodField()
+    class Meta:
+        model = FleetDriver
+        fields = [
+            'id', 'fleet_id', 'first_name', 'last_name', 'display_name',
+            'phone', 'email', 'status', 'on_duty', 'performance_mark',
+            'deliveries_count', 'last_active_at'
+        ]
+    def get_display_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip()
 
 # ============================================================
-# COMPATIBILITY LAYER (Aliases to prevent ImportError)
+# TRUCK SERIALIZERS
 # ============================================================
+class TruckSerializer(serializers.ModelSerializer):
+    assigned_driver_name = serializers.SerializerMethodField()
+    fuel_consumed_pct = serializers.SerializerMethodField()
+    class Meta:
+        model = FleetTruck
+        fields = [
+            'id', 'fleet_id', 'truck_identifier', 'plate', 'vin', 'telematics_id',
+            'make', 'model', 'year', 'fuel_capacity_liters', 'fuel_consumed_liters',
+            'fuel_consumed_pct', 'odometer_km', 'kilometers_travelled_km', 'status',
+            'is_moving', 'last_latitude', 'last_longitude', 'last_location_ts',
+            'assigned_driver', 'assigned_driver_name', 'maintenance_due_date',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'id', 'created_at', 'updated_at', 'fuel_consumed_pct', 'fuel_consumed_liters',
+            'odometer_km', 'kilometers_travelled_km', 'is_moving', 'last_latitude',
+            'last_longitude', 'last_location_ts', 'assigned_driver', 'assigned_driver_name'
+        ]
+    def get_assigned_driver_name(self, obj):
+        return obj.assigned_driver.get_display_name() if obj.assigned_driver else None
+    def get_fuel_consumed_pct(self, obj):
+        if obj.fuel_capacity_liters > 0:
+            return round(float(obj.fuel_consumed_liters) / float(obj.fuel_capacity_liters) * 100, 2)
+        return 0
 
-class ActivitySerializer(serializers.ModelSerializer):
+class TruckListSerializer(serializers.ModelSerializer):
+    assigned_driver_name = serializers.SerializerMethodField()
+    fuel_consumed_pct = serializers.SerializerMethodField()
+    class Meta:
+        model = FleetTruck
+        fields = [
+            'id', 'fleet_id', 'truck_identifier', 'plate', 'status', 'is_moving',
+            'last_latitude', 'last_longitude', 'last_location_ts', 'speed_kmh',
+            'fuel_consumed_pct', 'assigned_driver', 'assigned_driver_name',
+            'kilometers_travelled_km'
+        ]
+    def get_assigned_driver_name(self, obj):
+        return obj.assigned_driver.get_display_name() if obj.assigned_driver else None
+    def get_fuel_consumed_pct(self, obj):
+        if obj.fuel_capacity_liters > 0:
+            return round(float(obj.fuel_consumed_liters) / float(obj.fuel_capacity_liters) * 100, 2)
+        return 0
+
+# ============================================================
+# MISSION SERIALIZERS
+# ============================================================
+class MissionStopSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FleetMissionStop
+        fields = ['id', 'mission', 'stop_order', 'address', 'latitude', 'longitude',
+                  'status', 'arrived_at', 'departed_at', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+class MissionEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FleetMissionEvent
+        fields = ['id', 'mission', 'truck', 'driver', 'event_type', 'payload', 'trace_id', 'created_at']
+        read_only_fields = ['id', 'trace_id', 'created_at']
+
+class MissionDisputeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FleetMissionDispute
+        fields = ['id', 'mission', 'driver', 'stop', 'dispute_type', 'description',
+                  'photo_url', 'status', 'created_at', 'resolved_at', 'resolved_by_admin_id']
+        read_only_fields = ['id', 'created_at', 'resolved_at']
+
+class MissionSerializer(serializers.ModelSerializer):
+    stops = MissionStopSerializer(source='stops_detail', many=True, read_only=True)
+    events = MissionEventSerializer(source='fleetmissionevent_set', many=True, read_only=True)
+    disputes = MissionDisputeSerializer(source='fleetmissiondispute_set', many=True, read_only=True)
+    truck_identifier = serializers.CharField(source='truck.truck_identifier', read_only=True)
+    driver_name = serializers.SerializerMethodField()
+    class Meta:
+        model = FleetMission
+        fields = [
+            'id', 'fleet_id', 'mission_number', 'truck', 'truck_identifier', 'driver', 'driver_name',
+            'status', 'priority', 'origin', 'destination', 'current_location', 'route_polyline',
+            'distance_total_m', 'distance_remaining_m', 'progress_pct', 'speed_kmh', 'eta',
+            'cargo', 'stops', 'events', 'disputes', 'mission_date', 'created_at', 'started_at', 'completed_at',
+            'updated_at', 'created_by_admin_id'
+        ]
+        read_only_fields = [
+            'id', 'created_at', 'updated_at', 'progress_pct', 'distance_remaining_m',
+            'stops', 'events', 'disputes'
+        ]
+    def get_driver_name(self, obj):
+        return obj.driver.get_display_name() if obj.driver else None
+
+class MissionListSerializer(serializers.ModelSerializer):
+    truck_identifier = serializers.CharField(source='truck.truck_identifier', read_only=True)
+    driver_name = serializers.SerializerMethodField()
+    class Meta:
+        model = FleetMission
+        fields = [
+            'id', 'fleet_id', 'mission_number', 'truck_identifier', 'driver_name',
+            'status', 'priority', 'origin', 'destination', 'progress_pct',
+            'eta', 'mission_date', 'created_at'
+        ]
+    def get_driver_name(self, obj):
+        return obj.driver.get_display_name() if obj.driver else None
+
+# ============================================================
+# PERFORMANCE SERIALIZERS
+# ============================================================
+class DriverPerformanceDailySerializer(serializers.ModelSerializer):
+    driver_name = serializers.SerializerMethodField()
+    class Meta:
+        model = FleetDriverPerformanceDaily
+        fields = [
+            'id', 'driver', 'driver_name', 'date', 'deliveries_count', 'on_time_count', 'late_count',
+            'harsh_braking_count', 'idling_minutes', 'fuel_efficiency_liters_per_100km',
+            'safety_score', 'efficiency_score', 'overall_score', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    def get_driver_name(self, obj):
+        return obj.driver.get_display_name() if obj.driver else None
+
+# ============================================================
+# AUDIT LOG SERIALIZERS
+# ============================================================
+class FleetActivitySerializer(serializers.ModelSerializer):
     class Meta:
         model = FleetActivity
         fields = '__all__'
 
-class DriverPerformanceDailySerializer(serializers.ModelSerializer):
+class FleetAdminAuditLogSerializer(serializers.ModelSerializer):
     class Meta:
-        model = FleetDriverPerformanceDaily
-        fields = '__all__'
+        model = FleetAdminAuditLog
+        fields = [
+            'id', 'admin_id', 'action', 'resource_type', 'resource_id',
+            'old_values', 'new_values', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
+
+# ============================================================
+# COMPATIBILITY ALIASES (for mobile_endpoints.py)
+# ============================================================
+AlertSerializer = FleetActivitySerializer  # Alerts are now FleetActivity
