@@ -9,7 +9,9 @@ https://docs.djangoproject.com/en/6.0/howto/deployment/wsgi/
 
 import os
 import sys
+import django
 from pathlib import Path
+from django.core.management import call_command
 
 # Ensure project root is in Python path
 project_root = str(Path(__file__).resolve().parent.parent)
@@ -30,7 +32,29 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Logistics.settings')
 print(f"[WSGI] Setting Django settings module to: Logistics.settings", file=sys.stderr)
 
 try:
-    # Import Django WSGI first
+    # Setup Django
+    print(f"[WSGI] Attempting to setup Django...", file=sys.stderr)
+    django.setup()
+    print(f"[WSGI] ✓ Django setup complete", file=sys.stderr)
+    
+    # --- THE SELF-HEALING BLOCK ---
+    # This runs EVERY time the server boots up. 
+    # It forces the database to create the V2 tables if they are missing.
+    print(f"[WSGI] Running automatic database migrations...", file=sys.stderr)
+    try:
+        call_command('makemigrations', 'api', verbosity=0)  # Generate blueprints
+        print(f"[WSGI] ✓ Migrations generated", file=sys.stderr)
+    except Exception as e:
+        print(f"[WSGI] Note: makemigrations returned: {e}", file=sys.stderr)
+    
+    try:
+        call_command('migrate', verbosity=0)  # Apply blueprints to DB
+        print(f"[WSGI] ✓ Database migrations applied successfully!", file=sys.stderr)
+    except Exception as e:
+        print(f"[WSGI] ⚠ Migration issue: {e}", file=sys.stderr)
+    # ------------------------------
+    
+    # Import and get WSGI application
     print(f"[WSGI] Attempting to import Django WSGI...", file=sys.stderr)
     from django.core.wsgi import get_wsgi_application
     print(f"[WSGI] ✓ Successfully imported Django WSGI", file=sys.stderr)
