@@ -99,7 +99,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
           latitude: truck.latitude,
           longitude: truck.longitude,
           speed: truck.speed || 0,
-          coordinates: `${truck.latitude.toFixed(4)}, ${truck.longitude.toFixed(4)}`,
+          coordinates: (truck.latitude && truck.longitude) ? `${truck.latitude.toFixed(4)}, ${truck.longitude.toFixed(4)}` : 'Not set',
         });
       }
     } else {
@@ -584,7 +584,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
               location_name = await reverseGeocode(coordLat, coordLon);
             } catch (err) {
               console.warn(`⚠️ Geocoding failed for truck ${truck.truck_identifier}:`, err.message);
-              location_name = `Location (${coordLat.toFixed(4)}, ${coordLon.toFixed(4)})`;
+              location_name = (coordLat && coordLon) ? `Location (${coordLat.toFixed(4)}, ${coordLon.toFixed(4)})` : 'Location unknown';
             }
           }
           
@@ -596,7 +596,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
             plate: truck.plate,
             identifier: truck.truck_identifier,
             status: truck.status === 'enroute' ? 'moving' : truck.status === 'idle' ? 'stopped' : truck.status,
-            location: (isValidCoordinate(coordLat, coordLon)) ? `${coordLat.toFixed(3)}, ${coordLon.toFixed(3)}` : null,
+            location: (coordLat && coordLon && isValidCoordinate(coordLat, coordLon)) ? `${coordLat.toFixed(3)}, ${coordLon.toFixed(3)}` : null,
             location_name: location_name,
             latitude: coordLat,
             longitude: coordLon,
