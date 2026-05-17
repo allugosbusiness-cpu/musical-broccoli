@@ -12,40 +12,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='FleetActivity',
-            fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('fleet_id', models.UUIDField(db_index=True)),
-                ('activity_type', models.CharField(choices=[('trail_recorded', 'Trail Recorded'), ('mission_created', 'Mission Created'), ('mission_started', 'Mission Started'), ('mission_paused', 'Mission Paused'), ('mission_resumed', 'Mission Resumed'), ('mission_completed', 'Mission Completed'), ('mission_cancelled', 'Mission Cancelled'), ('location_update', 'Location Update'), ('speed_recorded', 'Speed Recorded'), ('fuel_update', 'Fuel Update'), ('alert_triggered', 'Alert Triggered'), ('breach_detected', 'Breach Detected'), ('driver_check_in', 'Driver Check In'), ('driver_check_out', 'Driver Check Out'), ('maintenance_alert', 'Maintenance Alert'), ('speed_violation', 'Speed Violation'), ('geofence_breach', 'Geofence Breach'), ('stop_completed', 'Stop Completed'), ('cargo_update', 'Cargo Update'), ('distance_recorded', 'Distance Recorded'), ('other', 'Other')], db_index=True, default='other', max_length=50)),
-                ('activity_category', models.CharField(choices=[('mission', 'Mission'), ('location', 'Location'), ('speed', 'Speed'), ('fuel', 'Fuel'), ('alert', 'Alert'), ('breach', 'Breach'), ('driver', 'Driver'), ('maintenance', 'Maintenance'), ('trail', 'Trail'), ('cargo', 'Cargo')], db_index=True, max_length=20)),
-                ('location_lat', models.DecimalField(blank=True, decimal_places=6, max_digits=9, null=True)),
-                ('location_lon', models.DecimalField(blank=True, decimal_places=6, max_digits=9, null=True)),
-                ('location_name', models.CharField(blank=True, max_length=255, null=True)),
-                ('speed_kmh', models.DecimalField(blank=True, decimal_places=2, default=0, max_digits=6, null=True)),
-                ('distance_m', models.DecimalField(blank=True, decimal_places=2, default=0, max_digits=12, null=True)),
-                ('fuel_liters', models.DecimalField(blank=True, decimal_places=2, max_digits=8, null=True)),
-                ('fuel_percentage', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('alert_level', models.CharField(blank=True, choices=[('low', 'Low'), ('medium', 'Medium'), ('high', 'High'), ('critical', 'Critical')], max_length=20, null=True)),
-                ('breach_type', models.CharField(blank=True, max_length=100, null=True)),
-                ('violation_details', models.TextField(blank=True, null=True)),
-                ('mission_status_before', models.CharField(blank=True, max_length=20, null=True)),
-                ('mission_status_after', models.CharField(blank=True, max_length=20, null=True)),
-                ('metadata', models.JSONField(blank=True, default=dict)),
-                ('activity_date', models.DateField(db_index=True)),
-                ('activity_time', models.TimeField()),
-                ('timestamp', models.DateTimeField(db_index=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('is_critical', models.BooleanField(db_index=True, default=False)),
-                ('notes', models.TextField(blank=True, null=True)),
-            ],
-            options={
-                'verbose_name': 'Fleet Activity',
-                'verbose_name_plural': 'Fleet Activities',
-                'db_table': 'fleet_activities',
-                'ordering': ['-timestamp'],
-            },
-        ),
+        # FleetActivity table already created by raw SQL in 0017_fleet_activity_raw_sql
+        # Skip CreateModel operation to avoid "table already exists" error
         migrations.RemoveField(
             model_name='alert',
             name='truck',
@@ -125,21 +93,7 @@ class Migration(migrations.Migration):
             model_name='truckfuel',
             name='truck',
         ),
-        migrations.AddField(
-            model_name='fleetactivity',
-            name='driver',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='activities', to='api.fleetdriver'),
-        ),
-        migrations.AddField(
-            model_name='fleetactivity',
-            name='mission',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='activities', to='api.fleetmission'),
-        ),
-        migrations.AddField(
-            model_name='fleetactivity',
-            name='truck',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='activities', to='api.fleettruck'),
-        ),
+        # Skip AddField for fleetactivity - table created by raw SQL in 0017
         migrations.DeleteModel(
             name='Alert',
         ),
@@ -184,34 +138,7 @@ class Migration(migrations.Migration):
         migrations.DeleteModel(
             name='TruckFuel',
         ),
-        migrations.AddIndex(
-            model_name='fleetactivity',
-            index=models.Index(fields=['fleet_id', 'activity_type', '-timestamp'], name='fleet_act_type_ts_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='fleetactivity',
-            index=models.Index(fields=['truck', 'activity_date'], name='fleet_act_truck_date_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='fleetactivity',
-            index=models.Index(fields=['driver', 'activity_date'], name='fleet_act_drv_date_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='fleetactivity',
-            index=models.Index(fields=['mission', '-timestamp'], name='fleet_act_mission_ts_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='fleetactivity',
-            index=models.Index(fields=['activity_category', '-timestamp'], name='fleet_act_cat_ts_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='fleetactivity',
-            index=models.Index(fields=['is_critical', '-timestamp'], name='fleet_act_critical_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='fleetactivity',
-            index=models.Index(fields=['-timestamp'], name='fleet_act_timestamp_idx'),
-        ),
+        # Skip AddIndex for fleetactivity - table created by raw SQL in 0017
         migrations.DeleteModel(
             name='FuelConsumption',
         ),
