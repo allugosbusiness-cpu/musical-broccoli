@@ -18,11 +18,8 @@ from .serializers import (
     TruckSerializer, 
     MissionSerializer, 
     MissionStopSerializer, 
-    MissionEventSerializer, 
     MissionDisputeSerializer, 
-    DriverPerformanceDailySerializer, 
-    FleetActivitySerializer,
-    FleetAdminAuditLogSerializer
+    DriverPerformanceDailySerializer
 )
 
 # ============================================================
