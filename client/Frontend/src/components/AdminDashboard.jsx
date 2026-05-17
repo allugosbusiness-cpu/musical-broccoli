@@ -322,7 +322,7 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
               license_number: '',
               license_state: 'ZW',
               hire_date: new Date().toISOString().split('T')[0],
-              status: 'ACTIVE'
+              status: 'active'
             });
             setEditingId(null);
             setShowForm(true);
@@ -670,7 +670,7 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
           telematics_id: '',
           fuel_capacity_liters: 100,
           maintenance_due_date: '',
-          status: 'IDLE'
+          status: 'idle'
         });
       }
       // Refresh data without closing form
@@ -728,7 +728,7 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
               plate: '',
               make: '',
               model: '',
-              status: 'IDLE'
+              status: 'idle'
             });
             setEditingId(null);
             setShowForm(true);
