@@ -6,7 +6,9 @@ from .views import (
     dashboard_summary, drivers_list_with_performance,
     trucks_list_with_mission_data, missions_list_with_details,
     recalculate_performance, sync_truck_data,
-    mission_route_geometry, alert_list
+    mission_route_geometry, alert_list,
+    update_truck_location_speed, get_truck_current_location_speed,
+    get_all_trucks_current_locations
 )
 
 router = DefaultRouter()
@@ -29,4 +31,8 @@ urlpatterns = [
     path('v1/dashboard/sync-truck-data/', sync_truck_data),
     # Alert
     path('v1/alerts/', alert_list),
+    # Truck Tracking (V2 API)
+    path('v1/truck-tracking/location-speed/', update_truck_location_speed),
+    path('v1/truck-tracking/location-speed/<str:truck_id>/', get_truck_current_location_speed),
+    path('v1/truck-tracking/all-locations/', get_all_trucks_current_locations),
 ]

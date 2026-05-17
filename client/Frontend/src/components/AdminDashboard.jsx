@@ -248,13 +248,20 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
         setSuccess(`✅ Driver ${formData.first_name} ${formData.last_name} updated successfully`);
         setEditingId(null);
       } else {
-        // Generate a UUIDv4 for fleet_id
-        const fleetId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-          const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-          return v.toString(16);
-        });
-        console.log('📝 Creating driver with data:', { ...formData, fleet_id: fleetId });
-        const newDriver = await createV1Driver({ ...formData, fleet_id: fleetId });
+        // Don't send fleet_id - let backend handle it
+        // Only send the required fields
+        const driverData = {
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          email: formData.email,
+          phone: formData.phone,
+          license_number: formData.license_number,
+          license_state: formData.license_state,
+          hire_date: formData.hire_date,
+          status: formData.status || 'active'
+        };
+        console.log('📝 Creating driver with data:', driverData);
+        const newDriver = await createV1Driver(driverData);
         console.log('✅ Driver created:', newDriver);
         setSuccess(`✅ Driver ${formData.first_name} ${formData.last_name} created successfully`);
         // Keep form open but clear fields for next entry
@@ -275,8 +282,26 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
       setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
       console.error('❌ Error saving driver:', error);
-      const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to save driver';
-      console.error('   Error details:', errorMsg);
+      console.error('   Response Status:', error.response?.status);
+      console.error('   Response Data:', error.response?.data);
+      console.error('   Response Headers:', error.response?.headers);
+      
+      let errorMsg = 'Failed to save driver';
+      if (error.response?.data?.error) {
+        errorMsg = error.response.data.error;
+      } else if (error.response?.data?.detail) {
+        errorMsg = error.response.data.detail;
+      } else if (error.response?.data) {
+        // Log all field errors
+        const fieldErrors = Object.entries(error.response.data)
+          .map(([field, msg]) => `${field}: ${Array.isArray(msg) ? msg.join(', ') : msg}`)
+          .join('; ');
+        errorMsg = fieldErrors || error.message;
+      } else {
+        errorMsg = error.message;
+      }
+      
+      console.error('   Parsed error message:', errorMsg);
       setError(`⚠️ Failed to save driver: ${errorMsg}`);
       // Keep error visible longer (10 seconds)
       setTimeout(() => setError(null), 10000);

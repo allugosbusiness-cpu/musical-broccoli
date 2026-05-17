@@ -82,7 +82,10 @@ class LocationSyncService {
 
       const data = await response.json();
       
-      if (!data.trucks || !Array.isArray(data.trucks)) {
+      // Handle both response formats
+      const trucks = data.trucks || data.results || (Array.isArray(data) ? data : []);
+      
+      if (!Array.isArray(trucks)) {
         console.warn('⚠️ Invalid truck data format:', data);
         this.consecutiveErrors++;
         return;
@@ -95,10 +98,10 @@ class LocationSyncService {
         this.isConnected = true;
       }
 
-      console.log(`📡 Location sync: ${data.trucks.length} trucks received`);
+      console.log(`📡 Location sync: ${trucks.length} trucks received`);
 
       // Notify subscribers of location changes
-      data.trucks.forEach(truck => {
+      trucks.forEach(truck => {
         try {
           // ✅ IMPROVED: Use robust coordinate extraction
           const { lat, lon, source } = extractCoordinates(truck);
