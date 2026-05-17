@@ -49,7 +49,7 @@ def drivers_list_with_performance(request):
                 })
             except Exception:
                 continue # Skip any corrupted driver record
-        return Response({'status': 'success', 'data': data}, status=status.HTTP_200_OK)
+       return Response(data, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -72,7 +72,7 @@ def trucks_list_with_mission_data(request):
                 })
             except Exception:
                 continue
-        return Response({'status': 'success', 'data': data}, status=status.HTTP_200_sOK)
+        return Response(data, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -95,7 +95,7 @@ def missions_list_with_details(request):
                 })
             except Exception:
                 continue
-        return Response({'status': 'success', 'data': data}, status=status.HTTP_200_OK)
+        return Response(data, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

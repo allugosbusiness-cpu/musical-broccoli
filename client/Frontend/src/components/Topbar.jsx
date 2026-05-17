@@ -21,7 +21,10 @@ export default function Topbar({ currentView = 'dashboard', onViewChange = () =>
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
             <img src="/ass.png" alt="PulseTrack" className="w-6 h-6" />
           </div>
-          <span className="text-lg font-bold bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent">PulseTrack</span>
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-bold bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent">PulseTrack</span>
+            <span className="px-2 py-1 text-xs font-bold bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-md">V2</span>
+          </div>
         </div>
         {currentView === 'dashboard' && (selectedTruck || selectedDriver) && (
           <div className="flex items-center gap-2 ml-2 px-4 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-sm backdrop-blur-sm hover:bg-slate-800/70 transition-colors">

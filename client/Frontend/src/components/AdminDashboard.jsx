@@ -112,7 +112,10 @@ export default function AdminDashboard({ onSelectTruck = () => {}, onSelectDrive
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold text-white">PulseTrack Admin</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-4xl font-bold text-white">PulseTrack Admin</h1>
+            <span className="px-3 py-1 text-sm font-bold bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg">V2</span>
+          </div>
           <button
             onClick={fetchData}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
@@ -205,6 +208,8 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
     email: '',
     phone: '',
     license_number: '',
+    license_state: 'ZW',
+    hire_date: new Date().toISOString().split('T')[0],
     status: 'ACTIVE'
   });
 
@@ -217,6 +222,8 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
       email: driver.email || '',
       phone: driver.phone || '',
       license_number: driver.license_number || '',
+      license_state: driver.license_state || 'ZW',
+      hire_date: driver.hire_date || new Date().toISOString().split('T')[0],
       status: driver.status || 'ACTIVE'
     });
     setEditingId(driver.id);
@@ -227,8 +234,12 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
     e.preventDefault();
     try {
       // Validate required fields
-      if (!formData.first_name || !formData.last_name || !formData.phone) {
-        setError('First name, last name, and phone are required');
+      if (!formData.first_name || !formData.last_name || !formData.phone || !formData.email) {
+        setError('First name, last name, email, and phone are required');
+        return;
+      }
+      if (!formData.license_number || !formData.license_state) {
+        setError('License number and state are required');
         return;
       }
 
@@ -253,6 +264,8 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
           email: '',
           phone: '',
           license_number: '',
+          license_state: 'ZW',
+          hire_date: new Date().toISOString().split('T')[0],
           status: 'ACTIVE'
         });
       }
@@ -282,6 +295,8 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
               email: '',
               phone: '',
               license_number: '',
+              license_state: 'ZW',
+              hire_date: new Date().toISOString().split('T')[0],
               status: 'ACTIVE'
             });
             setEditingId(null);
@@ -448,6 +463,26 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
                 value={formData.license_number}
                 onChange={(e) => setFormData({ ...formData, license_number: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
+                required
+              />
+              <select
+                value={formData.license_state}
+                onChange={(e) => setFormData({ ...formData, license_state: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
+                required
+              >
+                <option value="ZW">Zimbabwe (ZW)</option>
+                <option value="SA">South Africa (SA)</option>
+                <option value="BW">Botswana (BW)</option>
+                <option value="ZA">Other</option>
+              </select>
+              <input
+                type="date"
+                placeholder="Hire Date"
+                value={formData.hire_date}
+                onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
+                required
               />
               <select
                 value={formData.status}

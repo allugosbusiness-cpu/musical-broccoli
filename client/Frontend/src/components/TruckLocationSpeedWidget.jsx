@@ -23,11 +23,15 @@ export default function TruckLocationSpeedWidget() {
       try {
         setLoading(true);
         const response = await axios.get(
-          `${getApiBase()}/trucks/all_trucks_with_trails/`
+          `${getApiBase()}/v1/trucks/`
         );
 
-        if (response.data.trucks) {
-          setTrucks(response.data.trucks);
+        if (response.data.results) {
+          setTrucks(response.data.results);
+          setLastUpdate(new Date());
+          setError(null);
+        } else if (response.data) {
+          setTrucks(Array.isArray(response.data) ? response.data : []);
           setLastUpdate(new Date());
           setError(null);
         }

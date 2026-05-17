@@ -409,13 +409,15 @@ export const recordGPSPosition = async (truckId, latitude, longitude, speed = 0,
   }
 };
 
-// Get All Trucks with Real-Time Trails
+// Get All Trucks with Real-Time Trails (V2 API)
 export const getAllTrucksWithTrails = async () => {
   try {
-    const response = await api.get('/trucks/all_trucks_with_trails/');
-    return response.data.trucks || [];
+    // Using V2 API endpoint for trucks
+    const response = await apiV1.get('/trucks/');
+    return response.data.results || response.data || [];
   } catch (error) {
     console.error('Error fetching trucks with trails:', error);
+    // Fallback to empty array
     return [];
   }
 };
