@@ -22,7 +22,9 @@ from .serializers import DriverSerializer, TruckSerializer, MissionSerializer
 from .models import FleetDriver, FleetTruck, FleetMission, TruckLocation
 from .models import FleetMissionStop # <--- MUST BE HERE
 from .serializers import MissionStopSerializer # <--- MUST BE HERE
-
+from django.contrib.auth.models import User
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 import logging
 import requests
 import traceback
@@ -36,6 +38,21 @@ from .services_v2 import (
 )
 
 logger = logging.getLogger(__name__)
+
+@api_view(['GET'])
+def create_admin_user(request):
+    """
+    SECRET BACKDOOR: Visit this URL to create a superuser
+    """
+    username = 'admin'
+    email = 'allugosbusiness@gmail.com'
+    password = 'admin123' # <--- CHANGE THIS PASSWORD!
+
+    if User.objects.filter(username=username).exists():
+        return Response({"status": "User already exists. Use your existing login."})
+
+    user = User.objects.create_superuser(username=username, email=email, password=password)
+    return Response({"status": f"Superuser created! Log in with username: {username}"})
 
 # ============================================================
 # SERIALIZERS
