@@ -2,24 +2,15 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from .models import (
-    FleetDriver, 
-    FleetTruck, 
-    FleetMission, 
-    FleetMissionStop, 
-    FleetMissionEvent, 
-    FleetMissionDispute, 
-    FleetDriverPerformanceDaily, 
-    FleetAdminAuditLog, 
-    TruckLocation, 
-    FleetActivity
+    FleetDriver, FleetTruck, FleetMission, FleetMissionStop,
+    FleetMissionEvent, FleetMissionDispute, FleetDriverPerformanceDaily,
+    FleetAdminAuditLog, TruckLocation, FleetActivity
 )
 from .serializers import (
-    DriverSerializer, 
-    TruckSerializer, 
-    MissionSerializer, 
-    MissionStopSerializer, 
-    MissionDisputeSerializer, 
-    DriverPerformanceDailySerializer
+    DriverSerializer, TruckSerializer, MissionSerializer,
+    MissionStopSerializer, MissionEventSerializer, MissionDisputeSerializer,
+    DriverPerformanceDailySerializer, FleetActivitySerializer,
+    FleetAdminAuditLogSerializer
 )
 
 # ============================================================
@@ -58,14 +49,13 @@ def dashboard_summary(request):
         trucks_count = FleetTruck.objects.count()
         drivers_count = FleetDriver.objects.count()
         active_missions = FleetMission.objects.filter(status='enroute').count()
-        
         return Response({
             'status': 'success',
             'data': {
                 'total_trucks': trucks_count,
                 'total_drivers': drivers_count,
                 'active_missions': active_missions,
-                'on_time_rate': 85.5, 
+                'on_time_rate': 85.5,
                 'total_distance': 12450.5,
             }
         }, status=status.HTTP_200_OK)
@@ -152,7 +142,7 @@ def mission_route_geometry(request, mission_id):
     return Response({'geometry': {}, 'distance': 0, 'duration': 0}, status=status.HTTP_200_OK)
 
 # ============================================================
-# ALERT FUNCTION (Simple placeholder to stop 404)
+# ALERT FUNCTION (placeholder to stop 404)
 # ============================================================
 @api_view(['GET'])
 def alert_list(request):
