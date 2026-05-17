@@ -1,17 +1,12 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    DriverViewSet, TruckViewSet, MissionViewSet, 
-    MissionDisputeViewSet, DriverPerformanceViewSet, 
-    CheckpointViewSet,
-    dashboard_summary, 
-    drivers_list_with_performance, 
-    trucks_list_with_mission_data, 
-    missions_list_with_details,
-    recalculate_performance, 
-    sync_truck_data, 
-    mission_route_geometry,
-    alert_list
+    DriverViewSet, TruckViewSet, MissionViewSet,
+    MissionDisputeViewSet, DriverPerformanceViewSet, CheckpointViewSet,
+    dashboard_summary, drivers_list_with_performance,
+    trucks_list_with_mission_data, missions_list_with_details,
+    recalculate_performance, sync_truck_data,
+    mission_route_geometry, alert_list
 )
 
 router = DefaultRouter()
@@ -24,7 +19,6 @@ router.register(r'checkpoints', CheckpointViewSet)
 
 urlpatterns = [
     path('v1/', include(router.urls)),
-    
     # Dashboard
     path('v1/dashboard/summary/', dashboard_summary),
     path('v1/dashboard/drivers/', drivers_list_with_performance),
@@ -33,7 +27,6 @@ urlpatterns = [
     path('v1/dashboard/missions/<str:mission_id>/route-geometry/', mission_route_geometry),
     path('v1/dashboard/recalculate-percentage/', recalculate_performance),
     path('v1/dashboard/sync-truck-data/', sync_truck_data),
-    
     # Alert
     path('v1/alerts/', alert_list),
 ]
