@@ -72,7 +72,7 @@ def trucks_list_with_mission_data(request):
                 })
             except Exception:
                 continue
-        return Response({'status': 'success', 'data': data}, status=status.HTTP_200_sOK)
+        return Response({'status': 'success', 'data': data}, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

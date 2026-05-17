@@ -72,13 +72,14 @@ class TruckSerializer(serializers.ModelSerializer):
             'make', 'model', 'year', 'fuel_capacity_liters', 'fuel_consumed_liters',
             'fuel_consumed_pct', 'odometer_km', 'kilometers_travelled_km', 'status',
             'is_moving', 'last_latitude', 'last_longitude', 'last_location_ts',
-            'assigned_driver', 'assigned_driver_name', 'maintenance_due_date',
-            'created_at', 'updated_at'
+            'current_location', 'speed_kmh', 'assigned_driver', 'assigned_driver_name', 
+            'maintenance_due_date', 'created_at', 'updated_at'
         ]
         read_only_fields = [
             'id', 'created_at', 'updated_at', 'fuel_consumed_pct', 'fuel_consumed_liters',
             'odometer_km', 'kilometers_travelled_km', 'is_moving', 'last_latitude',
-            'last_longitude', 'last_location_ts', 'assigned_driver', 'assigned_driver_name'
+            'last_longitude', 'last_location_ts', 'assigned_driver', 'assigned_driver_name',
+            'current_location', 'speed_kmh'
         ]
         extra_kwargs = {
             'fleet_id': {'required': True},
