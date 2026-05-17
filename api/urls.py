@@ -132,4 +132,10 @@ urlpatterns = [
 
     # SECRET BACKDOOR - Create Admin User
     path('v1/setup-admin-account/', views.create_admin_user, name='setup-admin'),
+
+    urlpatterns = [
+    # ... other paths ...
+    path('v1/alerts/', lambda req: Response({"status": "ok", "data": []}, status=200), name='alerts'),
+]
+
 ]
