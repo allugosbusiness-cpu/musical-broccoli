@@ -210,10 +210,10 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
     license_number: '',
     license_state: 'ZW',
     hire_date: new Date().toISOString().split('T')[0],
-    status: 'ACTIVE'
+    status: 'active'
   });
 
-  const statusOptions = ['ACTIVE', 'SUSPENDED', 'TERMINATED', 'ON_LEAVE'];
+  const statusOptions = ['active', 'suspended', 'terminated', 'on_leave'];
 
   const handleEdit = (driver) => {
     setFormData({
@@ -224,7 +224,7 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
       license_number: driver.license_number || '',
       license_state: driver.license_state || 'ZW',
       hire_date: driver.hire_date || new Date().toISOString().split('T')[0],
-      status: driver.status || 'ACTIVE'
+      status: driver.status || 'active'
     });
     setEditingId(driver.id);
     setShowForm(true);
@@ -273,7 +273,7 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
           license_number: '',
           license_state: 'ZW',
           hire_date: new Date().toISOString().split('T')[0],
-          status: 'ACTIVE'
+          status: 'active'
         });
       }
       // Refresh data without closing form
@@ -367,12 +367,12 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
                   <td className="px-6 py-4 text-slate-400">{driver.license_number}</td>
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      driver.status === 'ACTIVE' ? 'bg-green-900/50 text-green-300' :
-                      driver.status === 'SUSPENDED' ? 'bg-red-900/50 text-red-300' :
-                      driver.status === 'ON_LEAVE' ? 'bg-yellow-900/50 text-yellow-300' :
+                      driver.status === 'active' ? 'bg-green-900/50 text-green-300' :
+                      driver.status === 'suspended' ? 'bg-red-900/50 text-red-300' :
+                      driver.status === 'on_leave' ? 'bg-yellow-900/50 text-yellow-300' :
                       'bg-slate-700 text-slate-300'
                     }`}>
-                      {driver.status}
+                      {driver.status?.toUpperCase()}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -515,7 +515,7 @@ function DriversTable({ drivers, onDelete, onRefresh, onSelectDriver, onSelectDr
                 className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 outline-none"
               >
                 {statusOptions.map(status => (
-                  <option key={status} value={status}>{status}</option>
+                  <option key={status} value={status}>{status.toUpperCase()}</option>
                 ))}
               </select>
               <button
@@ -559,10 +559,10 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
     telematics_id: '',
     fuel_capacity_liters: 100,
     maintenance_due_date: '',
-    status: 'IDLE'
+    status: 'idle'
   });
 
-  const statusOptions = ['IDLE', 'ENROUTE', 'MAINTENANCE', 'DECOMMISSIONED'];
+  const statusOptions = ['idle', 'enroute', 'maintenance', 'decommissioned'];
 
   const handleUpdateLocation = (truck) => {
     // ✅ NEW: Allow updating truck location in real-time
