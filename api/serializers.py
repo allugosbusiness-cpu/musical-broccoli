@@ -6,14 +6,11 @@ from .models import (
 )
 
 # ============================================================
-# TRUCK SERIALIZER (Frontend Compatibility Layer)
+# TRUCK SERIALIZERS (Frontend Compatibility Layer)
 # ============================================================
 class TruckSerializer(serializers.ModelSerializer):
-    # Frontend expects 'id', but we use 'truck_identifier' for the map/labels
     id = serializers.CharField(source='truck_identifier', read_only=True)
-    # Frontend expects 'coordinates' as {lat: x, lng: y}
     coordinates = serializers.SerializerMethodField()
-    # Frontend expects 'driver' as a string name
     driver = serializers.SerializerMethodField()
     
     class Meta:
@@ -49,7 +46,6 @@ class TruckListSerializer(serializers.ModelSerializer):
 # MISSION SERIALIZERS
 # ============================================================
 class MissionSerializer(serializers.ModelSerializer):
-    # Frontend expects 'id' to be the mission number often
     id = serializers.CharField(source='mission_number', read_only=True)
     driver_name = serializers.SerializerMethodField()
     
@@ -62,6 +58,11 @@ class MissionSerializer(serializers.ModelSerializer):
 
     def get_driver_name(self, obj):
         return obj.driver.get_display_name() if obj.driver else "Unassigned"
+
+class MissionStopSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FleetMissionStop
+        fields = ['id', 'mission', 'stop_order', 'address', 'status']
 
 # ============================================================
 # DRIVER SERIALIZERS
@@ -77,21 +78,13 @@ class DriverSerializer(serializers.ModelSerializer):
         return obj.get_display_name()
 
 # ============================================================
-# COMPATIBILITY LAYER FOR REMAINING MODELS
+# COMPATIBILITY LAYER (Aliases to prevent ImportError)
 # ============================================================
-
-class CheckpointSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FleetMissionStop
-        fields = ['id', 'mission', 'stop_order', 'address', 'status']
 
 class ActivitySerializer(serializers.ModelSerializer):
     class Meta:
         model = FleetActivity
         fields = '__all__'
-
-# Alias for mobile_endpoints.py
-AlertSerializer = ActivitySerializer
 
 class DriverPerformanceDailySerializer(serializers.ModelSerializer):
     class Meta:
