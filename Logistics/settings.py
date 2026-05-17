@@ -101,36 +101,26 @@ WSGI_APPLICATION = 'Logistics.wsgi.application'
 # Database - PostgreSQL on Railway, SQLite for local development
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
+# ============================================================
+# DATABASE CONFIGURATION (Hardcoded for Render)
+# ============================================================
 print(f"[SETTINGS] Configuring database...", file=sys.stderr)
 
-# Railway automatically sets DATABASE_URL environment variable
-if os.environ.get('DATABASE_URL'):
-    print(f"[SETTINGS] DATABASE_URL is set, parsing...", file=sys.stderr)
-    try:
-        DATABASES = {
-            'default': dj_database_url.config(
-                conn_max_age=600,
-                conn_health_checks=True,
-            )
-        }
-        print(f"[SETTINGS] ✓ Database configured from DATABASE_URL", file=sys.stderr)
-        print(f"[SETTINGS]   Engine: {DATABASES['default'].get('ENGINE', 'UNKNOWN')}", file=sys.stderr)
-        print(f"[SETTINGS]   Host: {DATABASES['default'].get('HOST', 'UNKNOWN')}", file=sys.stderr)
-    except Exception as e:
-        # If dj_database_url parsing fails, log it and use SQLite fallback
-        print(f"[SETTINGS] ✗ ERROR: Failed to parse DATABASE_URL: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc(file=sys.stderr)
-        print(f"[SETTINGS] Falling back to SQLite", file=sys.stderr)
-        DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': BASE_DIR / 'db.sqlite3',
-            }
-        }
-else:
-    # Local development: Use SQLite
-    print(f"[SETTINGS] DATABASE_URL not set, using SQLite", file=sys.stderr)
+# Your specific PostgreSQL URL
+DATABASE_URL_HARDCODED = 'postgresql://pulse_track_backend_db_i6pq_user_user:uWwlm8bbHHtf644KE0Dexmr23z1eEm8f@dpg-d84m58j7uimc73ftofq0-a/pulse_track_backend_db_i6pq_user'
+
+try:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=DATABASE_URL_HARDCODED,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    }
+    print(f"[SETTINGS] ✓ Database linked successfully via hardcoded URL", file=sys.stderr)
+except Exception as e:
+    print(f"[SETTINGS] ✗ ERROR: Failed to connect to PostgreSQL: {e}", file=sys.stderr)
+    # Fallback to SQLite ONLY if the hardcoded URL fails
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
