@@ -1,43 +1,40 @@
 from django.contrib import admin
 from .models import (
-    FleetTruck as Truck, 
-    FleetDriver as Driver, 
-    FleetMission as Mission, 
-    TruckLocation as Location, 
-    FleetMissionStop as Checkpoint,
-    FleetActivity,
-    FleetDriverPerformanceDaily
+    FleetTruck, FleetDriver, FleetMission, 
+    FleetMissionStop, FleetActivity, FleetDriverPerformanceDaily
 )
 
-@admin.register(Truck)
+@admin.register(FleetTruck)
 class TruckAdmin(admin.ModelAdmin):
-    list_display = ('truck_identifier', 'plate', 'status') 
+    list_display = ('truck_identifier', 'plate', 'status')
     search_fields = ('truck_identifier', 'plate')
-    list_filter = ('status',)
+    # Using raw_id_fields stops the 500 error by not loading 
+    # a massive dropdown of drivers into the page.
+    raw_id_fields = ('assigned_driver',) 
 
-@admin.register(Mission)
-class MissionAdmin(admin.ModelAdmin):
-    list_display = ('mission_number', 'status', 'priority')
-    search_fields = ('mission_number',)
-    list_filter = ('status', 'priority')
-
-@admin.register(Checkpoint)
-class CheckpointAdmin(admin.ModelAdmin):
-    list_display = ('id', 'mission', 'stop_order', 'status')
-    search_fields = ('address',)
-    list_filter = ('status',)
-
-@admin.register(Driver)
+@admin.register(FleetDriver)
 class DriverAdmin(admin.ModelAdmin):
     list_display = ('first_name', 'last_name', 'status', 'on_duty')
     search_fields = ('first_name', 'last_name', 'phone_number')
-    list_filter = ('status', 'on_duty')
+    # This stops the crash when adding a driver
+    raw_id_fields = ('truck',)
+
+@admin.register(FleetMission)
+class MissionAdmin(admin.ModelAdmin):
+    list_display = ('mission_number', 'status', 'priority')
+    raw_id_fields = ('truck', 'driver')
+
+@admin.register(FleetMissionStop)
+class CheckpointAdmin(admin.ModelAdmin):
+    list_display = ('id', 'mission', 'stop_order', 'status')
+    raw_id_fields = ('mission',)
 
 @admin.register(FleetActivity)
 class ActivityAdmin(admin.ModelAdmin):
     list_display = ('truck', 'activity_type', 'timestamp')
-    list_filter = ('activity_type', 'is_critical')
+    raw_id_fields = ('truck', 'driver', 'mission')
 
 @admin.register(FleetDriverPerformanceDaily)
 class PerformanceAdmin(admin.ModelAdmin):
     list_display = ('driver', 'date', 'overall_score')
+    raw_id_fields = ('driver',)

