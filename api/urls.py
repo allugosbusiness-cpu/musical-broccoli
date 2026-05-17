@@ -7,7 +7,7 @@ import importlib # Correct way to handle dynamic imports
 # Import V2 Views
 from .views import (
     DriverViewSet, TruckViewSet, MissionViewSet, MissionDisputeViewSet, 
-    DriverPerformanceViewSet, CheckpointViewSet
+    DriverPerformanceViewSet, CheckpointViewSet, create_admin_user
 )
 
 # ============================================================
