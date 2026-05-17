@@ -20,6 +20,7 @@ def dummy_view(request, *args, **kwargs):
 def safe_import(module_name, functions):
     imported = {}
     try:
+        # Using importlib to avoid crashes if files are missing
         module = importlib.import_module(f'api.{module_name}')
         for func in functions:
             imported[func] = getattr(module, func, dummy_view)
@@ -72,7 +73,7 @@ router.register(r'checkpoints', CheckpointViewSet, basename='checkpoint')
 # ============================================================
 # URL PATTERNS
 # ============================================================
-from . import views # Necessary to access the create_admin_user function
+from . import views
 
 urlpatterns = [
     # Root API v1 prefix
@@ -132,10 +133,4 @@ urlpatterns = [
 
     # SECRET BACKDOOR - Create Admin User
     path('v1/setup-admin-account/', views.create_admin_user, name='setup-admin'),
-
-    urlpatterns = [
-    # ... other paths ...
-    path('v1/alerts/', lambda req: Response({"status": "ok", "data": []}, status=200), name='alerts'),
-]
-
 ]
