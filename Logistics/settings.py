@@ -107,7 +107,7 @@ WSGI_APPLICATION = 'Logistics.wsgi.application'
 print(f"[SETTINGS] Configuring database...", file=sys.stderr)
 
 # Your specific PostgreSQL URL
-DATABASE_URL_HARDCODED = 'postgresql://pulse_track_backend_db_i6pq_user_user:uWwlm8bbHHtf644KE0Dexmr23z1eEm8f@dpg-d84m58j7uimc73ftofq0-a/pulse_track_backend_db_i6pq_user'
+DATABASE_URL_HARDCODED = 'postgresql://pulse_track_backend_db_l723_user:2lTJw1fEiU2NQrYA7YOFknY4mHikUH4p@dpg-d84r01btqb8s73fj9dl0-a/pulse_track_backend_db_l723'
 
 try:
     DATABASES = {
