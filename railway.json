@@ -1,0 +1,13 @@
+{
+  "environments": {
+    "production": {
+      "pythonVersion": "3.14"
+    }
+  },
+  "variables": {
+    "DEBUG": "True",
+    "ALLOWED_HOSTS": "*.railway.app,*.vercel.app,localhost",
+    "SECRET_KEY": "django-insecure-production-key-fleet-management-2026"
+  }
+}
+

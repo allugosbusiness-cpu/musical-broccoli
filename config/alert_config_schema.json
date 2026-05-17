@@ -1,0 +1,260 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Alert Pipeline Configuration Schema",
+  "description": "Production configuration for fleet alert evaluation pipeline",
+  "type": "object",
+  "properties": {
+    "alerts": {
+      "type": "object",
+      "description": "Alert evaluation parameters",
+      "properties": {
+        "off_route": {
+          "type": "object",
+          "description": "Off-route detection settings",
+          "properties": {
+            "consensus_count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20,
+              "default": 3,
+              "description": "Number of consecutive out-of-tolerance points required to trigger alert"
+            },
+            "window_seconds": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 300,
+              "default": 30,
+              "description": "Sliding window for consensus check (seconds)"
+            },
+            "distance_threshold_m": {
+              "type": "number",
+              "minimum": 10,
+              "maximum": 500,
+              "default": 50,
+              "description": "Maximum distance from route polyline before alert (meters)"
+            }
+          },
+          "required": ["consensus_count", "window_seconds", "distance_threshold_m"]
+        },
+        "cooldown": {
+          "type": "object",
+          "description": "Alert rate limiting",
+          "properties": {
+            "initial_seconds": {
+              "type": "integer",
+              "minimum": 60,
+              "maximum": 3600,
+              "default": 300,
+              "description": "Initial cooldown period after alert (seconds)"
+            },
+            "multiplier": {
+              "type": "number",
+              "minimum": 1.0,
+              "maximum": 5.0,
+              "default": 2.0,
+              "description": "Exponential backoff multiplier for repeated alerts"
+            },
+            "max_seconds": {
+              "type": "integer",
+              "minimum": 600,
+              "maximum": 86400,
+              "default": 3600,
+              "description": "Maximum cooldown period cap (seconds)"
+            }
+          },
+          "required": ["initial_seconds", "multiplier", "max_seconds"]
+        }
+      },
+      "required": ["off_route", "cooldown"]
+    },
+    "queue": {
+      "type": "object",
+      "description": "Queue and worker pool settings",
+      "properties": {
+        "max_size": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 1000000,
+          "default": 10000,
+          "description": "Maximum number of events in queue"
+        },
+        "worker_threads": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64,
+          "default": 4,
+          "description": "Number of background worker threads"
+        },
+        "batch_size": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 1000,
+          "default": 100,
+          "description": "Batch size for worker processing"
+        },
+        "high_watermark_percent": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 1.0,
+          "default": 0.8,
+          "description": "Queue utilization threshold for degraded mode"
+        },
+        "sampling_rate_degraded": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.5,
+          "description": "Sampling fraction when queue is high"
+        }
+      },
+      "required": ["max_size", "worker_threads", "batch_size"]
+    },
+    "rate_limit": {
+      "type": "object",
+      "description": "Rate limiting per device",
+      "properties": {
+        "max_events_per_device_per_sec": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 10,
+          "description": "Maximum location updates per device per second"
+        },
+        "time_window_sec": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60,
+          "default": 1,
+          "description": "Time window for rate limit (seconds)"
+        }
+      },
+      "required": ["max_events_per_device_per_sec", "time_window_sec"]
+    },
+    "observability": {
+      "type": "object",
+      "description": "Logging and metrics settings",
+      "properties": {
+        "log_replay_events": {
+          "type": "boolean",
+          "default": true,
+          "description": "Log full telemetry context for every alert decision"
+        },
+        "replay_store_path": {
+          "type": "string",
+          "default": "/var/log/fleet/alert-replay",
+          "description": "Path to store replay logs (append-only)"
+        },
+        "enable_distributed_tracing": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable OpenTelemetry tracing"
+        },
+        "otel_exporter_otlp_endpoint": {
+          "type": "string",
+          "default": "http://localhost:4317",
+          "description": "OpenTelemetry collector endpoint"
+        },
+        "metrics_flush_interval_sec": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 300,
+          "default": 30,
+          "description": "Interval to flush metrics to backend"
+        }
+      },
+      "required": []
+    },
+    "feature_flags": {
+      "type": "object",
+      "description": "Feature toggles for canary rollout",
+      "properties": {
+        "use_new_alert_pipeline": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable new bounded queue pipeline"
+        },
+        "use_web_worker_frontend": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use Web Worker for frontend alert evaluation"
+        },
+        "use_mobile_local_evaluation": {
+          "type": "boolean",
+          "default": false,
+          "description": "Mobile devices perform local alert evaluation"
+        },
+        "pilot_fleet_ids": {
+          "type": "array",
+          "items": {"type": "string"},
+          "default": [],
+          "description": "Fleet IDs for canary rollout"
+        }
+      },
+      "required": []
+    },
+    "fallback": {
+      "type": "object",
+      "description": "Legacy pipeline fallback settings",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Fall back to legacy pipeline if new pipeline fails"
+        },
+        "error_threshold_percent": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 100.0,
+          "default": 5.0,
+          "description": "Auto-rollback if error rate exceeds threshold"
+        }
+      },
+      "required": []
+    }
+  },
+  "required": ["alerts", "queue"],
+  "additionalProperties": false,
+  "examples": [
+    {
+      "alerts": {
+        "off_route": {
+          "consensus_count": 3,
+          "window_seconds": 30,
+          "distance_threshold_m": 50
+        },
+        "cooldown": {
+          "initial_seconds": 300,
+          "multiplier": 2.0,
+          "max_seconds": 3600
+        }
+      },
+      "queue": {
+        "max_size": 10000,
+        "worker_threads": 4,
+        "batch_size": 100,
+        "high_watermark_percent": 0.8,
+        "sampling_rate_degraded": 0.5
+      },
+      "rate_limit": {
+        "max_events_per_device_per_sec": 10,
+        "time_window_sec": 1
+      },
+      "observability": {
+        "log_replay_events": true,
+        "replay_store_path": "/var/log/fleet/alert-replay",
+        "enable_distributed_tracing": true,
+        "otel_exporter_otlp_endpoint": "http://localhost:4317",
+        "metrics_flush_interval_sec": 30
+      },
+      "feature_flags": {
+        "use_new_alert_pipeline": false,
+        "use_web_worker_frontend": false,
+        "pilot_fleet_ids": ["FLEET_PILOT_001", "FLEET_PILOT_002"]
+      },
+      "fallback": {
+        "enabled": true,
+        "error_threshold_percent": 5.0
+      }
+    }
+  ]
+}

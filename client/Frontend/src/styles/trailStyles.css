@@ -1,0 +1,387 @@
+/**
+ * Road-Matched Trail Styling
+ * Google Maps aesthetic with smooth polylines, shadows, and accessibility
+ */
+
+/* ==================== Trail Base Styles ==================== */
+
+.trail-polyline {
+  transition: opacity 0.3s ease;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.15));
+}
+
+.trail-polyline:hover {
+  opacity: 1 !important;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
+}
+
+.trail-shadow {
+  pointer-events: none;
+}
+
+/* ==================== Trail Variants ==================== */
+
+/* Active trail (current route) - solid, full opacity */
+.trail-polyline.trail-active {
+  opacity: 0.85;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Inactive trail (historical) - faded */
+.trail-polyline.trail-inactive {
+  opacity: 0.4;
+  stroke-dasharray: 2, 3;
+}
+
+/* Overlapping trail - dashed pattern with lower opacity */
+.trail-polyline.trail-overlapping {
+  opacity: 0.6;
+  stroke-dasharray: 5, 5;
+}
+
+/* ==================== Truck-Specific Colors ==================== */
+
+/* Primary trail colors (per truck) */
+.trail-TRUCK-001 { stroke: hsl(210, 75%, 50%); } /* Blue */
+.trail-TRUCK-002 { stroke: hsl(30, 75%, 50%); }  /* Orange */
+.trail-TRUCK-003 { stroke: hsl(120, 75%, 50%); } /* Green */
+.trail-TRUCK-004 { stroke: hsl(290, 75%, 50%); } /* Purple */
+.trail-TRUCK-005 { stroke: hsl(0, 75%, 50%); }   /* Red */
+
+/* ==================== Origin/Destination Markers ==================== */
+
+.trail-marker-origin,
+.trail-marker-destination {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: white;
+  font-size: 14px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  border: 3px solid white;
+  z-index: 1000;
+}
+
+.trail-marker-origin {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.trail-marker-destination {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.trail-marker-label {
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 2px;
+  text-align: center;
+  width: 100%;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* ==================== Truck Position Marker ==================== */
+
+.truck-position-marker {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  border: 3px solid currentColor;
+  animation: truck-pulse 2s infinite;
+  z-index: 999;
+}
+
+@keyframes truck-pulse {
+  0% {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2), 0 0 0 0 rgba(99, 179, 237, 0.7);
+  }
+  70% {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2), 0 0 0 10px rgba(99, 179, 237, 0);
+  }
+  100% {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2), 0 0 0 0 rgba(99, 179, 237, 0);
+  }
+}
+
+.truck-position-marker svg {
+  width: 20px;
+  height: 20px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+}
+
+/* ==================== ETA & Distance Info ==================== */
+
+.trail-info-box {
+  background: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  font-size: 12px;
+  font-family: 'Courier New', monospace;
+  border-left: 4px solid currentColor;
+  margin-bottom: 6px;
+}
+
+.trail-info-distance {
+  font-weight: bold;
+  color: #1e293b;
+  margin-bottom: 2px;
+}
+
+.trail-info-eta {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.trail-info-eta-time {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+/* ==================== Reroute Toast ==================== */
+
+.reroute-toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: white;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 10000;
+  animation: slideInUp 0.3s ease;
+  border-left: 4px solid #3b82f6;
+}
+
+.reroute-toast.success {
+  border-left-color: #10b981;
+}
+
+.reroute-toast.error {
+  border-left-color: #ef4444;
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.reroute-toast-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+.reroute-toast-content {
+  flex: 1;
+}
+
+/* ==================== Debug Toggle & Controls ==================== */
+
+.trail-controls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trail-control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #1e293b;
+}
+
+.trail-control-group input[type='checkbox'] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
+}
+
+.trail-control-label {
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+}
+
+/* Raw GPS traces (debug mode) */
+.gps-trace-raw {
+  stroke: #999;
+  stroke-width: 1;
+  opacity: 0.3;
+  stroke-dasharray: 2, 2;
+}
+
+/* ==================== Colorblind Modes ==================== */
+
+/* Deuteranopia (Red-Green colorblind) */
+.trail-colorblind-deuteranopia.trail-TRUCK-001 {
+  stroke: #1f77b4;
+} /* Blue */
+.trail-colorblind-deuteranopia.trail-TRUCK-002 {
+  stroke: #ff7f0e;
+} /* Orange */
+.trail-colorblind-deuteranopia.trail-TRUCK-003 {
+  stroke: #2ca02c;
+} /* Green */
+.trail-colorblind-deuteranopia.trail-TRUCK-004 {
+  stroke: #e377c2;
+} /* Pink */
+.trail-colorblind-deuteranopia.trail-TRUCK-005 {
+  stroke: #7f7f7f;
+} /* Gray */
+
+/* Protanopia (Red-Green, different severity) */
+.trail-colorblind-protanopia.trail-TRUCK-001 {
+  stroke: #1f77b4;
+}
+.trail-colorblind-protanopia.trail-TRUCK-002 {
+  stroke: #ff7f0e;
+}
+.trail-colorblind-protanopia.trail-TRUCK-003 {
+  stroke: #2ca02c;
+}
+.trail-colorblind-protanopia.trail-TRUCK-004 {
+  stroke: #d62728;
+}
+.trail-colorblind-protanopia.trail-TRUCK-005 {
+  stroke: #9467bd;
+}
+
+/* Tritanopia (Blue-Yellow colorblind) */
+.trail-colorblind-tritanopia.trail-TRUCK-001 {
+  stroke: #e41a1c;
+}
+.trail-colorblind-tritanopia.trail-TRUCK-002 {
+  stroke: #377eb8;
+}
+.trail-colorblind-tritanopia.trail-TRUCK-003 {
+  stroke: #4daf4a;
+}
+.trail-colorblind-tritanopia.trail-TRUCK-004 {
+  stroke: #984ea3;
+}
+.trail-colorblind-tritanopia.trail-TRUCK-005 {
+  stroke: #ff7f00;
+}
+
+/* ==================== High Contrast Mode ==================== */
+
+.trail-high-contrast {
+  /* Thicker lines, higher saturation, stronger shadows */
+}
+
+.trail-high-contrast .trail-polyline {
+  opacity: 1;
+  stroke-width: 5;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.4)) drop-shadow(0 0 2px rgba(255, 255, 255, 0.8));
+}
+
+/* ==================== Animations ==================== */
+
+@keyframes trail-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.85;
+  }
+}
+
+.trail-fade-in {
+  animation: trail-fade-in 0.5s ease-in;
+}
+
+@keyframes trail-highlight {
+  0% {
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.15));
+  }
+  50% {
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+  }
+  100% {
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.15));
+  }
+}
+
+.trail-highlighted {
+  animation: trail-highlight 1.5s ease-in-out;
+}
+
+/* ==================== Responsive ==================== */
+
+@media (max-width: 768px) {
+  .trail-controls {
+    top: 8px;
+    right: 8px;
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .trail-control-group {
+    font-size: 11px;
+  }
+
+  .trail-info-box {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+
+  .reroute-toast {
+    bottom: 10px;
+    right: 10px;
+    font-size: 12px;
+    padding: 10px 12px;
+  }
+
+  .trail-marker-origin,
+  .trail-marker-destination {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+}
+
+/* ==================== Print Styles ==================== */
+
+@media print {
+  .trail-controls,
+  .reroute-toast,
+  .trail-info-box {
+    display: none;
+  }
+
+  .trail-polyline {
+    opacity: 0.8;
+    stroke-width: 2;
+  }
+}
