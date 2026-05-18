@@ -99,7 +99,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
           latitude: truck.latitude,
           longitude: truck.longitude,
           speed: truck.speed || 0,
-          coordinates: (truck.latitude && truck.longitude) ? `${truck.latitude.toFixed(4)}, ${truck.longitude.toFixed(4)}` : 'Not set',
+          coordinates: (Number.isFinite(truck.latitude) && Number.isFinite(truck.longitude)) ? `${Number(truck.latitude).toFixed(4)}, ${Number(truck.longitude).toFixed(4)}` : 'Not set',
         });
       }
     } else {

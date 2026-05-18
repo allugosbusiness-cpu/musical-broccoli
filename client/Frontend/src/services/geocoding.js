@@ -15,8 +15,13 @@ const getApiV1Base = () => {
 };
 
 export const reverseGeocode = async (lat, lon) => {
-  // Create cache key
-  const cacheKey = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+  // Validate coordinates
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return 'Invalid location';
+  }
+  
+  // Create cache key with safe formatting
+  const cacheKey = `${Number(lat).toFixed(4)},${Number(lon).toFixed(4)}`;
   
   // Check cache first
   if (geocodeCache.has(cacheKey)) {
@@ -41,7 +46,7 @@ export const reverseGeocode = async (lat, lon) => {
         if (apiData.name) {
           const result = apiData.name;
           geocodeCache.set(cacheKey, result);
-          console.log(`✅ Reverse geocoding (backend): ${lat.toFixed(4)}, ${lon.toFixed(4)} → ${result}`);
+          console.log(`✅ Reverse geocoding (backend): ${Number(lat).toFixed(4)}, ${Number(lon).toFixed(4)} → ${result}`);
           return result;
         }
       }
@@ -81,16 +86,16 @@ export const reverseGeocode = async (lat, lon) => {
     }
 
     // Fallback to coordinates if no address found
-    const result = displayAddress || `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
+    const result = displayAddress || `${Number(lat).toFixed(3)}, ${Number(lon).toFixed(3)}`;
     
     // Cache the result
     geocodeCache.set(cacheKey, result);
-    console.log(`✅ Reverse geocoding (Nominatim): ${lat.toFixed(4)}, ${lon.toFixed(4)} → ${result}`);
+    console.log(`✅ Reverse geocoding (Nominatim): ${Number(lat).toFixed(4)}, ${Number(lon).toFixed(4)} → ${result}`);
     return result;
   } catch (error) {
     console.error('❌ Reverse geocoding error:', error);
     // Return coordinates as fallback
-    const fallback = `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
+    const fallback = `${Number(lat).toFixed(3)}, ${Number(lon).toFixed(3)}`;
     geocodeCache.set(cacheKey, fallback);
     return fallback;
   }

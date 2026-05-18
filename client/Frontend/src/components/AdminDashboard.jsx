@@ -779,25 +779,25 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-slate-400">
-                    {truck.location && truck.location.lat
+                    {truck.location && truck.location.lat && truck.location.lon
                       ? `${parseFloat(truck.location.lat).toFixed(3)}, ${parseFloat(truck.location.lon).toFixed(3)}`
                       : (truck.latitude && truck.longitude
                           ? `${parseFloat(truck.latitude).toFixed(3)}, ${parseFloat(truck.longitude).toFixed(3)}`
                           : 'No data')}
                   </td>
                   <td className="px-6 py-4 text-slate-300">
-                    {truck.distance_travelled_km ? `${parseFloat(truck.distance_travelled_km).toFixed(1)} km` : '0 km'}
+                    {Number.isFinite(truck.distance_travelled_km) ? `${Number(truck.distance_travelled_km).toFixed(1)} km` : '0 km'}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1">
-                      <span className="text-slate-300">{truck.fuel_consumed_liters ? `${parseFloat(truck.fuel_consumed_liters).toFixed(1)} L` : '0 L'}</span>
+                      <span className="text-slate-300">{Number.isFinite(truck.fuel_consumed_liters) ? `${Number(truck.fuel_consumed_liters).toFixed(1)} L` : '0 L'}</span>
                       <div className="w-24 bg-slate-700 rounded-full h-2">
                         <div 
                           className="bg-yellow-500 h-2 rounded-full"
-                          style={{ width: `${truck.fuel_percent || 0}%` }}
+                          style={{ width: `${Number.isFinite(truck.fuel_percent) ? truck.fuel_percent : 0}%` }}
                         />
                       </div>
-                      <span className="text-slate-500 text-xs">{truck.fuel_percent ? `${truck.fuel_percent.toFixed(0)}%` : '0%'}</span>
+                      <span className="text-slate-500 text-xs">{Number.isFinite(truck.fuel_percent) ? `${Number(truck.fuel_percent).toFixed(0)}%` : '0%'}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-center flex justify-center gap-2">
@@ -1129,7 +1129,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
           [type]: [{ 
             lat, 
             lon, 
-            name: `Custom Location (${lat.toFixed(4)}, ${lon.toFixed(4)})`
+            name: `Custom Location (${lat ? lat.toFixed(4) : 'N/A'}, ${lon ? lon.toFixed(4) : 'N/A'})`
           }]
         }));
         return;
@@ -1555,7 +1555,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
                     </div>
                   </td>
                   <td className="px-6 py-4 text-slate-400">
-                    {mission.distance_total_m ? `${(mission.distance_total_m / 1000).toFixed(1)}km` : 'N/A'}
+                    {mission.distance_total_m ? `${(parseFloat(mission.distance_total_m) / 1000).toFixed(1)}km` : 'N/A'}
                   </td>
                   <td className="px-6 py-4 text-slate-400">
                     {mission.stops_detail?.length || 0}
@@ -1739,7 +1739,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
                         className="w-full text-left px-3 py-2 text-slate-300 hover:bg-blue-600/50 border-b border-slate-600 last:border-b-0 transition"
                       >
                         <div className="font-medium text-white">{location.name}</div>
-                        <div className="text-xs text-slate-400">{(location.lat && location.lon) ? `${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}` : 'No coordinates'}</div>
+                        <div className="text-xs text-slate-400">{(location.lat && location.lon) ? `${parseFloat(location.lat).toFixed(4)}, ${parseFloat(location.lon).toFixed(4)}` : 'No coordinates'}</div>
                       </button>
                     ))}
                   </div>
@@ -1765,7 +1765,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
                         className="w-full text-left px-3 py-2 text-slate-300 hover:bg-blue-600/50 border-b border-slate-600 last:border-b-0 transition"
                       >
                         <div className="font-medium text-white">{location.name}</div>
-                        <div className="text-xs text-slate-400">{(location.lat && location.lon) ? `${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}` : 'No coordinates'}</div>
+                        <div className="text-xs text-slate-400">{(location.lat && location.lon) ? `${parseFloat(location.lat).toFixed(4)}, ${parseFloat(location.lon).toFixed(4)}` : 'No coordinates'}</div>
                       </button>
                     ))}
                   </div>
@@ -1791,7 +1791,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
                         className="w-full text-left px-3 py-2 text-slate-300 hover:bg-blue-600/50 border-b border-slate-600 last:border-b-0 transition"
                       >
                         <div className="font-medium text-white">{location.name}</div>
-                        <div className="text-xs text-slate-400">{(location.lat && location.lon) ? `${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}` : 'No coordinates'}</div>
+                        <div className="text-xs text-slate-400">{(location.lat && location.lon) ? `${parseFloat(location.lat).toFixed(4)}, ${parseFloat(location.lon).toFixed(4)}` : 'No coordinates'}</div>
                       </button>
                     ))}
                   </div>

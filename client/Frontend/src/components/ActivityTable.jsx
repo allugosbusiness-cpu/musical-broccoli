@@ -308,10 +308,10 @@ const ActivityTable = () => {
                   </td>
                   <td className="px-4 py-3 text-gray-300 text-xs">{activity.location || '—'}</td>
                   <td className="px-4 py-3 text-right font-semibold text-gray-200">
-                    {activity.speed_kmh ? activity.speed_kmh.toFixed(1) : '—'}
+                    {Number.isFinite(activity.speed_kmh) ? Number(activity.speed_kmh).toFixed(1) : '—'}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-gray-200">
-                    {activity.fuel_percentage ? activity.fuel_percentage.toFixed(1) : '—'}
+                    {Number.isFinite(activity.fuel_percentage) ? Number(activity.fuel_percentage).toFixed(1) : '—'}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-1">

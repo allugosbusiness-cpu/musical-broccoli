@@ -117,7 +117,9 @@ class LocationSyncService {
           if (newHash !== oldHash && isValidCoordinate(lat, lon)) {
             this.lastUpdate[cacheKey] = newHash;
             
-            console.log(`📍 Location changed for ${truck.truck_identifier}: [${lat?.toFixed(4)}, ${lon?.toFixed(4)}]`);
+            const safeLat = Number.isFinite(lat) ? lat.toFixed(4) : 'N/A';
+            const safeLon = Number.isFinite(lon) ? lon.toFixed(4) : 'N/A';
+            console.log(`📍 Location changed for ${truck.truck_identifier}: [${safeLat}, ${safeLon}]`);
             
             // Notify all subscribers
             this.subscribers.forEach(callback => {
