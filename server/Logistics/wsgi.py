@@ -12,11 +12,20 @@ import sys
 import django
 
 from django.core.wsgi import get_wsgi_application
+from django.db import connection
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Logistics.settings')
 
 # Initialize Django
 django.setup()
+
+# Clear old api app migrations from database
+try:
+    with connection.cursor() as cursor:
+        cursor.execute("DELETE FROM django_migrations WHERE app = 'api'")
+        print("[WSGI] ✅ Cleared old api app migration history")
+except Exception as e:
+    print(f"[WSGI] ⚠️ Could not clear old api migrations: {e}")
 
 # Ensure v2 schema tables exist (emergency fix for migration state issues)
 def ensure_database_tables():
