@@ -1,97 +1,74 @@
 from rest_framework import serializers
 from .models import (
-    FleetDriver, FleetTruck, FleetMission, FleetMissionStop, 
-    FleetMissionEvent, FleetMissionDispute, FleetDriverPerformanceDaily, 
-    FleetAdminAuditLog, TruckLocation, FleetActivity, Alert
+    FleetDriver, FleetTruck, FleetMission, 
+    FleetDriverPerformanceDaily, FleetAdminAuditLog, TruckLocation, 
+    FleetActivity, Alert
 )
 
-# ============================================================
-# TRUCK SERIALIZERS (Frontend Compatibility Layer)
-# ============================================================
+
+class DriverSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FleetDriver
+        fields = [
+            'id', 'first_name', 'last_name', 'phone_number', 'email', 
+            'status', 'on_duty', 'truck', 'latitude', 'longitude', 
+            'performance_mark', 'created_at', 'updated_at'
+        ]
+
+
 class TruckSerializer(serializers.ModelSerializer):
-    id = serializers.CharField(source='truck_identifier', read_only=True)
-    coordinates = serializers.SerializerMethodField()
-    driver = serializers.SerializerMethodField()
-    
     class Meta:
         model = FleetTruck
         fields = [
-            'id', 'plate', 'driver', 'status', 'coordinates', 
-            'last_latitude', 'last_longitude', 'speed_kmh', 
-            'truck_identifier', 'assigned_driver'
+            'id', 'truck_identifier', 'plate', 'vin', 'telematics_id',
+            'fuel_capacity_liters', 'fuel_consumed_liters', 'odometer_km',
+            'status', 'last_latitude', 'last_longitude', 'last_location_ts',
+            'created_at', 'updated_at'
         ]
 
-    def get_coordinates(self, obj):
-        if obj.last_latitude and obj.last_longitude:
-            return {'lat': float(obj.last_latitude), 'lng': float(obj.last_longitude)}
-        return {'lat': 0, 'lng': 0}
 
-    def get_driver(self, obj):
-        return obj.assigned_driver.get_display_name() if obj.assigned_driver else "Unassigned"
-
-class TruckListSerializer(serializers.ModelSerializer):
-    id = serializers.CharField(source='truck_identifier', read_only=True)
-    coordinates = serializers.SerializerMethodField()
-    
+class TruckLocationSerializer(serializers.ModelSerializer):
     class Meta:
-        model = FleetTruck
-        fields = ['id', 'plate', 'status', 'coordinates', 'speed_kmh']
+        model = TruckLocation
+        fields = [
+            'id', 'truck', 'driver', 'latitude', 'longitude',
+            'speed', 'accuracy', 'altitude', 'timestamp', 'created_at'
+        ]
 
-    def get_coordinates(self, obj):
-        if obj.last_latitude and obj.last_longitude:
-            return {'lat': float(obj.last_latitude), 'lng': float(obj.last_longitude)}
-        return {'lat': 0, 'lng': 0}
 
-# ============================================================
-# MISSION SERIALIZERS
-# ============================================================
 class MissionSerializer(serializers.ModelSerializer):
-    id = serializers.CharField(source='mission_number', read_only=True)
-    driver_name = serializers.SerializerMethodField()
-    
     class Meta:
         model = FleetMission
         fields = [
-            'id', 'mission_number', 'status', 'priority', 'origin', 
-            'destination', 'current_location', 'progress_pct', 'driver_name'
+            'id', 'mission_number', 'status', 'priority', 'truck', 'driver',
+            'origin', 'destination', 'distance_total_m', 'progress_pct',
+            'cargo', 'mission_date', 'started_at', 'completed_at',
+            'delivered_at', 'created_at', 'updated_at'
         ]
 
-    def get_driver_name(self, obj):
-        return obj.driver.get_display_name() if obj.driver else "Unassigned"
 
-class MissionStopSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FleetMissionStop
-        fields = ['id', 'mission', 'stop_order', 'address', 'status']
-
-# ============================================================
-# DRIVER SERIALIZERS
-# ============================================================
-class DriverSerializer(serializers.ModelSerializer):
-    name = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = FleetDriver
-        fields = ['id', 'name', 'phone_number', 'status', 'performance_mark']
-
-    def get_name(self, obj):
-        return obj.get_display_name()
-
-# ============================================================
-# COMPATIBILITY LAYER (Aliases to prevent ImportError)
-# ============================================================
-
-class ActivitySerializer(serializers.ModelSerializer):
+class FleetActivitySerializer(serializers.ModelSerializer):
     class Meta:
         model = FleetActivity
-        fields = '__all__'
+        fields = [
+            'id', 'truck', 'driver', 'mission', 'activity_type',
+            'activity_category', 'description', 'timestamp', 'created_at', 'updated_at'
+        ]
 
-class DriverPerformanceDailySerializer(serializers.ModelSerializer):
+
+class PerformanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = FleetDriverPerformanceDaily
-        fields = '__all__'
+        fields = [
+            'id', 'driver', 'date', 'missions_completed', 'distance_km',
+            'hours_on_duty', 'rating', 'incidents', 'created_at', 'updated_at'
+        ]
+
 
 class AlertSerializer(serializers.ModelSerializer):
     class Meta:
         model = Alert
-        fields = '__all__'
+        fields = [
+            'id', 'alert_type', 'severity', 'message', 'is_resolved',
+            'resolved_at', 'created_at', 'updated_at'
+        ]
