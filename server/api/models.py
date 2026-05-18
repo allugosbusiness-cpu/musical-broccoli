@@ -373,6 +373,52 @@ class FleetMissionDispute(models.Model):
         ]
 
 # ============================================================
+# 6A. ALERT MODEL
+# ============================================================
+
+class Alert(models.Model):
+    """System alerts for fleet managers about critical events."""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    alert_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('critical', 'Critical'),
+            ('warning', 'Warning'),
+            ('info', 'Info'),
+            ('success', 'Success'),
+        ],
+        default='info',
+        db_index=True
+    )
+    message = models.TextField()
+    severity = models.CharField(
+        max_length=20,
+        choices=[
+            ('low', 'Low'),
+            ('medium', 'Medium'),
+            ('high', 'High'),
+            ('critical', 'Critical'),
+        ],
+        default='medium',
+        db_index=True
+    )
+    is_resolved = models.BooleanField(default=False, db_index=True)
+    resolved_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'alerts'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at'], name='alert_created_idx'),
+        ]
+    
+    def __str__(self):
+        return f"{self.alert_type.upper()}: {self.message[:50]}"
+
+# ============================================================
 # 7. FLEET DRIVER PERFORMANCE DAILY MODEL
 # ============================================================
 
@@ -456,7 +502,7 @@ class TruckLocation(models.Model):
     altitude = models.DecimalField(max_digits=8, decimal_places=2, default=0)  # meters
     
     timestamp = models.DateTimeField(db_index=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, default=timezone.now)
     
     class Meta:
         db_table = 'fleet_truck_locations'
