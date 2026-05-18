@@ -189,7 +189,9 @@ def dashboard_recalculate_performance(request):
 def truck_tracking_all_locations(request):
     """Get all truck current locations for real-time tracking"""
     try:
-        locations = TruckLocation.objects.select_related('truck', 'driver').order_by('-timestamp').distinct('truck')
+        # Get latest location for each truck
+        # PostgreSQL DISTINCT ON requires ORDER BY to start with the DISTINCT field
+        locations = TruckLocation.objects.select_related('truck', 'driver').order_by('truck_id', '-timestamp').distinct('truck_id')
         
         trucks_data = []
         for loc in locations:
