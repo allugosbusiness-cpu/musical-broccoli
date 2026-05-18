@@ -21,7 +21,7 @@ from django.conf import settings
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('api.urls')),
+    path('api/', include('server.api.urls')),
     path('favicon.ico', serve, {
         'path': 'favicon.ico',
         'document_root': settings.STATIC_ROOT,
