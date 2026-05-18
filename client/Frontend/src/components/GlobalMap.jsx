@@ -404,14 +404,14 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
       popupAnchor: [0, -70],
     });
 
-    const marker = L.marker([markerLat, markerLon], { icon: customIcon })
+    const marker = L.marker([markerLat || 0, markerLon || 0], { icon: customIcon })
       .bindPopup(`
         <div style="font-family: sans-serif; width: 220px;">
           <strong style="color: ${truckColor};">📍 ${truck.plate}</strong>
           <p style="margin: 5px 0;"><strong>Truck ID:</strong> ${truck.identifier}</p>
           <p style="margin: 5px 0;"><strong>Status:</strong> <span style="color: ${truckColor}; font-weight: bold;">${truck.status.toUpperCase()}</span></p>
           <p style="margin: 5px 0;"><strong>Location:</strong> ${truck.location_name}</p>
-          <p style="margin: 5px 0;"><strong>Coordinates:</strong> ${markerLat.toFixed(4)}, ${markerLon.toFixed(4)}</p>
+          <p style="margin: 5px 0;"><strong>Coordinates:</strong> ${(markerLat && markerLon) ? markerLat.toFixed(4) + ', ' + markerLon.toFixed(4) : 'N/A'}</p>
           <p style="margin: 5px 0;"><strong>Speed:</strong> ${truck.speed || 0} km/h</p>
           ${locationPending ? '<p style="margin: 5px 0; color: #f59e0b;"><em>\u26a0️ Location update pending...</em></p>' : ''}
         </div>
@@ -440,7 +440,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
     markersRef.current[truck.id] = marker;
 
     // Log marker creation
-    console.log(`📋 Marker added for ${truck.identifier} at ${markerLat.toFixed(3)}, ${markerLon.toFixed(3)}${locationPending ? ' (pending real-time update)' : ''}`);
+    console.log(`📋 Marker added for ${truck.identifier} at ${(markerLat && markerLon) ? markerLat.toFixed(3) + ', ' + markerLon.toFixed(3) : 'N/A'}${locationPending ? ' (pending real-time update)' : ''}`);
   };
 
   /**
@@ -465,7 +465,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
     }
     
     marker.setLatLng([markerLat, markerLon]);
-    console.log(`✅ Updated marker for ${truck.identifier} → [${markerLat.toFixed(4)}, ${markerLon.toFixed(4)}]`);
+    console.log(`✅ Updated marker for ${truck.identifier} → [${(markerLat && markerLon) ? markerLat.toFixed(4) + ', ' + markerLon.toFixed(4) : 'N/A'}]`);
   };
 
   /**
