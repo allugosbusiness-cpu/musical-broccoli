@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 import importlib
 
+# Mobile endpoints for driver missions and registration
 from .views import (
     DriverViewSet, TruckViewSet, MissionViewSet,
     LocationViewSet, ActivityViewSet, PerformanceViewSet,
