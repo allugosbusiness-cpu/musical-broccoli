@@ -1,262 +1,172 @@
-"""
-Mission creation and management endpoints for the PulseTrack API
-Provides endpoints for creating, updating, and managing missions
-"""
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from .models import FleetDriver, FleetTruck, FleetMission
 
-import logging
-from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
-from django.utils import timezone
-import json
-from api.models_v2 import FleetMission, FleetTruck, FleetDriver, FleetMissionStop, FleetMissionEvent
-from django.db import transaction
 
-logger = logging.getLogger(__name__)
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def create_mission(request):
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_available_missions(request, driver_id):
     """
-    POST /api/v1/api-missions/create/
-    
-    Create a new mission
-    
-    Request body:
-    {
-        "identifier": "MIS001",
-        "truck_id": "uuid",
-        "driver_id": "uuid",
-        "origin": {"lat": -17.8, "lon": 31.0},
-        "destination": {"lat": -17.9, "lon": 31.1},
-        "planned_distance_km": 50,
-        "planned_duration_minutes": 120
-    }
+    Get all available missions for a driver that are ready to start
+    Filters by truck assignment and mission status
     """
     try:
-        data = json.loads(request.body)
-        identifier = data.get('identifier', f'MIS-{int(timezone.now().timestamp())}')
-        logger.info(f"📝 Creating mission: {identifier}")
+        driver = FleetDriver.objects.get(id=driver_id)
         
-        # Validate required fields
-        if not all(k in data for k in ['truck_id', 'driver_id', 'origin', 'destination']):
-            return JsonResponse({'error': 'Missing required fields'}, status=400)
-        
-        with transaction.atomic():
-            # Get truck and driver instances
-            truck = FleetTruck.objects.get(id=data['truck_id'])
-            driver = FleetDriver.objects.get(id=data['driver_id'])
-            
-            # Convert km to meters
-            distance_m = float(data.get('planned_distance_km', 0)) * 1000
-            
-            mission = FleetMission.objects.create(
-                fleet_id=truck.fleet_id,
-                mission_number=identifier,
-                truck=truck,
-                driver=driver,
-                status='pending',
-                origin=data['origin'],  # {lat, lon}
-                destination=data['destination'],  # {lat, lon}
-                distance_total_m=distance_m,
-                distance_remaining_m=distance_m,
+        # Get driver's assigned truck
+        truck = driver.truck
+        if not truck:
+            return Response(
+                {'missions': [], 'message': 'Driver has not been assigned to a truck yet'},
+                status=status.HTTP_200_OK
             )
-            
-            logger.info(f"✅ Mission created: {mission.mission_number}")
-            return JsonResponse({
+        
+        # Get all PLANNED or ASSIGNED missions for this truck
+        missions = FleetMission.objects.filter(
+            truck=truck,
+            status__in=['planned', 'assigned']
+        ).order_by('-created_at')
+        
+        missions_data = []
+        for mission in missions:
+            missions_data.append({
                 'id': str(mission.id),
                 'mission_number': mission.mission_number,
                 'status': mission.status,
-                'truck_id': str(mission.truck.id),
-                'driver_id': str(mission.driver.id),
-                'distance_m': float(mission.distance_total_m),
-                'created_at': mission.created_at.isoformat(),
-            }, status=201)
-            
+                'origin': mission.origin if isinstance(mission.origin, dict) else {'lat': 0, 'lng': 0},
+                'destination': mission.destination if isinstance(mission.destination, dict) else {'lat': 0, 'lng': 0},
+                'distance_total_m': float(mission.distance_total_m),
+                'cargo': mission.cargo if mission.cargo else {},
+                'created_at': mission.created_at.isoformat() if mission.created_at else None,
+            })
+        
+        return Response({
+            'driver_id': str(driver.id),
+            'driver_name': driver.get_display_name(),
+            'truck_id': str(truck.id),
+            'truck_name': truck.truck_identifier,
+            'missions': missions_data,
+            'total_count': len(missions_data)
+        }, status=status.HTTP_200_OK)
+        
+    except FleetDriver.DoesNotExist:
+        return Response(
+            {'error': 'Driver not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
     except Exception as e:
-        logger.error(f"❌ Mission creation error: {str(e)}")
-        return JsonResponse({
-            'error': str(e)
-        }, status=400)
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
-@csrf_exempt
-@require_http_methods(["PATCH"])
-def update_mission_status(request, mission_id):
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def start_mission_tracking(request):
     """
-    PATCH /api/v1/api-missions/{mission_id}/status/
-    
-    Update mission status and trigger trail activation/deactivation
-    
-    Request body:
-    {
-        "status": "enroute",  # pending, enroute, completed
-        "current_lat": -17.85,
-        "current_lon": 31.05
-    }
+    Start tracking for a mission
+    Accepts either mission_id or mission_number
+    Optional: latitude, longitude for driver's current location
     """
     try:
-        mission = FleetMission.objects.get(id=mission_id)
-        data = json.loads(request.body)
-        old_status = mission.status
-        new_status = data.get('status', mission.status)
+        driver_id = request.data.get('driver_id')
+        mission_id = request.data.get('mission_id')
+        mission_number = request.data.get('mission_number')
+        # ✅ NEW: Accept current location from mobile app
+        current_latitude = request.data.get('latitude')
+        current_longitude = request.data.get('longitude')
         
-        logger.info(f"🔄 Updating mission {mission.mission_number} from {old_status} to {new_status}")
+        if not driver_id:
+            return Response(
+                {'error': 'driver_id required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
-        with transaction.atomic():
-            mission.status = new_status
-            mission.updated_at = timezone.now()
-            
-            # ✅ FIXED: Initialize current_location to origin when mission starts
-            # This ensures the truck pin appears on the map when mission transitions to enroute
-            if new_status == 'enroute' and old_status != 'enroute' and mission.origin and not mission.current_location:
-                mission.current_location = mission.origin
-            
-            # Update truck status and current location
-            if mission.truck:
-                mission.truck.status = 'enroute' if new_status == 'enroute' else 'idle'
-                if data.get('current_lat'):
-                    mission.truck.current_location = {
-                        'lat': data['current_lat'],
-                        'lon': data['current_lon']
-                    }
-                mission.truck.save()
-                logger.info(f"  🚚 Truck {mission.truck.truck_identifier} status: {mission.truck.status}")
-            
-            # When mission completes, save delivered time
-            if new_status == 'completed' and old_status != 'completed':
-                mission.delivered_at = timezone.now()
-                mission.completed_at = timezone.now()
-                logger.info(f"  ✅ Mission completed: {mission.mission_number}")
-            
-            mission.save()
-            
-            return JsonResponse({
-                'id': str(mission.id),
-                'mission_number': mission.mission_number,
-                'status': mission.status,
-                'truck_status': mission.truck.status if mission.truck else None,
-                'updated_at': mission.updated_at.isoformat(),
-            }, status=200)
-            
-    except FleetMission.DoesNotExist:
-        logger.error(f"❌ Mission not found: {mission_id}")
-        return JsonResponse({'error': 'Mission not found'}, status=404)
-    except Exception as e:
-        logger.error(f"❌ Mission status update error: {str(e)}")
-        return JsonResponse({'error': str(e)}, status=400)
-
-
-@csrf_exempt
-@require_http_methods(["GET"])
-def get_mission_details(request, mission_id):
-    """
-    GET /api/v1/api-missions/{mission_id}/details/
-    
-    Get full mission details including tracking data
-    """
-    try:
-        mission = FleetMission.objects.get(id=mission_id)
+        # Find mission by ID or number
+        mission = None
+        if mission_id:
+            mission = FleetMission.objects.get(id=mission_id)
+        elif mission_number:
+            mission = FleetMission.objects.get(mission_number=mission_number)
+        else:
+            return Response(
+                {'error': 'mission_id or mission_number required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
-        return JsonResponse({
-            'id': str(mission.id),
+        # Verify driver has access to this mission
+        driver = FleetDriver.objects.get(id=driver_id)
+        if driver.truck != mission.truck:
+            return Response(
+                {'error': 'Driver is not assigned to this mission\'s truck'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Start the mission
+        mission.status = 'enroute'
+        mission.driver = driver
+        mission.started_at = timezone.now()
+        
+        # ✅ FIXED: Initialize current_location with driver's actual current location if provided
+        # Otherwise fallback to origin coordinates
+        # This ensures the truck pin appears on the map at the correct location immediately
+        if current_latitude is not None and current_longitude is not None:
+            # Use driver's current location for better accuracy
+            try:
+                mission.current_location = {
+                    'lat': float(current_latitude),
+                    'lon': float(current_longitude)
+                }
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f'✅ Mission {mission.id} initialized with driver current location: ({current_latitude}, {current_longitude})')
+            except (ValueError, TypeError) as e:
+                # If conversion fails, fall back to origin
+                if mission.origin and not mission.current_location:
+                    mission.current_location = mission.origin
+        elif mission.origin and not mission.current_location:
+            mission.current_location = mission.origin
+        
+        mission.save()
+        
+        # Cache mission tracking session
+        from django.core.cache import cache
+        cache.set(f'mission_tracking_{mission.id}', {
+            'mission_id': str(mission.id),
+            'driver_id': str(driver.id),
+            'truck_id': str(mission.truck.id),
+            'started_at': timezone.now().isoformat(),
+            'tracking_enabled': True
+        }, timeout=None)
+        
+        return Response({
+            'success': True,
+            'mission_id': str(mission.id),
             'mission_number': mission.mission_number,
             'status': mission.status,
-            'truck': {
-                'id': str(mission.truck.id),
-                'truck_identifier': mission.truck.truck_identifier,
-                'plate': mission.truck.plate,
-            } if mission.truck else None,
-            'driver': {
-                'id': str(mission.driver.id),
-                'name': f"{mission.driver.first_name} {mission.driver.last_name}",
-            } if mission.driver else None,
             'origin': mission.origin,
             'destination': mission.destination,
-            'distance_total_m': float(mission.distance_total_m),
-            'distance_remaining_m': float(mission.distance_remaining_m),
-            'progress_pct': float(mission.progress_pct),
-            'created_at': mission.created_at.isoformat(),
-            'started_at': mission.started_at.isoformat() if mission.started_at else None,
-            'completed_at': mission.completed_at.isoformat() if mission.completed_at else None,
-            'delivered_at': mission.delivered_at.isoformat() if mission.delivered_at else None,
-        }, status=200)
+            'current_location': mission.current_location,
+            'driver_name': driver.get_display_name(),
+            'tracking_id': str(mission.id),
+            'message': f'Started tracking mission {mission.mission_number}'
+        }, status=status.HTTP_200_OK)
         
     except FleetMission.DoesNotExist:
-        return JsonResponse({'error': 'Mission not found'}, status=404)
+        return Response(
+            {'error': 'Mission not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except FleetDriver.DoesNotExist:
+        return Response(
+            {'error': 'Driver not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
     except Exception as e:
-        logger.error(f"❌ Get mission error: {str(e)}")
-        return JsonResponse({'error': str(e)}, status=400)
-
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def save_mission_tracking_data(request, mission_id):
-    """
-    POST /api/v1/api-missions/{mission_id}/tracking/
-    
-    Save tracking data for completed missions (activities, alerts, routes)
-    
-    Request body:
-    {
-        "activities": [
-            {
-                "type": "MISSION_START",
-                "timestamp": "2024-01-01T10:00:00Z",
-                "location": {"lat": -17.8, "lon": 31.0},
-                "details": "Mission started"
-            }
-        ],
-        "alerts": [
-            {
-                "type": "SPEED_VIOLATION",
-                "timestamp": "2024-01-01T10:05:00Z",
-                "location": {"lat": -17.81, "lon": 31.01},
-                "speed": 105,
-                "speedLimit": 100
-            }
-        ],
-        "totalDistance": 50.5,
-        "totalDuration": 120
-    }
-    """
-    try:
-        mission = FleetMission.objects.get(id=mission_id)
-        data = json.loads(request.body)
-        
-        logger.info(f"💾 Saving tracking data for mission {mission.mission_number}")
-        
-        with transaction.atomic():
-            # Save mission events (activities)
-            for activity in data.get('activities', []):
-                event = FleetMissionEvent.objects.create(
-                    mission_id=mission_id,
-                    event_type=activity.get('type', 'ACTIVITY'),
-                    location=activity.get('location', {}),
-                    details=activity.get('details', ''),
-                )
-                logger.info(f"  📌 Event saved: {event.event_type}")
-            
-            # Update mission with actual distance and duration
-            if data.get('totalDistance'):
-                mission.distance_remaining_m = 0
-                mission.progress_pct = 100
-            
-            mission.updated_at = timezone.now()
-            mission.save()
-            
-            logger.info(f"✅ Tracking data saved for mission {mission.mission_number}")
-            
-            return JsonResponse({
-                'id': str(mission.id),
-                'mission_number': mission.mission_number,
-                'events_saved': len(data.get('activities', [])),
-                'alerts_saved': len(data.get('alerts', [])),
-            }, status=200)
-            
-    except FleetMission.DoesNotExist:
-        logger.error(f"❌ Mission not found: {mission_id}")
-        return JsonResponse({'error': 'Mission not found'}, status=404)
-    except Exception as e:
-        logger.error(f"❌ Tracking data save error: {str(e)}")
-        return JsonResponse({'error': str(e)}, status=400)
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

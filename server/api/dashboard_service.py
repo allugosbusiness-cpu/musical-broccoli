@@ -7,7 +7,7 @@ from decimal import Decimal
 from django.db.models import Q, Sum, Count, Avg
 from django.utils import timezone
 from datetime import timedelta
-from .models_v2 import FleetDriver, FleetTruck, FleetMission, MissionStatus, DriverStatus, TruckStatus
+from .models import FleetDriver, FleetTruck, FleetMission, MissionStatus, DriverStatus, TruckStatus
 from .osrm_service import compute_route_geometry
 import math
 

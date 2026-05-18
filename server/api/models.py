@@ -238,8 +238,8 @@ class FleetMission(models.Model):
     )
     priority = models.CharField(max_length=20, choices=MissionPriority.choices, default=MissionPriority.NORMAL)
     
-    origin = models.JSONField()
-    destination = models.JSONField()
+    origin = models.JSONField(default=dict, blank=True)
+    destination = models.JSONField(default=dict, blank=True)
     current_location = models.JSONField(blank=True, null=True)
     route_polyline = models.TextField(blank=True, null=True)
     

@@ -12,7 +12,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 import json
 
-from .models_v2 import FleetDriver, FleetTruck, FleetMission, FleetMissionEvent, MissionEventType, MissionStatus
+from .models import FleetDriver, FleetTruck, FleetMission, FleetMissionEvent, MissionEventType, MissionStatus
 
 
 @api_view(['POST'])

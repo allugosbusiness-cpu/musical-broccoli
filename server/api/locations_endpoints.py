@@ -132,7 +132,7 @@ def location_reverse_geocode(request):
         
         # ✅ NEW: Accept and suggest any location
         # Find closest location from database
-        from .models_v2 import FleetLocation
+        from .models import FleetLocation
         try:
             locations = FleetLocation.objects.all()
             if not locations.exists():
