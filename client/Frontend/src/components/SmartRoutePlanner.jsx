@@ -166,7 +166,7 @@ export function SmartRoutePlanner() {
                     <div className="bg-slate-900/40 rounded-lg p-4 border border-blue-700/50">
                       <p className="text-xs text-blue-300 mb-1">Distance</p>
                       <p className="text-2xl font-bold text-white">
-                        {displayRoute.distance_km?.toFixed(1)} <span className="text-sm">km</span>
+                        {Number.isFinite(displayRoute?.distance_km) ? Number(displayRoute.distance_km).toFixed(1) : '0.0'} <span className="text-sm">km</span>
                       </p>
                     </div>
 
@@ -174,7 +174,7 @@ export function SmartRoutePlanner() {
                     <div className="bg-slate-900/40 rounded-lg p-4 border border-blue-700/50">
                       <p className="text-xs text-blue-300 mb-1">Duration</p>
                       <p className="text-2xl font-bold text-white">
-                        {((displayRoute.duration_seconds || 0) / 3600).toFixed(1)}
+                        {Number.isFinite((displayRoute?.duration_seconds || 0) / 3600) ? (Number((displayRoute.duration_seconds || 0) / 3600)).toFixed(1) : '0.0'}
                         <span className="text-sm"> h</span>
                       </p>
                     </div>
@@ -183,7 +183,7 @@ export function SmartRoutePlanner() {
                     <div className="bg-slate-900/40 rounded-lg p-4 border border-green-700/50">
                       <p className="text-xs text-green-300 mb-1">Fuel</p>
                       <p className="text-2xl font-bold text-white">
-                        {displayRoute.fuel_liters?.toFixed(1)} <span className="text-sm">L</span>
+                        {Number.isFinite(displayRoute?.fuel_liters) ? Number(displayRoute.fuel_liters).toFixed(1) : '0.0'} <span className="text-sm">L</span>
                       </p>
                     </div>
 
@@ -191,7 +191,7 @@ export function SmartRoutePlanner() {
                     <div className="bg-slate-900/40 rounded-lg p-4 border border-green-700/50">
                       <p className="text-xs text-green-300 mb-1">Cost</p>
                       <p className="text-2xl font-bold text-white">
-                        ${displayRoute.estimated_cost?.toFixed(2)}
+                        ${Number.isFinite(displayRoute?.estimated_cost) ? Number(displayRoute.estimated_cost).toFixed(2) : '0.00'}
                       </p>
                     </div>
                   </div>

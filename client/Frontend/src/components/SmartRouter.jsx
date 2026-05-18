@@ -338,7 +338,7 @@ const SmartRouter = () => {
               <div className="grid grid-cols-4 gap-3 mb-3">
                 <div className="bg-slate-700/50 p-2 rounded border border-slate-600/50">
                   <p className="text-xs text-gray-400">Distance</p>
-                  <p className="text-sm font-bold text-blue-400">{route.total_distance.toFixed(1)} km</p>
+                  <p className="text-sm font-bold text-blue-400">{Number.isFinite(route?.total_distance) ? Number(route.total_distance).toFixed(1) : '0.0'} km</p>
                 </div>
                 <div className="bg-slate-700/50 p-2 rounded border border-slate-600/50">
                   <p className="text-xs text-gray-400 flex items-center gap-1">
@@ -370,7 +370,7 @@ const SmartRouter = () => {
                           <div key={idx} className="flex items-center gap-2 pl-2">
                             <span className="text-blue-400">→</span>
                             <span>{wp.order + 1}. {wp.location}</span>
-                            <span className="text-xs text-gray-500">({wp.distance_from_previous.toFixed(1)} km @ {wp.suggested_speed} km/h)</span>
+                            <span className="text-xs text-gray-500">({Number.isFinite(wp?.distance_from_previous) ? Number(wp.distance_from_previous).toFixed(1) : '0.0'} km @ {wp.suggested_speed} km/h)</span>
                           </div>
                         ))}
                       </div>
@@ -444,7 +444,7 @@ const SmartRouter = () => {
               {/* Summary */}
               <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-500/30 p-3 rounded-lg">
                 <p className="text-sm text-blue-200 font-semibold">
-                  📊 Route Summary: {directions.summary.total_distance.toFixed(1)} km in {Math.round(directions.summary.estimated_duration)} minutes
+                  📊 Route Summary: {Number.isFinite(directions?.summary?.total_distance) ? Number(directions.summary.total_distance).toFixed(1) : '0.0'} km in {Math.round(directions?.summary?.estimated_duration || 0)} minutes
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
                   Recommended speed: {directions.summary.suggested_speed} km/h
@@ -473,7 +473,7 @@ const SmartRouter = () => {
                     </div>
                     <p className="text-xs text-gray-400 mt-1">{wp.instruction}</p>
                     <p className="text-xs text-blue-300 mt-1 flex items-center gap-1">
-                      <Gauge className="w-3 h-3" /> {wp.distance_from_previous.toFixed(1)} km @ {wp.suggested_speed} km/h
+                      <Gauge className="w-3 h-3" /> {Number.isFinite(wp?.distance_from_previous) ? Number(wp.distance_from_previous).toFixed(1) : '0.0'} km @ {wp.suggested_speed} km/h
                     </p>
                   </div>
                 </div>

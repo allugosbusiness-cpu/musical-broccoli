@@ -126,7 +126,7 @@ export default function TruckDetail({ truckId: propTruckId, onClose }) {
             <div className="space-y-2 text-sm">
               <p className="text-text1">{t.location}</p>
               <p className="text-text3 font-mono text-xs">
-                Coordinates: {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
+                Coordinates: {Number.isFinite(coords.lat) ? Number(coords.lat).toFixed(4) : 'N/A'}, {Number.isFinite(coords.lng) ? Number(coords.lng).toFixed(4) : 'N/A'}
               </p>
               <p className="text-text3 font-mono text-xs">
                 {coords.country} · {coords.region}

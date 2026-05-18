@@ -225,17 +225,17 @@ export function RouteMapVisualization({ vehicleId = 'TRUCK-001', routeId }) {
           <>
             <div className="bg-slate-700/50 rounded-lg p-3 border border-slate-600">
               <p className="text-xs text-slate-400 mb-1">Distance</p>
-              <p className="text-lg font-bold text-white">{route.distance_km?.toFixed(1)} km</p>
+              <p className="text-lg font-bold text-white">{Number.isFinite(route?.distance_km) ? Number(route.distance_km).toFixed(1) : '0.0'} km</p>
             </div>
             <div className="bg-slate-700/50 rounded-lg p-3 border border-slate-600">
               <p className="text-xs text-slate-400 mb-1">Duration</p>
               <p className="text-lg font-bold text-white">
-                {((route.duration_seconds || 0) / 3600).toFixed(1)} h
+                {Number.isFinite((route?.duration_seconds || 0) / 3600) ? (Number((route.duration_seconds || 0) / 3600)).toFixed(1) : '0.0'} h
               </p>
             </div>
             <div className="bg-slate-700/50 rounded-lg p-3 border border-slate-600">
               <p className="text-xs text-slate-400 mb-1">Fuel</p>
-              <p className="text-lg font-bold text-white">{route.fuel_liters?.toFixed(1)} L</p>
+              <p className="text-lg font-bold text-white">{Number.isFinite(route?.fuel_liters) ? Number(route.fuel_liters).toFixed(1) : '0.0'} L</p>
             </div>
             <div className="bg-slate-700/50 rounded-lg p-3 border border-slate-600">
               <p className="text-xs text-slate-400 mb-1">Hazards</p>

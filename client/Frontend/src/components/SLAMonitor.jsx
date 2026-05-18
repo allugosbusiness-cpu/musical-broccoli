@@ -92,7 +92,7 @@ export function SLAMonitor({ vehicleId = 'TRUCK-001' }) {
             <div>
               <p className="text-xs text-slate-400 mb-1">Potential Penalty</p>
               <p className="text-2xl font-bold text-orange-400">
-                ${totalPenalty.toFixed(2)}
+                ${Number.isFinite(totalPenalty) ? Number(totalPenalty).toFixed(2) : '0.00'}
               </p>
             </div>
             <TrendingDown size={32} className="text-orange-400" />
@@ -204,7 +204,7 @@ function MilestoneCard({ milestone }) {
         <div>
           <p className="text-xs text-slate-400">Penalty</p>
           <p className="font-semibold text-orange-400">
-            ${milestone.penalty_usd?.toFixed(2)}
+            ${Number.isFinite(milestone?.penalty_usd) ? Number(milestone.penalty_usd).toFixed(2) : '0.00'}
           </p>
         </div>
       </div>

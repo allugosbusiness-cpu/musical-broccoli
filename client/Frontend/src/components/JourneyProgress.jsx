@@ -91,9 +91,9 @@ export default function JourneyProgress() {
 
                 {/* Distance info */}
                 <div className="flex items-center justify-between text-xs text-text3 font-mono">
-                  <span>Travelled: {travelled.toFixed(1)} km</span>
-                  <span>Remaining: {Math.max(0, remaining).toFixed(1)} km</span>
-                  <span>Total: {totalDistance.toFixed(1)} km</span>
+                  <span>Travelled: {Number.isFinite(travelled) ? Number(travelled).toFixed(1) : '0.0'} km</span>
+                  <span>Remaining: {Number.isFinite(remaining) ? Number(Math.max(0, remaining)).toFixed(1) : '0.0'} km</span>
+                  <span>Total: {Number.isFinite(totalDistance) ? Number(totalDistance).toFixed(1) : '0.0'} km</span>
                 </div>
               </div>
             );

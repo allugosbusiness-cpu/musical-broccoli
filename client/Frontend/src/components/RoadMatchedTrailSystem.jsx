@@ -164,7 +164,7 @@ export default function RoadMatchedTrailSystem({ mapInstance, trucks = [] }) {
                 createAlert(
                   truckId,
                   'critical',
-                  `Off-route detected: ${offRouteCheck.distanceOffRoute.toFixed(0)}m deviation`
+                  `Off-route detected: ${Number.isFinite(offRouteCheck?.distanceOffRoute) ? Number(offRouteCheck.distanceOffRoute).toFixed(0) : '0'}m deviation`
                 ).catch(e => console.error('Failed to create alert:', e));
               }
             }
@@ -228,7 +228,7 @@ export default function RoadMatchedTrailSystem({ mapInstance, trucks = [] }) {
         }
 
         console.log(`✅ Trail rendered for ${truckId}`, {
-          distanceKm: (routeData.distance / 1000).toFixed(2),
+          distanceKm: (Number.isFinite(routeData?.distance) ? Number(routeData.distance / 1000).toFixed(2) : '0.00'),
           offRoute: offRouteCheck.isOffRoute,
         });
       } catch (error) {

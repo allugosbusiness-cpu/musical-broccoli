@@ -123,16 +123,16 @@ export default function TruckLocationSpeedWidget() {
                   {/* Speed */}
                   <div className="mb-2">
                     <p className={`text-2xl font-bold ${getSpeedColor(truck.speed_kmh)}`}>
-                      {truck.speed_kmh.toFixed(1)}
+                      {Number.isFinite(truck.speed_kmh) ? Number(truck.speed_kmh).toFixed(1) : '0.0'}
                     </p>
                     <p className="text-xs text-slate-400">km/h</p>
                   </div>
 
                   {/* Coordinates */}
-                  {truck.location && truck.location.lat && truck.location.lon ? (
+                  {truck.location && Number.isFinite(truck.location.lat) && Number.isFinite(truck.location.lon) ? (
                     <div className="text-xs text-slate-400">
                       <p>
-                        📍 {truck.location.lat.toFixed(3)}, {truck.location.lon.toFixed(3)}
+                        📍 {Number(truck.location.lat).toFixed(3)}, {Number(truck.location.lon).toFixed(3)}
                       </p>
                       <p className="text-xs text-slate-500 mt-1">
                         {truck.updated_at

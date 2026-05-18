@@ -679,8 +679,8 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
     // Subscribe to location updates
     const unsubscribe = locationSyncService.subscribe((locationUpdate) => {
       console.log(`📍 Location update received for ${locationUpdate.truck_identifier}:`, {
-        lat: locationUpdate.latitude?.toFixed(4),
-        lon: locationUpdate.longitude?.toFixed(4),
+        lat: Number.isFinite(locationUpdate.latitude) ? Number(locationUpdate.latitude).toFixed(4) : 'N/A',
+        lon: Number.isFinite(locationUpdate.longitude) ? Number(locationUpdate.longitude).toFixed(4) : 'N/A',
         speed: locationUpdate.speed_kmh,
         source: locationUpdate.source,
       });

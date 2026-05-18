@@ -120,7 +120,7 @@ export default function RouteDirections({ truckId, truckPlate, onClose }) {
         <div className="bg-blue-50 border-b border-blue-200 p-4 space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-700">📍 Distance Travelled</span>
-            <span className="font-bold text-blue-600">{typeof distance === 'string' ? distance : distance.toFixed(1)} km</span>
+            <span className="font-bold text-blue-600">{typeof distance === 'string' ? distance : Number.isFinite(distance) ? Number(distance).toFixed(1) : '0.0'} km</span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-700">⏱️ Duration</span>

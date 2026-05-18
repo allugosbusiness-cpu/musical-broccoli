@@ -118,7 +118,7 @@ export default function CargoDonut() {
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="text-lg font-bold text-text1 font-mono">{total.toFixed(1)}t</div>
+                  <div className="text-lg font-bold text-text1 font-mono">{Number.isFinite(total) ? Number(total).toFixed(1) : '0.0'}t</div>
                   <div className="text-xs text-text2 font-mono">Total</div>
                 </div>
               </div>
@@ -127,7 +127,7 @@ export default function CargoDonut() {
             <div className="flex-1 space-y-3">
               {cargoData.map(item => {
                 const IconComponent = item.Icon;
-                const percentage = total > 0 ? ((item.weight / total) * 100).toFixed(0) : 0;
+                const percentage = (Number.isFinite(total) && total > 0) ? Number(((item.weight / total) * 100)).toFixed(0) : '0';
                 return (
                   <div key={item.type} className="flex items-center gap-3 p-2 rounded-lg hover:bg-bg3/30 transition-colors">
                     <IconComponent size={20} className="flex-shrink-0" style={{ color: item.color }} />
