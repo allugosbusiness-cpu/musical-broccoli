@@ -1,61 +1,7 @@
-# First migration - clears old api app migration history and creates V2 tables
-# All-in-one migration to avoid dependency issues
-
+# Generated: Clean V2 migration - all old api app migrations removed
 from django.db import migrations, models
 import django.db.models.deletion
 import uuid
-
-
-def clear_old_migrations(apps, schema_editor):
-    """Delete all old api app migrations from database"""
-    from django.db import connection
-    
-    print("\n[MIGRATION] Step 1: Clearing old api migration records...")
-    with connection.cursor() as cursor:
-        try:
-            # Delete all old api migration records - be aggressive
-            cursor.execute("""
-                DELETE FROM django_migrations 
-                WHERE app IN ('api', 'api.deprecated') OR app LIKE 'api.%%'
-            """)
-            deleted = cursor.rowcount
-            print(f"[MIGRATION] ✓ Deleted {deleted} old api migration record(s)")
-        except Exception as e:
-            # Log but don't fail - django_migrations might not exist on first run
-            print(f"[MIGRATION] ℹ Could not delete old migrations: {e}")
-
-
-def drop_existing_v2_tables(apps, schema_editor):
-    """Drop existing fleet tables to ensure clean creation"""
-    from django.db import connection
-    
-    print("\n[MIGRATION] Step 2: Dropping old fleet tables (backup)...")
-    tables_to_drop = [
-        'fleet_admin_audit_logs',
-        'fleet_driver_performance_daily',
-        'fleet_dispute_comments',
-        'fleet_disputes',
-        'alerts',
-        'fleet_activities',
-        'fleet_truck_locations',
-        'fleet_missions',
-        'fleet_trucks',
-        'fleet_drivers',
-    ]
-    
-    with connection.cursor() as cursor:
-        for table in tables_to_drop:
-            try:
-                if connection.vendor == 'postgresql':
-                    cursor.execute(f'DROP TABLE IF EXISTS "{table}" CASCADE')
-                else:  # SQLite
-                    cursor.execute(f'DROP TABLE IF EXISTS {table}')
-                print(f"[MIGRATION] ✓ Backup drop: {table}")
-            except Exception as e:
-                # Log but continue - tables might already be dropped
-                print(f"[MIGRATION] ⚠ Couldn't drop {table}: {e}")
-    
-    print("[MIGRATION] Step 2 complete")
 
 
 class Migration(migrations.Migration):
@@ -66,10 +12,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Step 1: Clean up old migration records (done in migration as fallback)
-        migrations.RunPython(clear_old_migrations, reverse_code=migrations.RunPython.noop),
-        
-        # Step 2: Create FleetDriver table
         migrations.CreateModel(
             name='FleetDriver',
             fields=[
@@ -101,8 +43,6 @@ class Migration(migrations.Migration):
             ],
             options={'db_table': 'fleet_drivers'},
         ),
-        
-        # Step 3: Create FleetTruck table
         migrations.CreateModel(
             name='FleetTruck',
             fields=[
@@ -129,15 +69,11 @@ class Migration(migrations.Migration):
             ],
             options={'db_table': 'fleet_trucks'},
         ),
-        
-        # Step 4: Add truck FK to FleetDriver
         migrations.AddField(
             model_name='fleetdriver',
             name='truck',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='drivers', to='FleetTruck'),
         ),
-        
-        # Step 5: Create TruckLocation table
         migrations.CreateModel(
             name='TruckLocation',
             fields=[
@@ -154,8 +90,6 @@ class Migration(migrations.Migration):
             ],
             options={'db_table': 'fleet_truck_locations', 'ordering': ['-timestamp']},
         ),
-        
-        # Step 6: Create FleetMission table
         migrations.CreateModel(
             name='FleetMission',
             fields=[
@@ -180,81 +114,72 @@ class Migration(migrations.Migration):
                 ('completed_at', models.DateTimeField(blank=True, null=True)),
                 ('delivered_at', models.DateTimeField(blank=True, db_index=True, null=True)),
                 ('created_by_admin_id', models.UUIDField(blank=True, null=True)),
-                ('pickup_address', models.CharField(blank=True, max_length=500, null=True)),
-                ('pickup_latitude', models.DecimalField(blank=True, decimal_places=6, max_digits=9, null=True)),
-                ('pickup_longitude', models.DecimalField(blank=True, decimal_places=6, max_digits=9, null=True)),
-                ('delivery_address', models.CharField(blank=True, max_length=500, null=True)),
-                ('delivery_latitude', models.DecimalField(blank=True, decimal_places=6, max_digits=9, null=True)),
-                ('delivery_longitude', models.DecimalField(blank=True, decimal_places=6, max_digits=9, null=True)),
-                ('cargo_description', models.TextField(blank=True)),
-                ('cargo_weight_kg', models.DecimalField(blank=True, decimal_places=2, max_digits=10, null=True)),
-                ('cargo_volume_m3', models.DecimalField(blank=True, decimal_places=4, max_digits=10, null=True)),
-                ('estimated_distance_km', models.DecimalField(blank=True, decimal_places=2, max_digits=10, null=True)),
-                ('estimated_duration_minutes', models.IntegerField(blank=True, null=True)),
-                ('actual_distance_km', models.DecimalField(blank=True, decimal_places=2, max_digits=10, null=True)),
-                ('actual_duration_minutes', models.IntegerField(blank=True, null=True)),
-                ('planned_pickup', models.DateTimeField(blank=True, null=True)),
-                ('actual_pickup', models.DateTimeField(blank=True, null=True)),
-                ('planned_delivery', models.DateTimeField(blank=True, null=True)),
-                ('actual_delivery', models.DateTimeField(blank=True, null=True)),
-                ('cost_currency', models.CharField(blank=True, default='USD', max_length=3)),
-                ('cost_amount', models.DecimalField(blank=True, decimal_places=2, max_digits=10, null=True)),
-                ('notes', models.TextField(blank=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('driver', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='missions', to='FleetDriver')),
                 ('truck', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='missions', to='FleetTruck')),
+                ('driver', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='missions', to='FleetDriver')),
             ],
             options={'db_table': 'fleet_missions'},
         ),
-        
-        # Step 7: Create Alert table
-        migrations.CreateModel(
-            name='Alert',
-            fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('alert_type', models.CharField(choices=[('critical', 'Critical'), ('warning', 'Warning'), ('info', 'Info'), ('success', 'Success')], db_index=True, default='info', max_length=20)),
-                ('message', models.TextField()),
-                ('severity', models.CharField(choices=[('low', 'Low'), ('medium', 'Medium'), ('high', 'High'), ('critical', 'Critical')], db_index=True, default='medium', max_length=20)),
-                ('is_resolved', models.BooleanField(db_index=True, default=False)),
-                ('resolved_at', models.DateTimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-            ],
-            options={'db_table': 'alerts', 'ordering': ['-created_at']},
-        ),
-        
-        # Step 8: Create FleetActivity table
         migrations.CreateModel(
             name='FleetActivity',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('fleet_id', models.UUIDField(db_index=True)),
-                ('activity_type', models.CharField(choices=[('trail_recorded', 'Trail Recorded'), ('mission_created', 'Mission Created'), ('mission_started', 'Mission Started'), ('mission_paused', 'Mission Paused'), ('mission_resumed', 'Mission Resumed'), ('mission_completed', 'Mission Completed'), ('mission_cancelled', 'Mission Cancelled'), ('location_update', 'Location Update'), ('speed_recorded', 'Speed Recorded'), ('fuel_update', 'Fuel Update'), ('alert_triggered', 'Alert Triggered'), ('breach_detected', 'Breach Detected'), ('driver_check_in', 'Driver Check In'), ('driver_check_out', 'Driver Check Out'), ('maintenance_alert', 'Maintenance Alert'), ('speed_violation', 'Speed Violation'), ('geofence_breach', 'Geofence Breach'), ('stop_completed', 'Stop Completed'), ('cargo_update', 'Cargo Update'), ('distance_recorded', 'Distance Recorded'), ('other', 'Other')], db_index=True, default='other', max_length=50)),
-                ('activity_category', models.CharField(choices=[('mission', 'Mission'), ('location', 'Location'), ('speed', 'Speed'), ('fuel', 'Fuel'), ('alert', 'Alert'), ('breach', 'Breach'), ('driver', 'Driver'), ('maintenance', 'Maintenance'), ('trail', 'Trail'), ('cargo', 'Cargo')], db_index=True, default='mission', max_length=20)),
-                ('truck', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='activities', to='FleetTruck')),
-                ('driver', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='activities', to='FleetDriver')),
-                ('mission', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='activities', to='FleetMission')),
-                ('location_lat', models.DecimalField(blank=True, decimal_places=6, max_digits=9, null=True)),
-                ('location_lon', models.DecimalField(blank=True, decimal_places=6, max_digits=9, null=True)),
-                ('location_name', models.CharField(blank=True, max_length=255, null=True)),
-                ('speed_kmh', models.DecimalField(blank=True, decimal_places=2, default=0, max_digits=6, null=True)),
-                ('distance_m', models.DecimalField(blank=True, decimal_places=2, default=0, max_digits=12, null=True)),
-                ('fuel_liters', models.DecimalField(blank=True, decimal_places=2, max_digits=8, null=True)),
-                ('fuel_percentage', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('alert_level', models.CharField(blank=True, choices=[('low', 'Low'), ('medium', 'Medium'), ('high', 'High'), ('critical', 'Critical')], max_length=20, null=True)),
-                ('breach_type', models.CharField(blank=True, max_length=100, null=True)),
-                ('violation_details', models.TextField(blank=True, null=True)),
-                ('mission_status_before', models.CharField(blank=True, max_length=20, null=True)),
-                ('mission_status_after', models.CharField(blank=True, max_length=20, null=True)),
-                ('metadata', models.JSONField(blank=True, default=dict)),
-                ('activity_date', models.DateField(db_index=True)),
-                ('activity_time', models.TimeField()),
-                ('timestamp', models.DateTimeField(db_index=True)),
+                ('activity_type', models.CharField(choices=[('start', 'Start'), ('stop', 'Stop'), ('pause', 'Pause'), ('resume', 'Resume'), ('complete', 'Complete'), ('other', 'Other')], db_index=True, default='other', max_length=20)),
+                ('activity_category', models.CharField(default='mission', max_length=50)),
+                ('description', models.TextField(blank=True)),
+                ('timestamp', models.DateTimeField(db_index=True, auto_now_add=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('is_critical', models.BooleanField(db_index=True, default=False)),
-                ('notes', models.TextField(blank=True, null=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('driver', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='activities', to='FleetDriver')),
+                ('truck', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='activities', to='FleetTruck')),
+                ('mission', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='activities', to='FleetMission')),
             ],
-            options={'db_table': 'fleet_activities', 'ordering': ['-created_at']},
+            options={'db_table': 'fleet_activities'},
+        ),
+        migrations.CreateModel(
+            name='FleetDriverPerformanceDaily',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('date', models.DateField(db_index=True)),
+                ('missions_completed', models.IntegerField(default=0)),
+                ('distance_km', models.DecimalField(decimal_places=2, default=0, max_digits=10)),
+                ('hours_on_duty', models.DecimalField(decimal_places=2, default=0, max_digits=6)),
+                ('rating', models.DecimalField(blank=True, decimal_places=2, default=0, max_digits=3, null=True)),
+                ('incidents', models.IntegerField(default=0)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('driver', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='daily_performance', to='FleetDriver')),
+            ],
+            options={'db_table': 'fleet_driver_performance_daily'},
+        ),
+        migrations.CreateModel(
+            name='FleetAdminAuditLog',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('action', models.CharField(max_length=200)),
+                ('admin_id', models.UUIDField(blank=True, null=True)),
+                ('target_type', models.CharField(blank=True, max_length=50, null=True)),
+                ('target_id', models.UUIDField(blank=True, null=True)),
+                ('details', models.JSONField(blank=True, default=dict)),
+                ('timestamp', models.DateTimeField(auto_now_add=True, db_index=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+            ],
+            options={'db_table': 'fleet_admin_audit_logs'},
+        ),
+        migrations.CreateModel(
+            name='Alert',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('alert_type', models.CharField(choices=[('speed', 'Speeding'), ('temperature', 'Temperature'), ('maintenance', 'Maintenance'), ('location', 'Location'), ('delivery', 'Delivery'), ('other', 'Other')], db_index=True, max_length=50)),
+                ('severity', models.CharField(choices=[('low', 'Low'), ('medium', 'Medium'), ('high', 'High'), ('critical', 'Critical')], db_index=True, max_length=20)),
+                ('message', models.TextField()),
+                ('is_resolved', models.BooleanField(db_index=True, default=False)),
+                ('resolved_at', models.DateTimeField(blank=True, null=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+            ],
+            options={'db_table': 'alerts'},
         ),
     ]
