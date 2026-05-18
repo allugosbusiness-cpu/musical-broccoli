@@ -66,13 +66,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Step 1: Clean up old migration records (done outside migration in render.yaml)
+        # Step 1: Clean up old migration records (done in migration as fallback)
         migrations.RunPython(clear_old_migrations, reverse_code=migrations.RunPython.noop),
         
-        # Step 2: Drop existing V2 tables to ensure clean creation
-        migrations.RunPython(drop_existing_v2_tables, reverse_code=migrations.RunPython.noop),
-        
-        # Step 3: Create FleetDriver table
+        # Step 2: Create FleetDriver table
         migrations.CreateModel(
             name='FleetDriver',
             fields=[
