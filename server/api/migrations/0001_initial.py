@@ -29,7 +29,7 @@ def drop_existing_v2_tables(apps, schema_editor):
     """Drop existing fleet tables to ensure clean creation"""
     from django.db import connection
     
-    print("\n[MIGRATION] Step 2: Dropping old fleet tables...")
+    print("\n[MIGRATION] Step 2: Dropping old fleet tables (backup)...")
     tables_to_drop = [
         'fleet_admin_audit_logs',
         'fleet_driver_performance_daily',
@@ -50,11 +50,12 @@ def drop_existing_v2_tables(apps, schema_editor):
                     cursor.execute(f'DROP TABLE IF EXISTS "{table}" CASCADE')
                 else:  # SQLite
                     cursor.execute(f'DROP TABLE IF EXISTS {table}')
-                print(f"[MIGRATION] ✓ Dropped: {table}")
+                print(f"[MIGRATION] ✓ Backup drop: {table}")
             except Exception as e:
-                # Log errors but don't fail if table doesn't exist
-                if 'does not exist' not in str(e):
-                    print(f"[MIGRATION] ⚠ Error dropping {table}: {e}")
+                # Log but continue - tables might already be dropped
+                print(f"[MIGRATION] ⚠ Couldn't drop {table}: {e}")
+    
+    print("[MIGRATION] Step 2 complete")
 
 
 class Migration(migrations.Migration):
