@@ -411,7 +411,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
           <p style="margin: 5px 0;"><strong>Truck ID:</strong> ${truck.identifier}</p>
           <p style="margin: 5px 0;"><strong>Status:</strong> <span style="color: ${truckColor}; font-weight: bold;">${truck.status.toUpperCase()}</span></p>
           <p style="margin: 5px 0;"><strong>Location:</strong> ${truck.location_name}</p>
-          <p style="margin: 5px 0;"><strong>Coordinates:</strong> ${(markerLat && markerLon) ? markerLat.toFixed(4) + ', ' + markerLon.toFixed(4) : 'N/A'}</p>
+          <p style="margin: 5px 0;"><strong>Coordinates:</strong> ${(Number.isFinite(markerLat) && Number.isFinite(markerLon)) ? Number(markerLat).toFixed(4) + ', ' + Number(markerLon).toFixed(4) : 'N/A'}</p>
           <p style="margin: 5px 0;"><strong>Speed:</strong> ${truck.speed || 0} km/h</p>
           ${locationPending ? '<p style="margin: 5px 0; color: #f59e0b;"><em>\u26a0️ Location update pending...</em></p>' : ''}
         </div>
@@ -440,7 +440,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
     markersRef.current[truck.id] = marker;
 
     // Log marker creation
-    console.log(`📋 Marker added for ${truck.identifier} at ${(markerLat && markerLon) ? markerLat.toFixed(3) + ', ' + markerLon.toFixed(3) : 'N/A'}${locationPending ? ' (pending real-time update)' : ''}`);
+    console.log(`📋 Marker added for ${truck.identifier} at ${(Number.isFinite(markerLat) && Number.isFinite(markerLon)) ? Number(markerLat).toFixed(3) + ', ' + Number(markerLon).toFixed(3) : 'N/A'}${locationPending ? ' (pending real-time update)' : ''}`);
   };
 
   /**
@@ -465,7 +465,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
     }
     
     marker.setLatLng([markerLat, markerLon]);
-    console.log(`✅ Updated marker for ${truck.identifier} → [${(markerLat && markerLon) ? markerLat.toFixed(4) + ', ' + markerLon.toFixed(4) : 'N/A'}]`);
+    console.log(`✅ Updated marker for ${truck.identifier} → [${(Number.isFinite(markerLat) && Number.isFinite(markerLon)) ? Number(markerLat).toFixed(4) + ', ' + Number(markerLon).toFixed(4) : 'N/A'}]`);
   };
 
   /**
@@ -575,7 +575,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
           const { lat: coordLat, lon: coordLon, source } = extractCoordinates(truck);
           const locationStatus = getLocationStatus(truck);
           
-          console.log(`    📍 Location extraction: source=${source}, status=${locationStatus}, coords=[${coordLat?.toFixed(4)}, ${coordLon?.toFixed(4)}]`);
+          console.log(`    📍 Location extraction: source=${source}, status=${locationStatus}, coords=[${Number.isFinite(coordLat) ? Number(coordLat).toFixed(4) : 'N/A'}, ${Number.isFinite(coordLon) ? Number(coordLon).toFixed(4) : 'N/A'}]`);
           
           // Get address from coordinates
           let location_name = 'Unknown Location';
@@ -584,7 +584,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
               location_name = await reverseGeocode(coordLat, coordLon);
             } catch (err) {
               console.warn(`⚠️ Geocoding failed for truck ${truck.truck_identifier}:`, err.message);
-              location_name = (coordLat && coordLon) ? `Location (${coordLat.toFixed(4)}, ${coordLon.toFixed(4)})` : 'Location unknown';
+              location_name = (Number.isFinite(coordLat) && Number.isFinite(coordLon)) ? `Location (${Number(coordLat).toFixed(4)}, ${Number(coordLon).toFixed(4)})` : 'Location unknown';
             }
           }
           
@@ -596,7 +596,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
             plate: truck.plate,
             identifier: truck.truck_identifier,
             status: truck.status === 'enroute' ? 'moving' : truck.status === 'idle' ? 'stopped' : truck.status,
-            location: (coordLat && coordLon && isValidCoordinate(coordLat, coordLon)) ? `${coordLat.toFixed(3)}, ${coordLon.toFixed(3)}` : null,
+            location: (Number.isFinite(coordLat) && Number.isFinite(coordLon) && isValidCoordinate(coordLat, coordLon)) ? `${Number(coordLat).toFixed(3)}, ${Number(coordLon).toFixed(3)}` : null,
             location_name: location_name,
             latitude: coordLat,
             longitude: coordLon,
@@ -642,7 +642,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
           transformedTrucks.forEach((truck, idx) => {
             // ✅ UPDATE instead of ADD: Check if marker exists
             if (markersRef.current[truck.id]) {
-              console.log(`  🔄 Updating marker for: ${truck.identifier} → lat=${truck.latitude?.toFixed(4)}, lon=${truck.longitude?.toFixed(4)}`);
+              console.log(`  🔄 Updating marker for: ${truck.identifier} → lat=${Number.isFinite(truck.latitude) ? Number(truck.latitude).toFixed(4) : 'N/A'}, lon=${Number.isFinite(truck.longitude) ? Number(truck.longitude).toFixed(4) : 'N/A'}`);
               updateTruckMarker(truck);  // Update position
             } else {
               console.log(`  📍 Adding new marker ${idx + 1}/${transformedTrucks.length}: ${truck.identifier}`);

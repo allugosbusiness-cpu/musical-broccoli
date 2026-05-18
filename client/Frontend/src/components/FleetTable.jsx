@@ -94,7 +94,7 @@ export default function FleetTable({ onTruckSelect, highlightedTruck = null, ref
               addressMap[truck.truck_identifier] = address;
             } catch (error) {
               console.error(`Failed to geocode ${truck.truck_identifier}:`, error);
-              addressMap[truck.truck_identifier] = `${truck.location.lat.toFixed(3)}, ${truck.location.lon.toFixed(3)}`;
+              addressMap[truck.truck_identifier] = (Number.isFinite(truck.location?.lat) && Number.isFinite(truck.location?.lon)) ? `${Number(truck.location.lat).toFixed(3)}, ${Number(truck.location.lon).toFixed(3)}` : 'No coords';
             }
           }
         }
@@ -221,7 +221,7 @@ export default function FleetTable({ onTruckSelect, highlightedTruck = null, ref
                   <td className="px-4 py-3 font-mono text-slate-300">{truck.plate}</td>
                   <td className="px-4 py-3 text-slate-200">{truck.assigned_driver || '—'}</td>
                   <td className="px-4 py-3"><StatusPill status={truck.status} /></td>
-                  <td className="px-4 py-3 text-slate-300 text-xs">{addresses[truck.truck_identifier] || (truck.latitude ? `${truck.latitude?.toFixed(3)}, ${truck.longitude?.toFixed(3)}` : '—')}</td>
+                  <td className="px-4 py-3 text-slate-300 text-xs">{addresses[truck.truck_identifier] || (Number.isFinite(truck.latitude) && Number.isFinite(truck.longitude) ? `${Number(truck.latitude).toFixed(3)}, ${Number(truck.longitude).toFixed(3)}` : '—')}</td>
                   <td className="px-4 py-3 font-mono text-slate-300">{'—'}</td>
                   <td className="px-4 py-3 text-slate-400 text-xs">{'—'}</td>
                   <td className="px-4 py-3"><ProgressBar progress={0} status={truck.status} /></td>

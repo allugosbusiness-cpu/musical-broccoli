@@ -226,7 +226,7 @@ export default function FuelTracking({ refreshTrigger = 0 }) {
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className="text-2xl font-bold text-gray-900">
-                        {fuelData?.fuelPercent.toFixed(1)}%
+                        {Number.isFinite(fuelData?.fuelPercent) ? Number(fuelData.fuelPercent).toFixed(1) : '0.0'}%
                       </span>
                       <span className="text-xs text-gray-600">{fuelData?.currentFuel}L</span>
                     </div>
@@ -250,10 +250,10 @@ export default function FuelTracking({ refreshTrigger = 0 }) {
                     <div>
                       <p className="text-xs text-gray-600">Fuel Efficiency</p>
                       <p className="text-lg font-bold text-gray-900">
-                        {fuelData?.efficiency.toFixed(2)} km/L
+                        {Number.isFinite(fuelData?.efficiency) ? Number(fuelData.efficiency).toFixed(2) : '0.00'} km/L
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        ~{(fuelData?.efficiency * 2.352).toFixed(1)} MPG
+                        ~{Number.isFinite(fuelData?.efficiency) ? (Number(fuelData.efficiency) * 2.352).toFixed(1) : '0.0'} MPG
                       </p>
                     </div>
                   </div>
