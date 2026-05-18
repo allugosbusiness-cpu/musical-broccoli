@@ -9,46 +9,52 @@ import uuid
 def clear_old_migrations(apps, schema_editor):
     """Delete all old api app migrations from database"""
     from django.db import connection
+    
+    print("\n[MIGRATION] Step 1: Clearing old api migration records...")
     with connection.cursor() as cursor:
         try:
-            # Delete all old api migration records
+            # Delete all old api migration records - be aggressive
             cursor.execute("""
                 DELETE FROM django_migrations 
                 WHERE app IN ('api', 'api.deprecated') OR app LIKE 'api.%%'
             """)
             deleted = cursor.rowcount
-            print(f"✅ Cleared {deleted} old api app migration record(s)")
+            print(f"[MIGRATION] ✓ Deleted {deleted} old api migration record(s)")
         except Exception as e:
-            # Table might not exist on first run
-            print(f"ℹ️  Could not clear old migrations (table may not exist yet)")
+            # Log but don't fail - django_migrations might not exist on first run
+            print(f"[MIGRATION] ℹ Could not delete old migrations: {e}")
 
 
 def drop_existing_v2_tables(apps, schema_editor):
     """Drop existing fleet tables to ensure clean creation"""
     from django.db import connection
+    
+    print("\n[MIGRATION] Step 2: Dropping old fleet tables...")
+    tables_to_drop = [
+        'fleet_admin_audit_logs',
+        'fleet_driver_performance_daily',
+        'fleet_dispute_comments',
+        'fleet_disputes',
+        'alerts',
+        'fleet_activities',
+        'fleet_truck_locations',
+        'fleet_missions',
+        'fleet_trucks',
+        'fleet_drivers',
+    ]
+    
     with connection.cursor() as cursor:
-        tables_to_drop = [
-            'fleet_admin_audit_logs',
-            'fleet_driver_performance_daily',
-            'fleet_dispute_comments',
-            'fleet_disputes',
-            'alerts',
-            'fleet_activities',
-            'fleet_truck_locations',
-            'fleet_missions',
-            'fleet_trucks',
-            'fleet_drivers',
-        ]
         for table in tables_to_drop:
             try:
                 if connection.vendor == 'postgresql':
                     cursor.execute(f'DROP TABLE IF EXISTS "{table}" CASCADE')
                 else:  # SQLite
                     cursor.execute(f'DROP TABLE IF EXISTS {table}')
-                print(f"✅ Dropped table: {table}")
+                print(f"[MIGRATION] ✓ Dropped: {table}")
             except Exception as e:
-                # Table might not exist, which is fine
-                pass
+                # Log errors but don't fail if table doesn't exist
+                if 'does not exist' not in str(e):
+                    print(f"[MIGRATION] ⚠ Error dropping {table}: {e}")
 
 
 class Migration(migrations.Migration):
