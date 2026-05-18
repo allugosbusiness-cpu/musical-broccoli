@@ -228,16 +228,42 @@ def get_all_trucks_current_locations(request):
         
         trucks_data = []
         for truck in trucks:
-            trucks_data.append({
-                'truck_id': str(truck.id),
-                'truck_identifier': truck.truck_identifier,
-                'plate': truck.plate,
-                'status': truck.status,
-                'latitude': float(truck.last_latitude) if truck.last_latitude else 0,
-                'longitude': float(truck.last_longitude) if truck.last_longitude else 0,
-                'speed_kmh': float(truck.speed_kmh) if truck.speed_kmh else 0,
-                'assigned_driver': truck.assigned_driver.get_display_name() if truck.assigned_driver else None,
-            })
+            try:
+                # Safely extract coordinates, defaulting to 0 if missing
+                latitude = 0
+                longitude = 0
+                
+                if truck.last_latitude is not None:
+                    latitude = float(truck.last_latitude)
+                elif truck.latitude is not None:
+                    latitude = float(truck.latitude)
+                
+                if truck.last_longitude is not None:
+                    longitude = float(truck.last_longitude)
+                elif truck.longitude is not None:
+                    longitude = float(truck.longitude)
+                
+                # Get driver name safely
+                driver_name = None
+                if truck.assigned_driver:
+                    try:
+                        driver_name = truck.assigned_driver.get_display_name()
+                    except:
+                        driver_name = None
+                
+                trucks_data.append({
+                    'truck_id': str(truck.id),
+                    'truck_identifier': truck.truck_identifier or 'Unknown',
+                    'plate': truck.plate or 'N/A',
+                    'status': truck.status or 'idle',
+                    'latitude': latitude,
+                    'longitude': longitude,
+                    'speed_kmh': float(truck.speed_kmh) if truck.speed_kmh else 0,
+                    'assigned_driver': driver_name,
+                })
+            except Exception as truck_err:
+                print(f'Error processing truck {truck.id}: {str(truck_err)}')
+                continue
         
         return Response({
             'count': len(trucks_data),
@@ -245,4 +271,9 @@ def get_all_trucks_current_locations(request):
         }, status=status.HTTP_200_OK)
         
     except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        print(f'Error in get_all_trucks_current_locations: {str(e)}')
+        return Response({
+            'error': str(e),
+            'trucks': [],
+            'count': 0
+        }, status=status.HTTP_200_OK)  # Return 200 even on error with empty data

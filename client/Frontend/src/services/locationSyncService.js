@@ -77,10 +77,13 @@ class LocationSyncService {
       });
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Location API returned ${response.status}:`, errorText);
         throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log('📊 Location API response:', data);
       
       // Handle both response formats
       const trucks = data.trucks || data.results || (Array.isArray(data) ? data : []);

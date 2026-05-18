@@ -1739,7 +1739,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
                         className="w-full text-left px-3 py-2 text-slate-300 hover:bg-blue-600/50 border-b border-slate-600 last:border-b-0 transition"
                       >
                         <div className="font-medium text-white">{location.name}</div>
-                        <div className="text-xs text-slate-400">{location.lat.toFixed(4)}, {location.lon.toFixed(4)}</div>
+                        <div className="text-xs text-slate-400">{(location.lat && location.lon) ? `${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}` : 'No coordinates'}</div>
                       </button>
                     ))}
                   </div>
@@ -1765,7 +1765,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
                         className="w-full text-left px-3 py-2 text-slate-300 hover:bg-blue-600/50 border-b border-slate-600 last:border-b-0 transition"
                       >
                         <div className="font-medium text-white">{location.name}</div>
-                        <div className="text-xs text-slate-400">{location.lat.toFixed(4)}, {location.lon.toFixed(4)}</div>
+                        <div className="text-xs text-slate-400">{(location.lat && location.lon) ? `${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}` : 'No coordinates'}</div>
                       </button>
                     ))}
                   </div>
@@ -1791,7 +1791,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
                         className="w-full text-left px-3 py-2 text-slate-300 hover:bg-blue-600/50 border-b border-slate-600 last:border-b-0 transition"
                       >
                         <div className="font-medium text-white">{location.name}</div>
-                        <div className="text-xs text-slate-400">{location.lat.toFixed(4)}, {location.lon.toFixed(4)}</div>
+                        <div className="text-xs text-slate-400">{(location.lat && location.lon) ? `${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}` : 'No coordinates'}</div>
                       </button>
                     ))}
                   </div>
