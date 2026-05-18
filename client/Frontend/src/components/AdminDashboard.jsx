@@ -1235,7 +1235,12 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
 
       if (!orig || !dest) return 0;
 
-      const response = await fetch('http://localhost:8000/api/v1/calculate-distance/', {
+      // Use the backend API URL (works in both dev and production)
+      const backendUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:8000/api/v1/calculate-distance/'
+        : 'https://pulsetrack-back.onrender.com/api/v1/calculate-distance/';
+
+      const response = await fetch(backendUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1245,15 +1250,15 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
       });
 
       if (!response.ok) {
-        console.error('OSRM API error:', response.status);
+        console.error('Distance API error:', response.status);
         return 0;
       }
 
       const data = await response.json();
-      console.log('OSRM distance:', data);
-      return data.distance_meters || 0;
+      console.log('Distance API response:', data);
+      return data.distance_meters || data.distance_m || 0;
     } catch (err) {
-      console.error('OSRM error:', err);
+      console.error('Distance calculation error:', err);
       return 0;
     }
   };

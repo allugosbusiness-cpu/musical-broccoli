@@ -76,11 +76,11 @@ class MissionSerializer(serializers.ModelSerializer):
         if not origin or not destination:
             return Decimal('0')
         
-        # Extract coordinates
+        # Extract coordinates - support multiple key formats: lat/lon, lat/lng, latitude/longitude
         lat1 = float(origin.get('lat', origin.get('latitude', 0)))
-        lon1 = float(origin.get('lng', origin.get('longitude', 0)))
+        lon1 = float(origin.get('lon', origin.get('lng', origin.get('longitude', 0))))
         lat2 = float(destination.get('lat', destination.get('latitude', 0)))
-        lon2 = float(destination.get('lng', destination.get('longitude', 0)))
+        lon2 = float(destination.get('lon', destination.get('lng', destination.get('longitude', 0))))
         
         if lat1 == 0 or lon1 == 0 or lat2 == 0 or lon2 == 0:
             return Decimal('0')

@@ -36,7 +36,7 @@ class TruckViewSet(viewsets.ModelViewSet):
 
 
 class MissionViewSet(viewsets.ModelViewSet):
-    queryset = FleetMission.objects.all()
+    queryset = FleetMission.objects.select_related('truck', 'driver').all()
     serializer_class = MissionSerializer
     permission_classes = [AllowAny]
 
@@ -127,7 +127,7 @@ def dashboard_trucks(request):
 def dashboard_missions(request):
     """Get all missions for dashboard"""
     try:
-        missions = FleetMission.objects.all()
+        missions = FleetMission.objects.select_related('truck', 'driver').all()
         serializer = MissionSerializer(missions, many=True)
         return Response(serializer.data)
     except Exception as e:
@@ -221,27 +221,43 @@ def truck_tracking_all_locations(request):
 
 @api_view(['POST'])
 def calculate_distance(request):
-    """Calculate distance between two coordinates"""
+    """Calculate distance between two coordinates
+    
+    Accept formats:
+    1. {origin: {lat, lon}, destination: {lat, lon}}
+    2. {lat1, lon1, lat2, lon2}
+    """
     try:
         from math import radians, cos, sin, asin, sqrt
         
         data = request.data
-        lat1 = float(data.get('lat1', 0))
-        lon1 = float(data.get('lon1', 0))
-        lat2 = float(data.get('lat2', 0))
-        lon2 = float(data.get('lon2', 0))
+        
+        # Support both formats
+        if 'origin' in data and 'destination' in data:
+            origin = data['origin']
+            destination = data['destination']
+            lat1 = float(origin.get('lat', 0))
+            lon1 = float(origin.get('lon', origin.get('lng', 0)))
+            lat2 = float(destination.get('lat', 0))
+            lon2 = float(destination.get('lon', destination.get('lng', 0)))
+        else:
+            lat1 = float(data.get('lat1', 0))
+            lon1 = float(data.get('lon1', 0))
+            lat2 = float(data.get('lat2', 0))
+            lon2 = float(data.get('lon2', 0))
         
         # Haversine formula for distance calculation
-        lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
-        dlon = lon2 - lon1
-        dlat = lat2 - lat1
-        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+        lon1_rad, lat1_rad, lon2_rad, lat2_rad = map(radians, [lon1, lat1, lon2, lat2])
+        dlon = lon2_rad - lon1_rad
+        dlat = lat2_rad - lat1_rad
+        a = sin(dlat/2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon/2)**2
         c = 2 * asin(sqrt(a))
         km = 6371 * c  # Radius of earth in kilometers
         
         return Response({
             'distance_km': round(km, 2),
             'distance_m': round(km * 1000, 2),
+            'distance_meters': round(km * 1000, 2),  # Frontend uses this key
             'from': {'latitude': lat1, 'longitude': lon1},
             'to': {'latitude': lat2, 'longitude': lon2}
         })
@@ -338,7 +354,7 @@ def mobile_get_available_missions(request, driver_id):
         
         # Get missions that are assigned to this driver or are available (not yet assigned)
         # Missions can be: planned, assigned, enroute, paused, completed, cancelled
-        missions = FleetMission.objects.filter(
+        missions = FleetMission.objects.select_related('truck', 'driver').filter(
             driver=driver,
             status__in=['assigned', 'planned']
         ).order_by('-created_at')
