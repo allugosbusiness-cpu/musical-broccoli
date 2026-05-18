@@ -383,7 +383,6 @@ def mobile_get_available_missions(request, driver_id):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
 def mobile_mission_start_tracking(request):
     """Start tracking for a mission - called when driver accepts and starts mission"""
     try:
