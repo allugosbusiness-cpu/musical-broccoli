@@ -29,7 +29,7 @@ def dummy_view(request, *args, **kwargs):
 def safe_import(module_name, functions):
     imported = {}
     try:
-        module = importlib.import_module(f'api.{module_name}')
+        module = importlib.import_module(f'server.api.{module_name}')
         for func in functions:
             imported[func] = getattr(module, func, dummy_view)
     except (ImportError, ModuleNotFoundError) as e:
