@@ -255,6 +255,7 @@ def calculate_distance(request):
 def mobile_driver_registration(request):
     """Register a mobile driver - returns driver_id for AsyncStorage"""
     try:
+        import json
         data = request.data
         
         phone_number = data.get('phone_number')
@@ -277,6 +278,35 @@ def mobile_driver_registration(request):
             }
         )
         
+        # Extract truck from QR data if provided
+        truck_id = None
+        truck_name = None
+        qr_data_str = data.get('qr_data')
+        
+        if qr_data_str:
+            try:
+                # QR data might be stringified JSON
+                if isinstance(qr_data_str, str):
+                    qr_data = json.loads(qr_data_str)
+                else:
+                    qr_data = qr_data_str
+                
+                # Extract truck_id from QR data
+                qr_truck_id = qr_data.get('truck_id')
+                if qr_truck_id:
+                    # Verify truck exists
+                    truck = FleetTruck.objects.filter(id=qr_truck_id).first()
+                    if truck:
+                        driver.truck = truck
+                        driver.save()
+                        truck_id = str(truck.id)
+                        truck_name = truck.truck_identifier
+                        logger.info(f'Assigned truck {truck_name} to driver {phone_number}')
+                    else:
+                        logger.warning(f'QR truck_id {qr_truck_id} not found in database')
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f'Could not parse qr_data: {str(e)}')
+        
         serializer = DriverSerializer(driver)
         driver_data = serializer.data
         
@@ -286,8 +316,8 @@ def mobile_driver_registration(request):
             'created': created,
             'driver_id': str(driver.id),  # UUID converted to string for mobile storage
             'driver_name': f"{driver.first_name} {driver.last_name}",
-            'truck_id': str(driver.truck_id) if driver.truck_id else None,
-            'truck_name': driver.truck.truck_identifier if driver.truck else None,
+            'truck_id': truck_id or (str(driver.truck_id) if driver.truck_id else None),
+            'truck_name': truck_name or (driver.truck.truck_identifier if driver.truck else None),
             'phone_number': driver.phone_number,
             'driver': driver_data,
             'message': 'Driver registered successfully' if created else 'Driver already exists'
