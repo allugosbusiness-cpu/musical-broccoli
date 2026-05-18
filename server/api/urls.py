@@ -9,7 +9,9 @@ from .views import (
     LocationViewSet, ActivityViewSet, PerformanceViewSet,
     AlertViewSet, health_check, api_root,
     dashboard_drivers, dashboard_trucks, dashboard_missions,
-    dashboard_summary, dashboard_recalculate_performance
+    dashboard_summary, dashboard_recalculate_performance,
+    truck_tracking_all_locations, calculate_distance,
+    mobile_driver_registration
 )
 
 router = DefaultRouter()
@@ -55,7 +57,12 @@ urlpatterns = [
     path('v1/dashboard/missions/', dashboard_missions, name='dashboard-missions'),
     path('v1/dashboard/summary/', dashboard_summary, name='dashboard-summary'),
     path('v1/dashboard/recalculate-performance/', dashboard_recalculate_performance, name='dashboard-recalculate-performance'),
-    # Mobile endpoints (if module exists)
+    # Truck tracking endpoints
+    path('v1/truck-tracking/all-locations/', truck_tracking_all_locations, name='truck-tracking-all-locations'),
+    path('v1/calculate-distance/', calculate_distance, name='calculate-distance'),
+    # Mobile endpoints
+    path('v1/mobile/driver-registration/', mobile_driver_registration, name='mobile-driver-registration'),
+    # Legacy mobile endpoints (if module exists)
     path('v1/mobile/register/', mobile.get('mobile_driver_registration', dummy_view), name='mobile-register'),
     path('v1/mobile/location/', mobile.get('mobile_location_update', dummy_view), name='mobile-location'),
     path('v1/mobile/profile/', mobile.get('mobile_driver_profile', dummy_view), name='mobile-profile'),

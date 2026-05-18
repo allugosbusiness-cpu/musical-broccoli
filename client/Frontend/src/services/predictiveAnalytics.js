@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:8000/api';
+const API_BASE = import.meta.env.MODE === 'development' ? 'http://localhost:8000/api' : 'https://pulsetrack-back.onrender.com/api/v1';
 
 /**
  * Advanced Predictive Analytics Engine

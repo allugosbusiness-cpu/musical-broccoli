@@ -182,3 +182,106 @@ def dashboard_recalculate_performance(request):
     except Exception as e:
         logger.error(f'Error recalculating performance: {str(e)}')
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# Truck Tracking Endpoints
+@api_view(['GET'])
+def truck_tracking_all_locations(request):
+    """Get all truck current locations for real-time tracking"""
+    try:
+        locations = TruckLocation.objects.select_related('truck', 'driver').order_by('-timestamp').distinct('truck')
+        
+        trucks_data = []
+        for loc in locations:
+            trucks_data.append({
+                'truck_id': str(loc.truck.id),
+                'truck_identifier': loc.truck.truck_identifier,
+                'plate': loc.truck.plate,
+                'latitude': float(loc.latitude),
+                'longitude': float(loc.longitude),
+                'speed': float(loc.speed),
+                'accuracy': float(loc.accuracy),
+                'altitude': float(loc.altitude),
+                'timestamp': loc.timestamp.isoformat(),
+                'driver_id': str(loc.driver.id) if loc.driver else None,
+                'driver_name': f"{loc.driver.first_name} {loc.driver.last_name}" if loc.driver else None,
+                'status': loc.truck.status,
+            })
+        
+        return Response({
+            'trucks': trucks_data,
+            'count': len(trucks_data)
+        })
+    except Exception as e:
+        logger.error(f'Error fetching truck locations: {str(e)}')
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+def calculate_distance(request):
+    """Calculate distance between two coordinates"""
+    try:
+        from math import radians, cos, sin, asin, sqrt
+        
+        data = request.data
+        lat1 = float(data.get('lat1', 0))
+        lon1 = float(data.get('lon1', 0))
+        lat2 = float(data.get('lat2', 0))
+        lon2 = float(data.get('lon2', 0))
+        
+        # Haversine formula for distance calculation
+        lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+        dlon = lon2 - lon1
+        dlat = lat2 - lat1
+        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+        c = 2 * asin(sqrt(a))
+        km = 6371 * c  # Radius of earth in kilometers
+        
+        return Response({
+            'distance_km': round(km, 2),
+            'distance_m': round(km * 1000, 2),
+            'from': {'latitude': lat1, 'longitude': lon1},
+            'to': {'latitude': lat2, 'longitude': lon2}
+        })
+    except Exception as e:
+        logger.error(f'Error calculating distance: {str(e)}')
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Mobile Endpoints
+@api_view(['POST'])
+def mobile_driver_registration(request):
+    """Register a mobile driver"""
+    try:
+        data = request.data
+        
+        phone_number = data.get('phone_number')
+        first_name = data.get('first_name', 'Mobile')
+        last_name = data.get('last_name', 'Driver')
+        
+        if not phone_number:
+            return Response(
+                {'error': 'phone_number is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if driver exists
+        driver, created = FleetDriver.objects.get_or_create(
+            phone_number=phone_number,
+            defaults={
+                'first_name': first_name,
+                'last_name': last_name,
+                'status': 'active'
+            }
+        )
+        
+        serializer = DriverSerializer(driver)
+        return Response({
+            'success': True,
+            'created': created,
+            'driver': serializer.data,
+            'message': 'Driver registered successfully' if created else 'Driver already exists'
+        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+    except Exception as e:
+        logger.error(f'Error registering driver: {str(e)}')
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

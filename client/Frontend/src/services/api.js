@@ -351,7 +351,7 @@ export const getTruckTrail = async (truckId, limit = 100) => {
 export const getTruckTrailWithDirections = async (truckId, limit = 200) => {
   try {
     // Use legacy API endpoint (not v1)
-    const baseUrl = import.meta.env.MODE === 'development' ? 'http://localhost:8000' : 'https://pulsetrack-back.onrender.com';
+    const baseUrl = 'https://pulsetrack-back.onrender.com';
     const response = await axios.get(`${baseUrl}/api/trucks/${truckId}/truck_trail_with_directions/`, { 
       params: { limit },
       withCredentials: true
@@ -652,7 +652,8 @@ export const predictTrafficMultiRoute = async (routes, departureTime = new Date(
  * Subscribe to live route optimization
  */
 export const subscribeLiveOptimization = (vehicleId, destination) => {
-  const wsUrl = `ws://localhost:8000/api/routes/live-optimize/${vehicleId}/?destination=${destination}`;
+  // Note: WebSocket not currently supported for production
+  const wsUrl = `wss://pulsetrack-back.onrender.com/api/routes/live-optimize/${vehicleId}/?destination=${destination}`;
   return new WebSocket(wsUrl);
 };
 
