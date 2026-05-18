@@ -52,17 +52,16 @@ mobile = safe_import('mobile_endpoints', [
 urlpatterns = [
     path('v1/', api_root, name='api-root'),
     path('v1/health/', health_check, name='health-check'),
-    path('v1/', include(router.urls)),
-    # Dashboard endpoints
+    # Dashboard endpoints (specific, before router)
     path('v1/dashboard/drivers/', dashboard_drivers, name='dashboard-drivers'),
     path('v1/dashboard/trucks/', dashboard_trucks, name='dashboard-trucks'),
     path('v1/dashboard/missions/', dashboard_missions, name='dashboard-missions'),
     path('v1/dashboard/summary/', dashboard_summary, name='dashboard-summary'),
     path('v1/dashboard/recalculate-performance/', dashboard_recalculate_performance, name='dashboard-recalculate-performance'),
-    # Truck tracking endpoints
+    # Truck tracking endpoints (specific, before router)
     path('v1/truck-tracking/all-locations/', truck_tracking_all_locations, name='truck-tracking-all-locations'),
     path('v1/calculate-distance/', calculate_distance, name='calculate-distance'),
-    # Mobile endpoints
+    # Mobile endpoints (specific, before router)
     path('v1/mobile/driver-registration/', mobile_driver_registration, name='mobile-driver-registration'),
     path('v1/mobile/driver/<str:driver_id>/available-missions/', mobile_get_available_missions, name='mobile-available-missions'),
     path('v1/mobile/mission/start-tracking/', mobile_mission_start_tracking, name='mobile-mission-start-tracking'),
@@ -72,4 +71,6 @@ urlpatterns = [
     path('v1/mobile/profile/', mobile.get('mobile_driver_profile', dummy_view), name='mobile-profile'),
     path('v1/mobile/mission/current/', mobile.get('mobile_driver_current_mission', dummy_view), name='mobile-current-mission'),
     path('v1/mobile/mission/complete/', mobile.get('mobile_mission_complete', dummy_view), name='mobile-complete'),
+    # Router patterns (generic, after specific paths)
+    path('v1/', include(router.urls)),
 ]
