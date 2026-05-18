@@ -20,6 +20,30 @@ def clear_old_migrations(apps, schema_editor):
             print(f"ℹ️  Could not clear old migrations (table may not exist yet on first run)")
 
 
+def drop_existing_v2_tables(apps, schema_editor):
+    """Drop existing fleet tables to ensure clean creation"""
+    from django.db import connection
+    with connection.cursor() as cursor:
+        tables_to_drop = [
+            'fleet_admin_audit_logs',
+            'fleet_driver_performance_daily',
+            'fleet_dispute_comments',
+            'fleet_disputes',
+            'alerts',
+            'fleet_activities',
+            'fleet_truck_locations',
+            'fleet_missions',
+            'fleet_trucks',
+            'fleet_drivers',
+        ]
+        for table in tables_to_drop:
+            try:
+                cursor.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
+                print(f"✅ Dropped table: {table}")
+            except Exception as e:
+                print(f"ℹ️  Could not drop {table}: {e}")
+
+
 class Migration(migrations.Migration):
 
     initial = True
@@ -30,6 +54,9 @@ class Migration(migrations.Migration):
     operations = [
         # Step 1: Clean up old migration records
         migrations.RunPython(clear_old_migrations, reverse_code=migrations.RunPython.noop),
+        
+        # Step 1b: Drop existing V2 tables to ensure clean creation
+        migrations.RunPython(drop_existing_v2_tables, reverse_code=migrations.RunPython.noop),
         
         # Step 2: Create FleetDriver table
         migrations.CreateModel(
