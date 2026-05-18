@@ -236,7 +236,7 @@ export function SmartRoutePlanner() {
                                 {alt.reason || `Route ${idx + 1}`}
                               </p>
                               <p className="text-xs text-slate-400 mt-1">
-                                {alt.distance_km?.toFixed(1)} km • {((alt.duration_seconds || 0) / 3600).toFixed(1)} h • {alt.fuel_liters?.toFixed(1)} L
+                                {Number.isFinite(alt?.distance_km) ? Number(alt.distance_km).toFixed(1) : '0.0'} km • {Number.isFinite((alt?.duration_seconds || 0) / 3600) ? (Number((alt.duration_seconds || 0) / 3600)).toFixed(1) : '0.0'} h • {Number.isFinite(alt?.fuel_liters) ? Number(alt.fuel_liters).toFixed(1) : '0.0'} L
                               </p>
                             </div>
                             {selectedAlt === idx + 1 && (
@@ -272,7 +272,7 @@ export function SmartRoutePlanner() {
                 >
                   <p className="font-semibold text-white text-sm mb-1">{seg.name || `Segment ${idx + 1}`}</p>
                   <p className="text-xs text-slate-400">
-                    {seg.length_km?.toFixed(1)} km @ {seg.speed_kmh} km/h
+                    {Number.isFinite(seg?.length_km) ? Number(seg.length_km).toFixed(1) : '0.0'} km @ {seg.speed_kmh} km/h
                   </p>
                 </div>
               ))}

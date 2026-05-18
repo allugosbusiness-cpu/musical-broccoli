@@ -192,10 +192,15 @@ export default function TruckLocationSpeedWidget() {
           <p className="text-slate-400">Avg Speed</p>
           <p className="text-lg font-bold text-blue-400">
             {trucks.length > 0
-              ? (
-                  trucks.reduce((sum, t) => sum + t.speed_kmh, 0) /
+              ? Number.isFinite(
+                  trucks.reduce((sum, t) => sum + (Number.isFinite(t.speed_kmh) ? t.speed_kmh : 0), 0) /
                   trucks.length
-                ).toFixed(1)
+                ) ? (
+                  (
+                    trucks.reduce((sum, t) => sum + (Number.isFinite(t.speed_kmh) ? t.speed_kmh : 0), 0) /
+                    trucks.length
+                  ).toFixed(1)
+                ) : '0.0'
               : '0'}{' '}
             km/h
           </p>

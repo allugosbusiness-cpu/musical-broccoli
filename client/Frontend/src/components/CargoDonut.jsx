@@ -42,7 +42,7 @@ export default function CargoDonut() {
           };
           return {
             type,
-            weight: parseFloat(weight.toFixed(2)),
+            weight: Number.isFinite(weight) ? parseFloat(Number(weight).toFixed(2)) : 0,
             color: config.color,
             Icon: config.Icon,
           };
