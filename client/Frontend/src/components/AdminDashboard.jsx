@@ -1363,12 +1363,17 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
         
         const updateData = {
           ...formData,
+          truck: formData.truck_id || null,  // API expects 'truck' not 'truck_id'
+          driver: formData.driver_id || null,  // API expects 'driver' not 'driver_id'
           status: statusValue,
           distance_total_m: parseInt(formData.distance_total_m) || 0,
           est_time_minutes: parseInt(formData.est_time_minutes) || 0,
           weight_kg: parseFloat(formData.weight_kg) || 0,
           progress_pct: progressValue
         };
+        // Remove the old field names to avoid conflicts
+        delete updateData.truck_id;
+        delete updateData.driver_id;
         await updateV1Mission(editingId, updateData);
         setSuccess('Mission updated successfully');
         setEditingId(null);
@@ -1407,8 +1412,8 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
         
         const createData = {
           mission_number: formData.mission_number,
-          truck_id: formData.truck_id || null,
-          driver_id: formData.driver_id || null,
+          truck: formData.truck_id || null,  // API expects 'truck' not 'truck_id'
+          driver: formData.driver_id || null,  // API expects 'driver' not 'driver_id'
           status: statusValue,
           distance_total_m: parseInt(formData.distance_total_m) || 0,
           progress_pct: progressValue,
@@ -1425,7 +1430,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
           setError('Mission number is required');
           return;
         }
-        if (!createData.truck_id) {
+        if (!createData.truck) {
           setError('Truck selection is required');
           return;
         }
