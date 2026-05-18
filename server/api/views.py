@@ -253,7 +253,7 @@ def calculate_distance(request):
 # Mobile Endpoints
 @api_view(['POST'])
 def mobile_driver_registration(request):
-    """Register a mobile driver"""
+    """Register a mobile driver - returns driver_id for AsyncStorage"""
     try:
         data = request.data
         
@@ -278,12 +278,22 @@ def mobile_driver_registration(request):
         )
         
         serializer = DriverSerializer(driver)
-        return Response({
+        driver_data = serializer.data
+        
+        # Return driver_id and truck_id in format expected by mobile app
+        response_data = {
             'success': True,
             'created': created,
-            'driver': serializer.data,
+            'driver_id': str(driver.id),  # UUID converted to string for mobile storage
+            'driver_name': f"{driver.first_name} {driver.last_name}",
+            'truck_id': str(driver.truck_id) if driver.truck_id else None,
+            'truck_name': driver.truck.truck_identifier if driver.truck else None,
+            'phone_number': driver.phone_number,
+            'driver': driver_data,
             'message': 'Driver registered successfully' if created else 'Driver already exists'
-        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        }
+        
+        return Response(response_data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
     except Exception as e:
         logger.error(f'Error registering driver: {str(e)}')
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
