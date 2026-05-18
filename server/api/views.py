@@ -318,6 +318,9 @@ def mobile_get_available_missions(request, driver_id):
         return Response({
             'success': True,
             'driver_id': str(driver.id),
+            'driver_name': f"{driver.first_name} {driver.last_name}",
+            'truck_id': str(driver.truck.id) if driver.truck else None,
+            'truck_name': driver.truck.truck_identifier if driver.truck else None,
             'missions': serializer.data,
             'count': missions.count()
         }, status=status.HTTP_200_OK)
