@@ -39,6 +39,53 @@ class MissionViewSet(viewsets.ModelViewSet):
     queryset = FleetMission.objects.select_related('truck', 'driver').all()
     serializer_class = MissionSerializer
     permission_classes = [AllowAny]
+    
+    @action(detail=False, methods=['post'], name='start-tracking', url_path='start-tracking')
+    def start_tracking(self, request):
+        """Start tracking for a mission - custom action"""
+        try:
+            data = request.data
+            driver_id = data.get('driver_id')
+            mission_id = data.get('mission_id')
+            
+            if not driver_id or not mission_id:
+                return Response(
+                    {'error': 'driver_id and mission_id are required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            driver = FleetDriver.objects.get(id=driver_id)
+            mission = FleetMission.objects.get(id=mission_id)
+            
+            mission.status = 'enroute'
+            mission.started_at = timezone.now()
+            mission.save()
+            
+            serializer = MissionSerializer(mission)
+            
+            return Response({
+                'success': True,
+                'message': f'Mission tracking started for mission {mission.mission_number}',
+                'driver_id': str(driver.id),
+                'mission': serializer.data,
+                'started_at': mission.started_at.isoformat()
+            }, status=status.HTTP_200_OK)
+            
+        except FleetDriver.DoesNotExist:
+            logger.warning(f'Driver not found: {driver_id}')
+            return Response(
+                {'error': f'Driver {driver_id} not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except FleetMission.DoesNotExist:
+            logger.warning(f'Mission not found: {mission_id}')
+            return Response(
+                {'error': f'Mission {mission_id} not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f'Error starting mission tracking: {str(e)}')
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class LocationViewSet(viewsets.ModelViewSet):
@@ -379,56 +426,4 @@ def mobile_get_available_missions(request, driver_id):
         )
     except Exception as e:
         logger.error(f'Error fetching available missions: {str(e)}')
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(['POST'])
-def mobile_mission_start_tracking(request):
-    """Start tracking for a mission - called when driver accepts and starts mission"""
-    try:
-        data = request.data
-        driver_id = data.get('driver_id')
-        mission_id = data.get('mission_id')
-        
-        if not driver_id or not mission_id:
-            return Response(
-                {'error': 'driver_id and mission_id are required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Verify driver exists
-        driver = FleetDriver.objects.get(id=driver_id)
-        
-        # Get and update mission
-        mission = FleetMission.objects.get(id=mission_id)
-        
-        # Update mission status to ENROUTE
-        mission.status = 'enroute'
-        mission.started_at = timezone.now()
-        mission.save()
-        
-        serializer = MissionSerializer(mission)
-        
-        return Response({
-            'success': True,
-            'message': f'Mission tracking started for mission {mission.mission_number}',
-            'driver_id': str(driver.id),
-            'mission': serializer.data,
-            'started_at': mission.started_at.isoformat()
-        }, status=status.HTTP_200_OK)
-        
-    except FleetDriver.DoesNotExist:
-        logger.warning(f'Driver not found: {driver_id}')
-        return Response(
-            {'error': f'Driver {driver_id} not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    except FleetMission.DoesNotExist:
-        logger.warning(f'Mission not found: {mission_id}')
-        return Response(
-            {'error': f'Mission {mission_id} not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    except Exception as e:
-        logger.error(f'Error starting mission tracking: {str(e)}')
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
