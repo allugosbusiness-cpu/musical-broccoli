@@ -8,7 +8,7 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('server', '0001_initial'),
+        ('server.api', '0001_initial'),
     ]
 
     operations = [
