@@ -382,6 +382,51 @@ def mobile_get_available_missions(request, driver_id):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['GET'])
+def mobile_get_current_mission(request, driver_id):
+    """Get the current mission being tracked by a driver"""
+    try:
+        # Verify driver exists
+        driver = FleetDriver.objects.get(id=driver_id)
+        
+        # Get the mission currently being tracked (status='enroute')
+        mission = FleetMission.objects.select_related('truck', 'driver').filter(
+            driver=driver,
+            status='enroute'
+        ).first()
+        
+        if not mission:
+            # If no enroute mission, try to get the most recent one
+            mission = FleetMission.objects.select_related('truck', 'driver').filter(
+                driver=driver
+            ).order_by('-started_at').first()
+            
+            if not mission:
+                return Response(
+                    {'error': 'No active mission found', 'status': None},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
+        serializer = MissionSerializer(mission)
+        
+        return Response({
+            'success': True,
+            'driver_id': str(driver.id),
+            'mission': serializer.data,
+            'status': mission.status
+        }, status=status.HTTP_200_OK)
+        
+    except FleetDriver.DoesNotExist:
+        logger.warning(f'Driver not found: {driver_id}')
+        return Response(
+            {'error': f'Driver {driver_id} not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f'Error fetching current mission: {str(e)}')
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @api_view(['POST'])
 def mission_start_tracking(request):
     """Start tracking for a mission - called when driver accepts and starts mission"""
@@ -431,4 +476,70 @@ def mission_start_tracking(request):
         )
     except Exception as e:
         logger.error(f'Error starting mission tracking: {str(e)}')
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+def mobile_location_update(request):
+    """Update driver location during mission tracking"""
+    try:
+        data = request.data
+        driver_id = data.get('driver_id')
+        mission_id = data.get('mission_id')
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+        speed = data.get('speed', 0)
+        accuracy = data.get('accuracy', 0)
+        altitude = data.get('altitude', 0)
+        
+        if not driver_id or not latitude or not longitude:
+            return Response(
+                {'error': 'driver_id, latitude, and longitude are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get or create truck location record
+        driver = FleetDriver.objects.get(id=driver_id)
+        truck = driver.truck
+        
+        if not truck:
+            return Response(
+                {'error': 'Driver has no truck assigned'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create or update location
+        location, created = TruckLocation.objects.update_or_create(
+            truck=truck,
+            driver=driver,
+            defaults={
+                'latitude': latitude,
+                'longitude': longitude,
+                'speed': speed,
+                'accuracy': accuracy,
+                'altitude': altitude,
+                'timestamp': timezone.now()
+            }
+        )
+        
+        logger.info(f'Updated location for truck {truck.truck_identifier}: ({latitude}, {longitude}), speed: {speed}')
+        
+        return Response({
+            'success': True,
+            'message': 'Location updated',
+            'location_id': str(location.id),
+            'latitude': float(location.latitude),
+            'longitude': float(location.longitude),
+            'speed': float(location.speed),
+            'timestamp': location.timestamp.isoformat()
+        }, status=status.HTTP_200_OK)
+        
+    except FleetDriver.DoesNotExist:
+        logger.warning(f'Driver not found: {driver_id}')
+        return Response(
+            {'error': f'Driver {driver_id} not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f'Error updating location: {str(e)}')
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
