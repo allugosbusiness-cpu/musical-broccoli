@@ -1,11 +1,5 @@
 {
-  "experimentalServices": {
-    "web": {
-      "routePrefix": "/_/web"
-    },
-    "server": {
-      "entrypoint": "server",
-      "routePrefix": "/_/server"
-    }
-  }
+  "framework": "vite",
+  "buildCommand": "cd client/Frontend && npm run build",
+  "outputDirectory": "client/Frontend/dist"
 }
