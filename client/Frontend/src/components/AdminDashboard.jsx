@@ -779,10 +779,10 @@ function TrucksTable({ trucks, onDelete, onRefresh, onSelectTruck }) {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-slate-400">
-                    {truck.location && truck.location.lat && truck.location.lon
-                      ? `${parseFloat(truck.location.lat).toFixed(3)}, ${parseFloat(truck.location.lon).toFixed(3)}`
-                      : (truck.latitude && truck.longitude
-                          ? `${parseFloat(truck.latitude).toFixed(3)}, ${parseFloat(truck.longitude).toFixed(3)}`
+                    {Number.isFinite(truck.location?.lat) && Number.isFinite(truck.location?.lon)
+                      ? `${Number(truck.location.lat).toFixed(3)}, ${Number(truck.location.lon).toFixed(3)}`
+                      : (Number.isFinite(truck.latitude) && Number.isFinite(truck.longitude)
+                          ? `${Number(truck.latitude).toFixed(3)}, ${Number(truck.longitude).toFixed(3)}`
                           : 'No data')}
                   </td>
                   <td className="px-6 py-4 text-slate-300">
@@ -1129,7 +1129,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
           [type]: [{ 
             lat, 
             lon, 
-            name: `Custom Location (${lat ? lat.toFixed(4) : 'N/A'}, ${lon ? lon.toFixed(4) : 'N/A'})`
+            name: `Custom Location (${Number.isFinite(lat) ? Number(lat).toFixed(4) : 'N/A'}, ${Number.isFinite(lon) ? Number(lon).toFixed(4) : 'N/A'})`
           }]
         }));
         return;
@@ -1555,7 +1555,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
                     </div>
                   </td>
                   <td className="px-6 py-4 text-slate-400">
-                    {mission.distance_total_m ? `${(parseFloat(mission.distance_total_m) / 1000).toFixed(1)}km` : 'N/A'}
+                    {Number.isFinite(mission.distance_total_m) ? `${(Number(mission.distance_total_m) / 1000).toFixed(1)}km` : 'N/A'}
                   </td>
                   <td className="px-6 py-4 text-slate-400">
                     {mission.stops_detail?.length || 0}
@@ -1739,7 +1739,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
                         className="w-full text-left px-3 py-2 text-slate-300 hover:bg-blue-600/50 border-b border-slate-600 last:border-b-0 transition"
                       >
                         <div className="font-medium text-white">{location.name}</div>
-                        <div className="text-xs text-slate-400">{(location.lat && location.lon) ? `${parseFloat(location.lat).toFixed(4)}, ${parseFloat(location.lon).toFixed(4)}` : 'No coordinates'}</div>
+                        <div className="text-xs text-slate-400">{Number.isFinite(location.lat) && Number.isFinite(location.lon) ? `${Number(location.lat).toFixed(4)}, ${Number(location.lon).toFixed(4)}` : 'No coordinates'}</div>
                       </button>
                     ))}
                   </div>
@@ -1765,7 +1765,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
                         className="w-full text-left px-3 py-2 text-slate-300 hover:bg-blue-600/50 border-b border-slate-600 last:border-b-0 transition"
                       >
                         <div className="font-medium text-white">{location.name}</div>
-                        <div className="text-xs text-slate-400">{(location.lat && location.lon) ? `${parseFloat(location.lat).toFixed(4)}, ${parseFloat(location.lon).toFixed(4)}` : 'No coordinates'}</div>
+                        <div className="text-xs text-slate-400">{Number.isFinite(location.lat) && Number.isFinite(location.lon) ? `${Number(location.lat).toFixed(4)}, ${Number(location.lon).toFixed(4)}` : 'No coordinates'}</div>
                       </button>
                     ))}
                   </div>
@@ -1791,7 +1791,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
                         className="w-full text-left px-3 py-2 text-slate-300 hover:bg-blue-600/50 border-b border-slate-600 last:border-b-0 transition"
                       >
                         <div className="font-medium text-white">{location.name}</div>
-                        <div className="text-xs text-slate-400">{(location.lat && location.lon) ? `${parseFloat(location.lat).toFixed(4)}, ${parseFloat(location.lon).toFixed(4)}` : 'No coordinates'}</div>
+                        <div className="text-xs text-slate-400">{Number.isFinite(location.lat) && Number.isFinite(location.lon) ? `${Number(location.lat).toFixed(4)}, ${Number(location.lon).toFixed(4)}` : 'No coordinates'}</div>
                       </button>
                     ))}
                   </div>

@@ -124,7 +124,7 @@ export default function RouteDirections({ truckId, truckPlate, onClose }) {
           </div>
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-700">⏱️ Duration</span>
-            <span className="font-bold text-blue-600">{duration.toFixed(1)}h</span>
+            <span className="font-bold text-blue-600">{Number.isFinite(duration) ? Number(duration).toFixed(1) : '0.0'}h</span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-700">📡 GPS Points</span>
@@ -167,7 +167,7 @@ export default function RouteDirections({ truckId, truckPlate, onClose }) {
                       <div className="flex gap-4 mt-1 text-xs text-gray-600">
                         <span className="flex items-center gap-1">
                           <span className="text-lg">📏</span>
-                          {instruction.distance_km.toFixed(1)} km
+                          {Number.isFinite(instruction.distance_km) ? Number(instruction.distance_km).toFixed(1) : '0.0'} km
                         </span>
                         <span className="flex items-center gap-1">
                           <span className="text-lg">⏱️</span>
@@ -209,7 +209,7 @@ export default function RouteDirections({ truckId, truckPlate, onClose }) {
               {snappedPath.slice(0, 30).map((point, idx) => (
                 <div key={idx} className="bg-gray-50 p-2 rounded text-xs border border-gray-200 font-mono">
                   <div className="font-bold text-gray-700">📍 Point {idx + 1}</div>
-                  <div className="text-gray-600">{point.lat?.toFixed(6)}, {point.lng?.toFixed(6)}</div>
+                  <div className="text-gray-600">{Number.isFinite(point.lat) ? Number(point.lat).toFixed(6) : 'N/A'}, {Number.isFinite(point.lng) ? Number(point.lng).toFixed(6) : 'N/A'}</div>
                 </div>
               ))}
               {snappedPath.length > 30 && (

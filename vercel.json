@@ -1,0 +1,11 @@
+{
+  "experimentalServices": {
+    "web": {
+      "routePrefix": "/_/web"
+    },
+    "server": {
+      "entrypoint": "server",
+      "routePrefix": "/_/server"
+    }
+  }
+}

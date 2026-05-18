@@ -405,7 +405,7 @@ export default function FuelTracking({ refreshTrigger = 0 }) {
                     <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="px-4 py-2 text-gray-900">{record.time}</td>
                       <td className="px-4 py-2 text-gray-900 font-medium">{record.fuel}L</td>
-                      <td className="px-4 py-2 text-gray-900">{record.efficiency.toFixed(2)} km/L</td>
+                      <td className="px-4 py-2 text-gray-900">{Number.isFinite(record.efficiency) ? Number(record.efficiency).toFixed(2) : '0.00'} km/L</td>
                     </tr>
                   ))}
                 </tbody>

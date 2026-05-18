@@ -183,7 +183,7 @@ export default function RouteAnalyticsDashboard({ route, historicalData = [] }) 
           title="Route Efficiency"
           value={`${analytics.efficiency.overall}%`}
           icon={<Activity className="text-green-400" />}
-          trend={`${analytics.efficiency.trend > 0 ? '+' : ''}${analytics.efficiency.trend.toFixed(1)}%`}
+          trend={`${analytics.efficiency.trend > 0 ? '+' : ''}${Number.isFinite(analytics.efficiency.trend) ? Number(analytics.efficiency.trend).toFixed(1) : '0.0'}%`}
           trendPositive={analytics.efficiency.trend > 0}
           color="green"
         />
@@ -193,7 +193,7 @@ export default function RouteAnalyticsDashboard({ route, historicalData = [] }) 
           title="Fuel Consumption"
           value={`${analytics.fuel.consumption} L`}
           icon={<Fuel className="text-yellow-400" />}
-          subtitle={`$${analytics.fuel.cost.toFixed(2)} cost`}
+          subtitle={`$${Number.isFinite(analytics.fuel.cost) ? Number(analytics.fuel.cost).toFixed(2) : '0.00'} cost`}
           trend={`Save $${analytics.fuel.savings}`}
           trendPositive={true}
           color="yellow"
@@ -222,7 +222,7 @@ export default function RouteAnalyticsDashboard({ route, historicalData = [] }) 
         {/* Emissions */}
         <KPICard
           title="CO₂ Emissions"
-          value={`${analytics.emissions.co2.toFixed(1)} kg`}
+          value={`${Number.isFinite(analytics.emissions.co2) ? Number(analytics.emissions.co2).toFixed(1) : '0.0'} kg`}
           icon={<Zap className="text-purple-400" />}
           subtitle={`≈ ${analytics.emissions.equivalent.trees} trees`}
           trend={`Reduce ${analytics.emissions.reduction}kg`}
@@ -286,20 +286,20 @@ export default function RouteAnalyticsDashboard({ route, historicalData = [] }) 
           <div className="space-y-3">
             <div className="flex justify-between items-center p-2 bg-slate-700/50 rounded">
               <span className="text-slate-300">Fuel Cost</span>
-              <span className="font-semibold text-green-400">${analytics.fuel.cost?.toFixed(2)}</span>
+              <span className="font-semibold text-green-400">${Number.isFinite(analytics.fuel.cost) ? Number(analytics.fuel.cost).toFixed(2) : '0.00'}</span>
             </div>
             <div className="flex justify-between items-center p-2 bg-slate-700/50 rounded">
               <span className="text-slate-300">Maintenance Est.</span>
-              <span className="font-semibold text-yellow-400">${(route?.distance * 0.05).toFixed(2)}</span>
+              <span className="font-semibold text-yellow-400">${Number.isFinite(route?.distance) ? (Number(route.distance) * 0.05).toFixed(2) : '0.00'}</span>
             </div>
             <div className="flex justify-between items-center p-2 bg-slate-700/50 rounded">
               <span className="text-slate-300">Driver Hours</span>
-              <span className="font-semibold text-blue-400">${((route?.summary?.duration || 0) / 60 * 20).toFixed(2)}</span>
+              <span className="font-semibold text-blue-400">${Number.isFinite(route?.summary?.duration) ? (Number(route.summary.duration) / 60 * 20).toFixed(2) : '0.00'}</span>
             </div>
             <div className="flex justify-between items-center p-2 bg-slate-800 border border-slate-600 rounded">
               <span className="text-white font-semibold">Total Cost</span>
               <span className="font-bold text-lg text-yellow-400">
-                ${(analytics.fuel.cost + (route?.distance * 0.05) + ((route?.summary?.duration || 0) / 60 * 20)).toFixed(2)}
+                ${Number.isFinite(analytics.fuel.cost) && Number.isFinite(route?.distance) && Number.isFinite(route?.summary?.duration) ? (Number(analytics.fuel.cost) + (Number(route.distance) * 0.05) + ((Number(route.summary.duration) || 0) / 60 * 20)).toFixed(2) : '0.00'}
               </span>
             </div>
           </div>
@@ -313,7 +313,7 @@ export default function RouteAnalyticsDashboard({ route, historicalData = [] }) 
           <div className="space-y-4">
             <div className="p-3 bg-green-900/20 border border-green-600/30 rounded">
               <div className="text-sm text-slate-300 mb-1">CO₂ Emissions</div>
-              <div className="text-2xl font-bold text-green-400">{analytics.emissions.co2.toFixed(1)} kg</div>
+              <div className="text-2xl font-bold text-green-400">{Number.isFinite(analytics.emissions.co2) ? Number(analytics.emissions.co2).toFixed(1) : '0.0'} kg</div>
               <div className="text-xs text-slate-400 mt-2">
                 Equivalent to {analytics.emissions.equivalent.cars} cars driving 1km
               </div>
@@ -322,7 +322,7 @@ export default function RouteAnalyticsDashboard({ route, historicalData = [] }) 
               <div className="text-sm text-slate-300 mb-1">Trees Needed to Offset</div>
               <div className="text-2xl font-bold text-blue-400">{analytics.emissions.equivalent.trees}</div>
               <div className="text-xs text-slate-400 mt-2">
-                Reduction: {analytics.emissions.reduction.toFixed(1)} kg CO₂
+                Reduction: {Number.isFinite(analytics.emissions.reduction) ? Number(analytics.emissions.reduction).toFixed(1) : '0.0'} kg CO₂
               </div>
             </div>
           </div>
@@ -334,9 +334,9 @@ export default function RouteAnalyticsDashboard({ route, historicalData = [] }) 
         <h3 className="text-white font-semibold mb-4">💡 AI Recommendations</h3>
         <div className="space-y-2">
           {[
-            `Depart ${timeRange === '24h' ? 'in early morning' : 'during off-peak hours'} to save ${(analytics.time.savings * 0.3).toFixed(0)} minutes`,
+            `Depart ${timeRange === '24h' ? 'in early morning' : 'during off-peak hours'} to save ${Number.isFinite(analytics.time.savings) ? (Number(analytics.time.savings) * 0.3).toFixed(0) : '0'} minutes`,
             `Switch to Eco mode to reduce fuel consumption by 15-20%`,
-            `Take recommended fuel stop at ${(route?.distance / 2).toFixed(0)}km mark`,
+            `Take recommended fuel stop at ${Number.isFinite(route?.distance) ? (Number(route.distance) / 2).toFixed(0) : '0'}km mark`,
             `Avoid ${analytics.safety.risks.length > 0 ? analytics.safety.risks[0] : 'peak traffic hours'}`,
           ].map((rec, idx) => (
             <div key={idx} className="flex items-start gap-3 p-2 bg-blue-900/20 border border-blue-600/30 rounded">

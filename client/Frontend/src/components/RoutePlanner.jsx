@@ -271,7 +271,7 @@ export default function RoutePlanner() {
                   </div>
                   <div className="bg-slate-700/50 rounded-lg p-4">
                     <p className="text-xs text-gray-400 mb-1">Optimization</p>
-                    <p className="font-bold text-purple-400">{selectedRoute.optimization_score.toFixed(1)}/100</p>
+                    <p className="font-bold text-purple-400">{Number.isFinite(selectedRoute.optimization_score) ? Number(selectedRoute.optimization_score).toFixed(1) : '0.0'}/100</p>
                   </div>
                 </div>
 
@@ -403,7 +403,7 @@ export default function RoutePlanner() {
                         }`}>
                           {route.status.toUpperCase()}
                         </span>
-                        <span className="text-blue-400 font-semibold">Score: {route.optimization_score.toFixed(1)}</span>
+                        <span className="text-blue-400 font-semibold">Score: {Number.isFinite(route.optimization_score) ? Number(route.optimization_score).toFixed(1) : '0.0'}</span>
                       </div>
                     </div>
                   ))}

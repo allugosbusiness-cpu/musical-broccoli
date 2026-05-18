@@ -245,7 +245,7 @@ export default function AutoTrailActivation({ onTrailStatusChange, onMissionEven
       totalDistance += R * c;
     }
 
-    return totalDistance.toFixed(2);
+    return Number.isFinite(totalDistance) ? totalDistance.toFixed(2) : '0.00';
   };
 
   /**

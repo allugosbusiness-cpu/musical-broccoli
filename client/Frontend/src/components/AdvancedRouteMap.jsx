@@ -232,7 +232,7 @@ export default function AdvancedRouteMap({ route, vehicle, onRouteUpdate, onHaza
 
       polyline.bindPopup(`
         <div>
-          <p>Congestion: ${(segment.congestion * 100).toFixed(0)}%</p>
+          <p>Congestion: ${Number.isFinite(segment.congestion) ? (Number(segment.congestion) * 100).toFixed(0) : '0'}%</p>
           <p>Delay: ${segment.delay} min</p>
           <p>Speed: ${segment.speed} km/h</p>
         </div>
@@ -438,7 +438,7 @@ export default function AdvancedRouteMap({ route, vehicle, onRouteUpdate, onHaza
           <div className="grid grid-cols-5 gap-4">
             <div>
               <p className="text-slate-400">Avg Speed</p>
-              <p className="text-lg font-semibold">{route?.metrics?.averageSpeed?.toFixed(1)} km/h</p>
+              <p className="text-lg font-semibold">{Number.isFinite(route?.metrics?.averageSpeed) ? Number(route.metrics.averageSpeed).toFixed(1) : '0.0'} km/h</p>
             </div>
             <div>
               <p className="text-slate-400">Difficulty</p>
@@ -450,7 +450,7 @@ export default function AdvancedRouteMap({ route, vehicle, onRouteUpdate, onHaza
             </div>
             <div>
               <p className="text-slate-400">CO₂ Emissions</p>
-              <p className="text-lg font-semibold">{((route?.summary?.estimatedFuel || 0) * 2.31).toFixed(1)} kg</p>
+              <p className="text-lg font-semibold">{Number.isFinite(route?.summary?.estimatedFuel) ? (Number(route.summary.estimatedFuel) * 2.31).toFixed(1) : '0.0'} kg</p>
             </div>
             <div>
               <p className="text-slate-400">Hazards</p>

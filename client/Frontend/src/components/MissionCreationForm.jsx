@@ -37,7 +37,7 @@ function LocationAutocomplete({ label, value, searchQuery, suggestions, onSearch
               >
                 <div>
                   <div className="font-semibold">{loc.name}</div>
-                  <div className="text-xs text-slate-400">{loc.type} • {loc.lat.toFixed(4)}, {loc.lon.toFixed(4)}</div>
+                  <div className="text-xs text-slate-400">{loc.type} • {Number.isFinite(loc.lat) && Number.isFinite(loc.lon) ? `${Number(loc.lat).toFixed(4)}, ${Number(loc.lon).toFixed(4)}` : 'No coords'}</div>
                 </div>
               </button>
             ))}
@@ -46,9 +46,9 @@ function LocationAutocomplete({ label, value, searchQuery, suggestions, onSearch
       )}
       
       {/* Selected Location Display */}
-      {value.lat && value.lon && (
+      {Number.isFinite(value?.lat) && Number.isFinite(value?.lon) && (
         <div className="mt-2 p-2 bg-slate-800 border border-slate-600 rounded text-sm text-slate-300">
-          📍 {value.lat.toFixed(4)}, {value.lon.toFixed(4)}
+          📍 {Number(value.lat).toFixed(4)}, {Number(value.lon).toFixed(4)}
         </div>
       )}
     </div>
