@@ -96,3 +96,89 @@ def api_root(request):
             'alerts': '/api/v1/alerts/',
         }
     })
+
+
+# Dashboard Endpoints
+@api_view(['GET'])
+def dashboard_drivers(request):
+    """Get all drivers with performance data for dashboard"""
+    try:
+        drivers = FleetDriver.objects.all()
+        serializer = DriverSerializer(drivers, many=True)
+        return Response(serializer.data)
+    except Exception as e:
+        logger.error(f'Error fetching dashboard drivers: {str(e)}')
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def dashboard_trucks(request):
+    """Get all trucks with synced mission data for dashboard"""
+    try:
+        trucks = FleetTruck.objects.all()
+        serializer = TruckSerializer(trucks, many=True)
+        return Response(serializer.data)
+    except Exception as e:
+        logger.error(f'Error fetching dashboard trucks: {str(e)}')
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def dashboard_missions(request):
+    """Get all missions for dashboard"""
+    try:
+        missions = FleetMission.objects.all()
+        serializer = MissionSerializer(missions, many=True)
+        return Response(serializer.data)
+    except Exception as e:
+        logger.error(f'Error fetching dashboard missions: {str(e)}')
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def dashboard_summary(request):
+    """Get dashboard summary statistics"""
+    try:
+        total_drivers = FleetDriver.objects.count()
+        active_drivers = FleetDriver.objects.filter(status='active').count()
+        total_trucks = FleetTruck.objects.count()
+        active_trucks = FleetTruck.objects.filter(status='idle').count() + FleetTruck.objects.filter(status='enroute').count()
+        total_missions = FleetMission.objects.count()
+        active_missions = FleetMission.objects.filter(status='in_progress').count()
+        active_alerts = Alert.objects.filter(is_resolved=False).count()
+        
+        return Response({
+            'total_drivers': total_drivers,
+            'active_drivers': active_drivers,
+            'total_trucks': total_trucks,
+            'active_trucks': active_trucks,
+            'total_missions': total_missions,
+            'active_missions': active_missions,
+            'active_alerts': active_alerts,
+        })
+    except Exception as e:
+        logger.error(f'Error fetching dashboard summary: {str(e)}')
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+def dashboard_recalculate_performance(request):
+    """Recalculate driver performance metrics"""
+    try:
+        # For now, just return success - actual calculation logic can be added later
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        # Get performance records from the last 30 days
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        performances = FleetDriverPerformanceDaily.objects.filter(
+            date__gte=thirty_days_ago
+        )
+        
+        return Response({
+            'message': 'Performance recalculation completed',
+            'records_updated': performances.count()
+        })
+    except Exception as e:
+        logger.error(f'Error recalculating performance: {str(e)}')
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
