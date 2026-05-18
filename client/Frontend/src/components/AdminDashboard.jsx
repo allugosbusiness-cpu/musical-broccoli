@@ -1565,7 +1565,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
                     </div>
                   </td>
                   <td className="px-6 py-4 text-slate-400">
-                    {Number.isFinite(mission.distance_total_m) ? `${(Number(mission.distance_total_m) / 1000).toFixed(1)}km` : 'N/A'}
+                    {mission.distance_total_m != null && Number.isFinite(Number(mission.distance_total_m)) ? `${(Number(mission.distance_total_m) / 1000).toFixed(1)}km` : 'N/A'}
                   </td>
                   <td className="px-6 py-4 text-slate-400">
                     {mission.stops_detail?.length || 0}
@@ -1809,7 +1809,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
               </div>
               <div className="text-xs text-slate-500 px-3 py-2 bg-slate-700/30 rounded">
                 {typeof formData.destination === 'object' && formData.destination?.lat ? 
-                  `Distance will auto-calculate from origin to destination coordinates. Current: ${(Math.round(formData.distance_total_m / 1000 * 10) / 10)}km`
+                  `Distance will auto-calculate from origin to destination coordinates. Current: ${(Math.round((formData.distance_total_m || 0) / 1000 * 10) / 10)}km`
                   : 'Distance will auto-calculate from origin to destination coordinates'}
               </div>
               <button
