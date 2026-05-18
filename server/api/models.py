@@ -507,7 +507,7 @@ class FleetActivity(models.Model):
         ('maintenance', 'Maintenance'),
         ('trail', 'Trail'),
         ('cargo', 'Cargo'),
-    ], db_index=True)
+    ], default='mission', db_index=True)
     
     # Location data
     location_lat = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
