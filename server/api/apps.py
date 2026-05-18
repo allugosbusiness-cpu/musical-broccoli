@@ -3,7 +3,7 @@ from django.apps import AppConfig
 
 class ApiConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'api'
+    name = 'server.api'
     verbose_name = 'Fleet API'
     
     def ready(self):
