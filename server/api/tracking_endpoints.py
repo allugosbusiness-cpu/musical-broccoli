@@ -9,7 +9,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 import json
-from api.models_v2 import FleetTruck
+from .models import FleetTruck
 
 logger = logging.getLogger(__name__)
 

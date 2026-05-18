@@ -551,7 +551,7 @@ def validate_driver_pin(request):
 
         # Get truck by PIN from cache
         from django.core.cache import cache
-        from api.models_v2 import FleetTruck, FleetDriver, TruckLocation
+        from .models import FleetTruck, FleetDriver, TruckLocation
         
         # Try to find PIN in active registrations (in a real app, store PINs properly)
         # For now, we'll search through recent trucks
@@ -930,7 +930,7 @@ def start_mission_tracking(request):
         
         # ✅ NEW: Record location history entry for audit trail AND update truck's current coordinates
         if latitude is not None and longitude is not None:
-            from api.models_v2 import TruckLocation
+            from .models import TruckLocation
             TruckLocation.objects.create(
                 truck=mission.truck,
                 driver=driver,

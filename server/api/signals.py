@@ -38,7 +38,7 @@ def ensure_fleet_activity_table(sender, **kwargs):
     print("[OK] Creating FleetActivity table via Django...")
     
     try:
-        from api.models_v2 import FleetActivity
+        from server.api.models import FleetActivity
         
         # The table should be created by the migration, but if it's not,
         # we can use Django's table creation

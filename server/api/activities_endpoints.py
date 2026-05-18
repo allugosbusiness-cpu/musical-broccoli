@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.db.models import Q
 import json
 from datetime import datetime, timedelta
-from api.models_v2 import FleetActivity, FleetTruck, FleetDriver, FleetMission
+from .models import FleetActivity, FleetTruck, FleetDriver, FleetMission
 
 logger = logging.getLogger(__name__)
 
