@@ -297,3 +297,37 @@ def mobile_driver_registration(request):
     except Exception as e:
         logger.error(f'Error registering driver: {str(e)}')
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def mobile_get_available_missions(request, driver_id):
+    """Get available missions for a driver"""
+    try:
+        # Verify driver exists
+        driver = FleetDriver.objects.get(id=driver_id)
+        
+        # Get missions that are assigned to this driver or are available (not yet assigned)
+        # Missions can be: planned, assigned, enroute, paused, completed, cancelled
+        missions = FleetMission.objects.filter(
+            driver=driver,
+            status__in=['assigned', 'planned']
+        ).order_by('-created_at')
+        
+        serializer = MissionSerializer(missions, many=True)
+        
+        return Response({
+            'success': True,
+            'driver_id': str(driver.id),
+            'missions': serializer.data,
+            'count': missions.count()
+        }, status=status.HTTP_200_OK)
+        
+    except FleetDriver.DoesNotExist:
+        logger.warning(f'Driver not found: {driver_id}')
+        return Response(
+            {'error': f'Driver {driver_id} not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f'Error fetching available missions: {str(e)}')
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

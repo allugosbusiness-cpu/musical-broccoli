@@ -11,7 +11,7 @@ from .views import (
     dashboard_drivers, dashboard_trucks, dashboard_missions,
     dashboard_summary, dashboard_recalculate_performance,
     truck_tracking_all_locations, calculate_distance,
-    mobile_driver_registration
+    mobile_driver_registration, mobile_get_available_missions
 )
 
 router = DefaultRouter()
@@ -62,6 +62,7 @@ urlpatterns = [
     path('v1/calculate-distance/', calculate_distance, name='calculate-distance'),
     # Mobile endpoints
     path('v1/mobile/driver-registration/', mobile_driver_registration, name='mobile-driver-registration'),
+    path('v1/mobile/driver/<str:driver_id>/available-missions/', mobile_get_available_missions, name='mobile-available-missions'),
     # Legacy mobile endpoints (if module exists)
     path('v1/mobile/register/', mobile.get('mobile_driver_registration', dummy_view), name='mobile-register'),
     path('v1/mobile/location/', mobile.get('mobile_location_update', dummy_view), name='mobile-location'),
