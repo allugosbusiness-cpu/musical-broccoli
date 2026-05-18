@@ -40,16 +40,40 @@ def cleanup():
             
             if not table_exists:
                 print("✓ django_migrations table does not exist yet (first run)")
-                return
-            
-            # Delete all old api app migration records
-            cursor.execute("DELETE FROM django_migrations WHERE app IN ('api', 'api.deprecated') OR app LIKE 'api.%'")
-            deleted = cursor.rowcount
-            
-            if deleted > 0:
-                print(f"✓ Deleted {deleted} orphaned migration record(s)")
             else:
-                print("✓ No orphaned migration records found")
+                # Delete all old api app migration records
+                cursor.execute("DELETE FROM django_migrations WHERE app IN ('api', 'api.deprecated') OR app LIKE 'api.%'")
+                deleted = cursor.rowcount
+                
+                if deleted > 0:
+                    print(f"✓ Deleted {deleted} orphaned migration record(s)")
+                else:
+                    print("✓ No orphaned migration records found")
+            
+            # Drop old fleet tables that might exist from previous deployments
+            tables_to_drop = [
+                'fleet_admin_audit_logs',
+                'fleet_driver_performance_daily',
+                'fleet_dispute_comments',
+                'fleet_disputes',
+                'alerts',
+                'fleet_activities',
+                'fleet_truck_locations',
+                'fleet_missions',
+                'fleet_trucks',
+                'fleet_drivers',
+            ]
+            
+            for table in tables_to_drop:
+                try:
+                    if connection.vendor == 'postgresql':
+                        cursor.execute(f'DROP TABLE IF EXISTS "{table}" CASCADE')
+                    else:  # SQLite
+                        cursor.execute(f'DROP TABLE IF EXISTS {table}')
+                    print(f"✓ Dropped table: {table}")
+                except Exception as drop_error:
+                    # Table might not exist, which is fine
+                    pass
                 
     except Exception as e:
         print(f"✗ Error during cleanup: {e}")

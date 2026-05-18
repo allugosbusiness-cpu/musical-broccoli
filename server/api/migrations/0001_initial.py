@@ -11,13 +11,16 @@ def clear_old_migrations(apps, schema_editor):
     from django.db import connection
     with connection.cursor() as cursor:
         try:
-            # Clear all migrations from old 'api' app and any variants
-            cursor.execute("DELETE FROM django_migrations WHERE app IN ('api', 'api.deprecated')")
+            # Delete all old api migration records
+            cursor.execute("""
+                DELETE FROM django_migrations 
+                WHERE app IN ('api', 'api.deprecated') OR app LIKE 'api.%%'
+            """)
             deleted = cursor.rowcount
             print(f"✅ Cleared {deleted} old api app migration record(s)")
         except Exception as e:
             # Table might not exist on first run
-            print(f"ℹ️  Could not clear old migrations (table may not exist yet on first run)")
+            print(f"ℹ️  Could not clear old migrations (table may not exist yet)")
 
 
 def drop_existing_v2_tables(apps, schema_editor):
@@ -38,10 +41,14 @@ def drop_existing_v2_tables(apps, schema_editor):
         ]
         for table in tables_to_drop:
             try:
-                cursor.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
+                if connection.vendor == 'postgresql':
+                    cursor.execute(f'DROP TABLE IF EXISTS "{table}" CASCADE')
+                else:  # SQLite
+                    cursor.execute(f'DROP TABLE IF EXISTS {table}')
                 print(f"✅ Dropped table: {table}")
             except Exception as e:
-                print(f"ℹ️  Could not drop {table}: {e}")
+                # Table might not exist, which is fine
+                pass
 
 
 class Migration(migrations.Migration):
@@ -52,19 +59,13 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Step 0: Delete all old api migration records from database using raw SQL
-        # This must happen FIRST to prevent Django from trying to apply old api.0002_* migrations
-        migrations.RunSQL(
-            "DELETE FROM django_migrations WHERE app IN ('api', 'api.deprecated') OR app LIKE 'api.%'"
-        ),
-        
-        # Step 1: Clean up old migration records (backup approach using Python)
+        # Step 1: Clean up old migration records (done outside migration in render.yaml)
         migrations.RunPython(clear_old_migrations, reverse_code=migrations.RunPython.noop),
         
-        # Step 1b: Drop existing V2 tables to ensure clean creation
+        # Step 2: Drop existing V2 tables to ensure clean creation
         migrations.RunPython(drop_existing_v2_tables, reverse_code=migrations.RunPython.noop),
         
-        # Step 2: Create FleetDriver table
+        # Step 3: Create FleetDriver table
         migrations.CreateModel(
             name='FleetDriver',
             fields=[
