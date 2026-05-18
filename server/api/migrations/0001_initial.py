@@ -52,7 +52,16 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Step 1: Clean up old migration records
+        # Step 0: Delete all old api migration records from database using raw SQL
+        # This must happen FIRST to prevent Django from trying to apply old api.0002_* migrations
+        migrations.RunSQL(
+            sql="DELETE FROM django_migrations WHERE app IN ('api', 'api.deprecated') OR app LIKE 'api.%'",
+            reverse_sql=migrations.RunSQL.noop,
+            state_operations=[],
+            erase_state=False
+        ),
+        
+        # Step 1: Clean up old migration records (backup approach using Python)
         migrations.RunPython(clear_old_migrations, reverse_code=migrations.RunPython.noop),
         
         # Step 1b: Drop existing V2 tables to ensure clean creation

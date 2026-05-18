@@ -36,8 +36,8 @@ class Command(BaseCommand):
                     )
                     return
                 
-                # Delete all old api app migration records
-                cursor.execute("DELETE FROM django_migrations WHERE app = 'api'")
+                # Delete all old api app migration records (including api.deprecated)
+                cursor.execute("DELETE FROM django_migrations WHERE app IN ('api', 'api.deprecated')")
                 deleted_count = cursor.rowcount
                 
                 if deleted_count > 0:
