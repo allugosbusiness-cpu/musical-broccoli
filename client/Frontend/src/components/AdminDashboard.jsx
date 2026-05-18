@@ -1527,7 +1527,7 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
                 <tr key={mission.id} className="border-b border-slate-700 hover:bg-slate-700/50">
                   <td className="px-6 py-4 text-slate-200 font-semibold">{mission.mission_number}</td>
                   <td className="px-6 py-4 text-slate-400">
-                    {mission.truck_identifier || 'Unassigned'}
+                    {mission.truck_name || 'Unassigned'}
                   </td>
                   <td className="px-6 py-4 text-slate-400">
                     {mission.driver_name || 'Unassigned'}

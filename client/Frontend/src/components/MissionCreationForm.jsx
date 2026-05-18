@@ -169,8 +169,6 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
     if (!formData.driver_id) return 'Please select a driver';
     if (!formData.origin.lat || !formData.origin.lon) return 'Please enter origin coordinates';
     if (!formData.destination.lat || !formData.destination.lon) return 'Please enter destination coordinates';
-    if (!formData.planned_distance_km) return 'Please enter planned distance';
-    if (!formData.planned_duration_minutes) return 'Please enter planned duration';
     return null;
   };
 
@@ -187,26 +185,25 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
     setError(null);
 
     try {
-      const apiUrl = `${getApiV1Base()}/api-missions/create/`;
+      const apiUrl = `${getApiV1Base()}/missions/`;
       console.log('📝 Creating mission at:', apiUrl);
-      console.log('📦 Mission data:', formData);
 
       const response = await axios.post(apiUrl, {
-        identifier: formData.identifier || `MIS-${Date.now()}`,
-        truck_id: formData.truck_id,
-        driver_id: formData.driver_id,
-        status: 'pending',
+        mission_number: formData.identifier || `MIS-${Date.now()}`,
+        truck: formData.truck_id,
+        driver: formData.driver_id,
+        status: 'planned',
         origin: {
-          lat: formData.origin.lat,
-          lon: formData.origin.lon,
+          name: originSearch || 'Origin',
+          lat: parseFloat(formData.origin.lat),
+          lng: parseFloat(formData.origin.lon),
         },
         destination: {
-          lat: formData.destination.lat,
-          lon: formData.destination.lon,
+          name: destinationSearch || 'Destination',
+          lat: parseFloat(formData.destination.lat),
+          lng: parseFloat(formData.destination.lon),
         },
-        planned_distance_km: parseFloat(formData.planned_distance_km),
-        planned_duration_minutes: parseInt(formData.planned_duration_minutes),
-        notes: formData.notes,
+        priority: 'normal',
       });
 
       console.log('✅ Mission created successfully:', response.data);
@@ -236,7 +233,7 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
       }, 2000);
     } catch (err) {
       console.error('❌ Mission creation error:', err.response?.data || err.message);
-      setError(err.response?.data?.error || err.message || 'Failed to create mission');
+      setError(err.response?.data?.detail || err.response?.data?.error || err.message || 'Failed to create mission');
     } finally {
       setLoading(false);
     }

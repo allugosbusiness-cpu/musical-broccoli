@@ -65,6 +65,55 @@ class MissionSerializer(serializers.ModelSerializer):
     
     def get_driver_name(self, obj):
         return f"{obj.driver.first_name} {obj.driver.last_name}" if obj.driver else None
+    
+    def _calculate_distance(self, origin, destination):
+        """Calculate distance between two coordinates using Haversine formula (meters)"""
+        from math import radians, cos, sin, asin, sqrt
+        
+        if not origin or not destination:
+            return 0
+        
+        # Extract coordinates
+        lat1 = float(origin.get('lat', origin.get('latitude', 0)))
+        lon1 = float(origin.get('lng', origin.get('longitude', 0)))
+        lat2 = float(destination.get('lat', destination.get('latitude', 0)))
+        lon2 = float(destination.get('lng', destination.get('longitude', 0)))
+        
+        if lat1 == 0 or lon1 == 0 or lat2 == 0 or lon2 == 0:
+            return 0
+        
+        # Haversine formula
+        lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+        dlon = lon2 - lon1
+        dlat = lat2 - lat1
+        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+        c = 2 * asin(sqrt(a))
+        km = 6371 * c
+        meters = km * 1000
+        
+        return round(meters, 2)
+    
+    def create(self, validated_data):
+        """Create mission and calculate distance if origin/destination provided"""
+        # Calculate distance if both origin and destination are provided
+        origin = validated_data.get('origin')
+        destination = validated_data.get('destination')
+        
+        if origin and destination and not validated_data.get('distance_total_m'):
+            validated_data['distance_total_m'] = self._calculate_distance(origin, destination)
+        
+        return super().create(validated_data)
+    
+    def update(self, instance, validated_data):
+        """Update mission and recalculate distance if origin/destination changed"""
+        # Recalculate distance if origin or destination changed
+        origin = validated_data.get('origin', instance.origin)
+        destination = validated_data.get('destination', instance.destination)
+        
+        if origin and destination:
+            validated_data['distance_total_m'] = self._calculate_distance(origin, destination)
+        
+        return super().update(instance, validated_data)
 
 
 class FleetActivitySerializer(serializers.ModelSerializer):
