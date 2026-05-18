@@ -49,7 +49,7 @@ def drivers_list_with_performance(request):
                 })
             except Exception:
                 continue # Skip any corrupted driver record
-       return Response(data, status=status.HTTP_200_OK)
+        return Response(data, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
