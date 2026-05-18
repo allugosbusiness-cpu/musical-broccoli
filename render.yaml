@@ -4,7 +4,7 @@ services:
     runtime: python3.10
     region: ohio
     buildCommand: cd server && pip install --upgrade pip setuptools wheel && pip install -r requirements.txt
-    startCommand: cd server && python manage.py migrate --noinput && gunicorn Logistics.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --worker-class sync --timeout 60 --log-level info
+    startCommand: cd server && python manage.py clear_old_migrations --noinput && python manage.py migrate --noinput && gunicorn Logistics.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --worker-class sync --timeout 60 --log-level info
     envVars:
       - key: DEBUG
         value: "false"
