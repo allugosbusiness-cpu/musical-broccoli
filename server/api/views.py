@@ -4,7 +4,7 @@ Django REST Framework ViewSets for V2 models
 """
 
 from rest_framework import viewsets, status
-from rest_framework.decorators import action, api_view
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.utils import timezone
@@ -383,6 +383,7 @@ def mobile_get_available_missions(request, driver_id):
 
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def mobile_mission_start_tracking(request):
     """Start tracking for a mission - called when driver accepts and starts mission"""
     try:
