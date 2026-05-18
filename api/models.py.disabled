@@ -1,0 +1,6 @@
+# This file has been disabled and replaced with server/api/models.py
+# All Django models have been moved to server/api/models.py
+# This file is kept as reference only and should not be imported
+
+# To use this file's models, import from server.api.models instead:
+# from server.api.models import FleetDriver, FleetTruck, FleetMission, etc.
