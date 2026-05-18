@@ -1,5 +1,5 @@
-# First migration - handles transition from old api app to new server.api app
-# Clears old migration history so Django doesn't try to apply them
+# First migration - clears old api app migration history
+# Django will auto-create tables from models after this migration runs
 
 from django.db import migrations
 
