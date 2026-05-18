@@ -1,4 +1,4 @@
-from rest_framework import serializers
+﻿from rest_framework import serializers
 from .models import (
     FleetDriver, FleetTruck, FleetMission, 
     FleetDriverPerformanceDaily, FleetAdminAuditLog, TruckLocation, 
@@ -49,6 +49,8 @@ class MissionSerializer(serializers.ModelSerializer):
     )
     truck_name = serializers.SerializerMethodField(read_only=True)
     driver_name = serializers.SerializerMethodField(read_only=True)
+    distance_total_m = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True)
+    progress_pct = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, allow_null=True)
     
     class Meta:
         model = FleetMission
@@ -69,9 +71,10 @@ class MissionSerializer(serializers.ModelSerializer):
     def _calculate_distance(self, origin, destination):
         """Calculate distance between two coordinates using Haversine formula (meters)"""
         from math import radians, cos, sin, asin, sqrt
+        from decimal import Decimal
         
         if not origin or not destination:
-            return 0
+            return Decimal('0')
         
         # Extract coordinates
         lat1 = float(origin.get('lat', origin.get('latitude', 0)))
@@ -80,7 +83,7 @@ class MissionSerializer(serializers.ModelSerializer):
         lon2 = float(destination.get('lng', destination.get('longitude', 0)))
         
         if lat1 == 0 or lon1 == 0 or lat2 == 0 or lon2 == 0:
-            return 0
+            return Decimal('0')
         
         # Haversine formula
         lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
@@ -91,7 +94,7 @@ class MissionSerializer(serializers.ModelSerializer):
         km = 6371 * c
         meters = km * 1000
         
-        return round(meters, 2)
+        return Decimal(str(round(meters, 2)))
     
     def create(self, validated_data):
         """Create mission and calculate distance if origin/destination provided"""
