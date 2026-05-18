@@ -110,7 +110,7 @@ class Migration(migrations.Migration):
                 ('accuracy', models.DecimalField(decimal_places=2, default=0, max_digits=8)),
                 ('altitude', models.DecimalField(decimal_places=2, default=0, max_digits=8)),
                 ('timestamp', models.DateTimeField(db_index=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True, default='2026-05-18T00:00:00Z')),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('truck', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='location_history', to='server.api.fleettruck')),
                 ('driver', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='location_history', to='server.api.fleetdriver')),
             ],

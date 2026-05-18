@@ -502,7 +502,7 @@ class TruckLocation(models.Model):
     altitude = models.DecimalField(max_digits=8, decimal_places=2, default=0)  # meters
     
     timestamp = models.DateTimeField(db_index=True)
-    created_at = models.DateTimeField(auto_now_add=True, default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
         db_table = 'fleet_truck_locations'
