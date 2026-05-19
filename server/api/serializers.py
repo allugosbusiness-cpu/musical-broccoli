@@ -110,6 +110,13 @@ class MissionSerializer(serializers.ModelSerializer):
         if origin and destination and not validated_data.get('distance_total_m'):
             validated_data['distance_total_m'] = self._calculate_distance(origin, destination)
         
+        # Remove optional fields that may not exist in production database
+        # These fields are defined in the model but may not have been migrated yet
+        # The model's save() method also resets them to defaults, so this is safe
+        validated_data.pop('max_speed', None)
+        validated_data.pop('avg_speed', None)
+        validated_data.pop('compressed_trail', None)
+        
         return super().create(validated_data)
     
     def update(self, instance, validated_data):
