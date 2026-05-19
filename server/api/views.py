@@ -113,33 +113,34 @@ class MissionViewSet(viewsets.ModelViewSet):
         human-readable identifiers like 'trk1' instead of UUIDs.
         """
         try:
-            data = request.data.copy()
-            if isinstance(data, dict):
-                data.pop('max_speed', None)
-                data.pop('avg_speed', None)
-                data.pop('compressed_trail', None)
-                
-                # Resolve truck and driver identifiers to model instances
-                truck_identifier = data.get('truck')
-                driver_identifier = data.get('driver')
-                
-                truck = self._resolve_truck(truck_identifier)
-                if not truck and truck_identifier:
-                    return Response(
-                        {'error': f'Truck "{truck_identifier}" not found. Available trucks: {list(FleetTruck.objects.values_list("truck_identifier", "id")[:20])}'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                
-                driver = self._resolve_driver(driver_identifier)
-                if not driver and driver_identifier:
-                    return Response(
-                        {'error': f'Driver "{driver_identifier}" not found. Available drivers: {list(FleetDriver.objects.values_list("phone_number", "id")[:20])}'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                
-                # Replace identifiers with actual model instances for the serializer
-                data['truck'] = truck.id if truck else None
-                data['driver'] = driver.id if driver else None
+            # Convert request data to mutable dict regardless of whether
+            # it's a DRF QueryDict or plain dict
+            data = dict(request.data.items()) if hasattr(request.data, 'items') else dict(request.data)
+            data.pop('max_speed', None)
+            data.pop('avg_speed', None)
+            data.pop('compressed_trail', None)
+            
+            # Resolve truck and driver identifiers to model instances
+            truck_identifier = data.get('truck')
+            driver_identifier = data.get('driver')
+            
+            truck = self._resolve_truck(truck_identifier)
+            if not truck and truck_identifier:
+                return Response(
+                    {'error': f'Truck "{truck_identifier}" not found. Available trucks: {list(FleetTruck.objects.values_list("truck_identifier", "id")[:20])}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            driver = self._resolve_driver(driver_identifier)
+            if not driver and driver_identifier:
+                return Response(
+                    {'error': f'Driver "{driver_identifier}" not found. Available drivers: {list(FleetDriver.objects.values_list("phone_number", "id")[:20])}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Replace identifiers with actual model instances for the serializer
+            data['truck'] = truck.id if truck else None
+            data['driver'] = driver.id if driver else None
             
             serializer = self.get_serializer(data=data)
             serializer.is_valid(raise_exception=True)
@@ -156,10 +157,20 @@ class MissionViewSet(viewsets.ModelViewSet):
             
             validated = serializer.validated_data.copy()
             
-            # Create the mission directly, bypassing serializer's auto-retrieve
-            # This avoids the SELECT that would fail on missing max_speed column
+            # IMPORTANT: Do NOT use FleetMission.objects.create() because Django
+            # will do a SELECT after INSERT to refresh auto_now_add fields,
+            # which will fail because max_speed column doesn't exist in production DB.
+            # Instead, create the model instance in memory and use save(force_insert=True).
             now = timezone.now()
-            mission = FleetMission.objects.create(**validated)
+            mission = FleetMission(**validated)
+            mission.max_speed = 0
+            mission.avg_speed = 0
+            mission.compressed_trail = []
+            # Set timestamps manually to avoid ORM auto-refresh SELECT
+            mission.created_at = now
+            mission.updated_at = now
+            # force_insert=True tells Django to only do INSERT, never SELECT after
+            mission.save(force_insert=True)
             
             # Build response from validated data + created mission metadata
             response_data = dict(validated)
