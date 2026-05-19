@@ -114,13 +114,13 @@ railway up
 # Wait 2-3 minutes after pushing/deploying, then:
 
 # 1. Check admin panel (should see login, not 500 error)
-Start-Process "https://musical-broccoli-production.up.railway.app/admin"
+Start-Process "https://pulsetrack-back.onrender.com/admin"
 
 # 2. Test API endpoints
-curl -s https://musical-broccoli-production.up.railway.app/api/v1/trucks/ | jq '.[] | {id, name}' | head -20
+curl -s https://pulsetrack-back.onrender.com/api/v1/trucks/ | jq '.[] | {id, name}' | head -20
 
 # 3. Verify superuser exists
-# Login at https://musical-broccoli-production.up.railway.app/admin
+# Login at https://pulsetrack-back.onrender.com/admin
 # Username: admin
 # Password: admin123
 ```

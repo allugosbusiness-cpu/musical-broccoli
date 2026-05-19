@@ -14,7 +14,7 @@ import django
 from django.core.wsgi import get_wsgi_application
 from django.db import connection
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Logistics.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'server.Logistics.settings')
 
 # Initialize Django
 django.setup()

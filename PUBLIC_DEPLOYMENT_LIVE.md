@@ -14,7 +14,7 @@
 
 ### Mobile App
 **Status:** ✅ Configured for public backend
-**API Endpoint:** https://musical-broccoli-production.up.railway.app/api/v1
+**API Endpoint:** https://pulsetrack-back.onrender.com/api/v1
 
 ---
 
@@ -76,13 +76,13 @@ The backend is returning 500 errors because the database needs initialization.
 **app.json:**
 ```json
 "extra": {
-  "API_BASE_URL": "https://musical-broccoli-production.up.railway.app/api/v1"
+   "API_BASE_URL": "https://pulsetrack-back.onrender.com/api/v1"
 }
 ```
 
 **`.env.development`:**
 ```
-EXPO_PUBLIC_API_BASE_URL=https://musical-broccoli-production.up.railway.app/api/v1
+EXPO_PUBLIC_API_BASE_URL=https://pulsetrack-back.onrender.com/api/v1
 ```
 
 **Reload mobile app** to pick up changes:
@@ -95,7 +95,7 @@ EXPO_PUBLIC_API_BASE_URL=https://musical-broccoli-production.up.railway.app/api/
 ## 🌐 Frontend Configuration Updated
 
 **`src/config/apiConfig.js`:**
-- Production URL: `https://musical-broccoli-production.up.railway.app/api/v1`
+- Production URL: `https://pulsetrack-back.onrender.com/api/v1`
 - Already deployed to Vercel ✅
 
 ---
@@ -132,8 +132,8 @@ EXPO_PUBLIC_API_BASE_URL=https://musical-broccoli-production.up.railway.app/api/
 | Service | URL | Status |
 |---------|-----|--------|
 | **Frontend** | https://pulsetrack-frontend-henna.vercel.app | ✅ Live |
-| **Backend** | https://musical-broccoli-production.up.railway.app | ✅ Online |
-| **API Docs** | https://musical-broccoli-production.up.railway.app/api/v1/trucks/ | 🔧 Needs DB |
+| **Backend** | https://pulsetrack-back.onrender.com | ✅ Online |
+| **API Docs** | https://pulsetrack-back.onrender.com/api/v1/trucks/ | 🔧 Needs DB |
 | **Vercel Dashboard** | https://vercel.com/allugosbusiness-cpus-projects | 📊 Monitor |
 | **Railway Dashboard** | https://railway.app | 📊 Monitor |
 

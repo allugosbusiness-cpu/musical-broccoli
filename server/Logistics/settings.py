@@ -67,7 +67,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'Logistics.urls'
+ROOT_URLCONF = 'server.Logistics.urls'
 
 TEMPLATES = [
     {
@@ -84,7 +84,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'Logistics.wsgi.application'
+WSGI_APPLICATION = 'server.Logistics.wsgi.application'
 
 
 # Database - PostgreSQL in production (via DATABASE_URL), SQLite in development

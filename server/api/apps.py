@@ -10,5 +10,6 @@ class ApiConfig(AppConfig):
         """Import signals when app is ready"""
         try:
             import server.api.signals
+            import server.api.signals_location
         except Exception as e:
             print(f"[OK] Warning: Could not import signals: {e}")

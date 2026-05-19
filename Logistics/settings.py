@@ -35,18 +35,8 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 
 # Allow Railway, Render, Vercel frontend, localhost, and development hosts
 ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    '*.railway.app',
-    'pulsetrack-back*.onrender.app',
-    'pulsetrack*.onrender.app',
-    '*.onrender.com',
     'pulsetrack-back.onrender.com',
-    '*.vercel.app',
-    'pulsetrack-frontend-henna*.vercel.app',
-    '192.168.1.236',
-    '192.168.1.87',
-    '*'  # For development flexibility
+    'pulsetrack-frontend-henna.vercel.app',
 ]
 
 
@@ -176,15 +166,12 @@ if DEBUG:
     # Also allow all origins in development for flexibility
     CORS_ALLOW_ALL_ORIGINS = True
 else:
-    # Production: Allow Vercel frontend and Render backend
+    # Production: Allow only Vercel frontend and Render backend
     CORS_ALLOWED_ORIGINS = [
         'https://pulsetrack-frontend-henna.vercel.app',
         'https://pulsetrack-back.onrender.com',
-        'https://pulsetrack.example.com',
-        'https://192.168.1.87:8081',
-        'https://app.pulsetrack.example.com',
     ]
-    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ALLOW_CREDENTIALS = True
 

@@ -119,11 +119,19 @@ class FleetMission(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # New fields for speed and compressed trail
+    max_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True)
+    avg_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True)
+    compressed_trail = models.JSONField(default=list, blank=True, help_text="Compressed list of [lat, lng, ts] for auditing")
+
     class Meta:
         db_table = 'fleet_missions'
 
     def __str__(self):
         return self.mission_number
+
+    # Note: Logic to update max_speed, avg_speed, and compressed_trail should be handled
+    # in the view or signal when TruckLocation is created for this mission.
 
 
 class FleetActivity(models.Model):

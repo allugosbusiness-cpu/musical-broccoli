@@ -80,7 +80,7 @@ After setup_database runs:
 **Superuser Account:**
 - Username: `admin`
 - Password: `admin123`
-- Access: https://musical-broccoli-production.up.railway.app/admin
+- Access: https://pulsetrack-back.onrender.com/admin
 
 **Sample Data:**
 - 5 trucks with GPS data
@@ -94,16 +94,16 @@ After setup, test these endpoints:
 
 ```powershell
 # Get all trucks
-curl "https://musical-broccoli-production.up.railway.app/api/v1/trucks/" | jq
+curl "https://pulsetrack-back.onrender.com/api/v1/trucks/" | jq
 
 # Get all drivers
-curl "https://musical-broccoli-production.up.railway.app/api/v1/drivers/" | jq
+curl "https://pulsetrack-back.onrender.com/api/v1/drivers/" | jq
 
 # Get all missions
-curl "https://musical-broccoli-production.up.railway.app/api/v1/missions/" | jq
+curl "https://pulsetrack-back.onrender.com/api/v1/missions/" | jq
 
 # Admin panel
-# Visit: https://musical-broccoli-production.up.railway.app/admin
+# Visit: https://pulsetrack-back.onrender.com/admin
 # Login: admin / admin123
 ```
 

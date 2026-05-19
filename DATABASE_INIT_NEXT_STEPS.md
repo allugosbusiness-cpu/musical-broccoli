@@ -100,7 +100,7 @@ After migrations run, your database will have:
 **Superuser Account:**
 - Username: `admin`
 - Password: `admin123`
-- URL: https://musical-broccoli-production.up.railway.app/admin
+- URL: https://pulsetrack-back.onrender.com/admin
 
 **Sample Data:**
 - 5 trucks (with GPS coordinates)
@@ -116,15 +116,15 @@ After migrations complete, verify everything works:
 
 ```powershell
 # 1. Check the admin panel loads (no 500 error)
-# Visit: https://musical-broccoli-production.up.railway.app/admin
+# Visit: https://pulsetrack-back.onrender.com/admin
 # Login: admin / admin123
 
 # 2. Check API endpoints return data
-curl -s https://musical-broccoli-production.up.railway.app/api/v1/trucks/ | jq '.[0]'
+curl -s https://pulsetrack-back.onrender.com/api/v1/trucks/ | jq '.[0]'
 
-curl -s https://musical-broccoli-production.up.railway.app/api/v1/drivers/ | jq '.[0]'
+curl -s https://pulsetrack-back.onrender.com/api/v1/drivers/ | jq '.[0]'
 
-curl -s https://musical-broccoli-production.up.railway.app/api/v1/missions/ | jq '.[0]'
+curl -s https://pulsetrack-back.onrender.com/api/v1/missions/ | jq '.[0]'
 
 # 3. Test frontend displays trucks
 # Visit: https://pulsetrack-frontend-henna.vercel.app

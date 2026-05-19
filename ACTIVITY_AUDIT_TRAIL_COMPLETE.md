@@ -232,7 +232,7 @@ When mobile app triggers events:
 
 ### Logging an Activity
 ```bash
-curl -X POST https://musical-broccoli-production.up.railway.app/api/v1/activities/log/ \
+curl -X POST https://pulsetrack-back.onrender.com/api/v1/activities/log/ \
   -H "Content-Type: application/json" \
   -d '{
     "activity_type": "trail_recorded",
@@ -250,18 +250,18 @@ curl -X POST https://musical-broccoli-production.up.railway.app/api/v1/activitie
 ### Retrieving Activities
 ```bash
 # Last 7 days, all types
-curl "https://musical-broccoli-production.up.railway.app/api/v1/activities/?days=7&limit=100"
+curl "https://pulsetrack-back.onrender.com/api/v1/activities/?days=7&limit=100"
 
 # Last 14 days, speed violations only
-curl "https://musical-broccoli-production.up.railway.app/api/v1/activities/?days=14&activity_type=speed_violation"
+curl "https://pulsetrack-back.onrender.com/api/v1/activities/?days=14&activity_type=speed_violation"
 
 # Last 30 days, specific truck
-curl "https://musical-broccoli-production.up.railway.app/api/v1/activities/?days=30&truck_id=UUID"
+curl "https://pulsetrack-back.onrender.com/api/v1/activities/?days=30&truck_id=UUID"
 ```
 
 ### Activity Summary
 ```bash
-curl "https://musical-broccoli-production.up.railway.app/api/v1/activities/summary/?days=7"
+curl "https://pulsetrack-back.onrender.com/api/v1/activities/summary/?days=7"
 ```
 
 Returns:
