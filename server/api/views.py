@@ -70,23 +70,10 @@ class TruckViewSet(viewsets.ModelViewSet):
 
 
 class MissionViewSet(viewsets.ModelViewSet):
-    # Don't use defer() as it still tries to SELECT the columns
-    # Instead, let the signal handle removing them from the instance
-    queryset = FleetMission.objects.select_related('truck', 'driver').all()
+    # Don't use get_queryset - it tries to select the optional columns
+    queryset = FleetMission.objects.all()
     serializer_class = MissionSerializer
     permission_classes = [AllowAny]
-    
-    def get_queryset(self):
-        """Exclude optional columns that may not exist in production database"""
-        # Use only() to explicitly select only the fields we need
-        # This prevents Django from trying to SELECT columns that don't exist
-        fields_to_select = [
-            'id', 'fleet_id', 'mission_number', 'status', 'priority',
-            'truck', 'driver', 'origin', 'destination', 'distance_total_m',
-            'progress_pct', 'cargo', 'mission_date', 'started_at', 'completed_at',
-            'delivered_at', 'created_at', 'updated_at'
-        ]
-        return FleetMission.objects.select_related('truck', 'driver').only(*fields_to_select)
     
     def perform_create(self, serializer):
         """Override to avoid inserting optional fields that may not exist in DB"""
@@ -95,9 +82,25 @@ class MissionViewSet(viewsets.ModelViewSet):
         serializer.save()
     
     def create(self, request, *args, **kwargs):
-        """Override create to catch and log errors"""
+        """Override create to handle mission creation without optional columns"""
         try:
-            return super().create(request, *args, **kwargs)
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            
+            # Call perform_create to save the instance
+            self.perform_create(serializer)
+            
+            # Instead of using serializer.data (which tries to SELECT),
+            # build the response from validated data + ID
+            instance = serializer.instance
+            response_data = serializer.validated_data.copy()
+            response_data['id'] = str(instance.id)
+            response_data['created_at'] = instance.created_at.isoformat()
+            response_data['updated_at'] = instance.updated_at.isoformat()
+            response_data['truck_name'] = serializer.get_truck_name(instance)
+            response_data['driver_name'] = serializer.get_driver_name(instance)
+            
+            return Response(response_data, status=status.HTTP_201_CREATED)
         except Exception as e:
             logger.error(f'Mission creation error: {str(e)}', exc_info=True)
             return Response(
