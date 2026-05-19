@@ -9,6 +9,17 @@ from django.utils import timezone
 import uuid
 
 
+class FleetMissionManager(models.Manager):
+    """Custom manager that safely creates missions without optional speed fields"""
+    def create(self, **kwargs):
+        # Remove optional fields that may not exist in production DB
+        # These will be added by migration later
+        kwargs.pop('max_speed', None)
+        kwargs.pop('avg_speed', None)
+        kwargs.pop('compressed_trail', None)
+        return super().create(**kwargs)
+
+
 class FleetDriver(models.Model):
     """Driver information and tracking"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -91,6 +102,8 @@ class TruckLocation(models.Model):
 
 class FleetMission(models.Model):
     """Mission/delivery tracking"""
+    objects = FleetMissionManager()
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     fleet_id = models.UUIDField(blank=True, null=True, db_index=True)
     mission_number = models.CharField(max_length=50, unique=True, db_index=True)
