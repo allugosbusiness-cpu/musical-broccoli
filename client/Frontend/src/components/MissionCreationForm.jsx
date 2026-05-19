@@ -144,7 +144,7 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
         ...prev,
         origin: {
           ...prev.origin,
-          [key]: parseFloat(value) || '',
+          [key]: value, // Store raw string value from input (will be parsed later)
         }
       }));
     } else if (name.startsWith('destination_')) {
@@ -153,7 +153,7 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
         ...prev,
         destination: {
           ...prev.destination,
-          [key]: parseFloat(value) || '',
+          [key]: value,
         }
       }));
     } else {
@@ -167,8 +167,10 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
   const validateForm = () => {
     if (!formData.truck_id) return 'Please select a truck';
     if (!formData.driver_id) return 'Please select a driver';
-    if (!formData.origin.lat || !formData.origin.lon) return 'Please enter origin coordinates';
-    if (!formData.destination.lat || !formData.destination.lon) return 'Please enter destination coordinates';
+    if (formData.origin.lat === '' || formData.origin.lon === '') return 'Please enter origin coordinates';
+    if (formData.destination.lat === '' || formData.destination.lon === '') return 'Please enter destination coordinates';
+    if (formData.planned_distance_km === '') return 'Please enter planned distance';
+    if (formData.planned_duration_minutes === '') return 'Please enter planned duration';
     return null;
   };
 
