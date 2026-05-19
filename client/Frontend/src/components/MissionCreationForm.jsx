@@ -188,9 +188,9 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
 
     try {
       const apiUrl = `${getApiV1Base()}/missions/`;
-      console.log('📝 Creating mission at:', apiUrl);
-
-      const response = await axios.post(apiUrl, {
+      
+      // 🔑 CRITICAL: LOG THE ACTUAL PAYLOAD BEFORE SENDING
+      const payload = {
         mission_number: formData.identifier || `MIS-${Date.now()}`,
         truck: formData.truck_id,
         driver: formData.driver_id,
@@ -206,7 +206,12 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
           longitude: parseFloat(formData.destination.lon),
         },
         priority: 'normal',
-      });
+      };
+      
+      console.log('📤 Sending mission payload:', payload);
+      console.log('🔗 API URL:', apiUrl);
+
+      const response = await axios.post(apiUrl, payload);
 
       console.log('✅ Mission created successfully:', response.data);
       setSuccess(true);
@@ -234,7 +239,7 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
         if (onClose) onClose();
       }, 2000);
     } catch (err) {
-      console.error('❌ Mission creation error:', err.response?.data || err.message);
+      console.error('❌ Mission creation error:', err);
       // Log full error response for debugging
       if (err.response) {
         console.error('Error response data:', err.response.data);
