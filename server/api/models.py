@@ -140,8 +140,8 @@ class FleetMission(models.Model):
     compressed_trail = models.JSONField(null=True, blank=True, help_text="Compressed list of [lat, lng, ts] for auditing", editable=False)
 
     def save(self, *args, **kwargs):
-        # These optional fields may not exist as columns in production database yet
-        # They are set to None, so Django won't include them in INSERT statements
+        # Optional fields may not exist in production database.
+        # The pre_save signal will strip these from __dict__ before Django builds SQL
         super().save(*args, **kwargs)
 
     class Meta:

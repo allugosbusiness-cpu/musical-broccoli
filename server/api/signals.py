@@ -7,21 +7,19 @@ from django.db import connection
 from django.core.management import call_command
 
 
-@receiver(pre_save, sender=None)
 def strip_optional_mission_fields(sender, instance, **kwargs):
     """Strip optional mission fields that may not exist in production database.
     
     This handles the case where max_speed, avg_speed, and compressed_trail are
     defined in the model but the columns haven't been migrated to the database yet.
-    """
-    from .models import FleetMission
     
-    if sender == FleetMission:
-        # These fields may not exist as columns in production PostgreSQL yet
-        # Set them to None so Django doesn't try to INSERT them
-        instance.max_speed = None
-        instance.avg_speed = None
-        instance.compressed_trail = None
+    By removing these from the instance dict, Django won't try to INSERT/UPDATE them.
+    """
+    # Remove these from __dict__ so Django doesn't try to save them
+    # This completely prevents them from appearing in any INSERT/UPDATE
+    instance.__dict__.pop('max_speed', None)
+    instance.__dict__.pop('avg_speed', None)
+    instance.__dict__.pop('compressed_trail', None)
 
 
 @receiver(post_migrate)
@@ -69,3 +67,9 @@ def ensure_fleet_activity_table(sender, **kwargs):
                 
     except Exception as e:
         print(f"[OK] FleetActivity table creation error: {e}")
+
+
+# Manually register the pre_save signal for FleetMission
+# (The @receiver decorator with sender=None doesn't work, so we do it manually)
+from .models import FleetMission
+pre_save.connect(strip_optional_mission_fields, sender=FleetMission)
