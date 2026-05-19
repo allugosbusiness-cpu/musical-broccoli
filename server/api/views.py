@@ -71,50 +71,90 @@ class MissionViewSet(viewsets.ModelViewSet):
         # before calling super().create(), so Django never tries to INSERT them
         serializer.save()
     
+    def _resolve_truck(self, identifier):
+        """Resolve truck by UUID, truck_identifier, or plate number"""
+        if not identifier:
+            return None
+        try:
+            return FleetTruck.objects.get(id=identifier)
+        except (FleetTruck.DoesNotExist, ValueError):
+            pass
+        try:
+            return FleetTruck.objects.get(truck_identifier=identifier)
+        except FleetTruck.DoesNotExist:
+            pass
+        try:
+            return FleetTruck.objects.get(plate=identifier)
+        except FleetTruck.DoesNotExist:
+            pass
+        return None
+
+    def _resolve_driver(self, identifier):
+        """Resolve driver by UUID, phone_number, or name"""
+        if not identifier:
+            return None
+        try:
+            return FleetDriver.objects.get(id=identifier)
+        except (FleetDriver.DoesNotExist, ValueError):
+            pass
+        try:
+            return FleetDriver.objects.get(phone_number=identifier)
+        except FleetDriver.DoesNotExist:
+            pass
+        return None
+
     def create(self, request, *args, **kwargs):
         """
         Override create to handle mission creation when optional columns 
         (max_speed, avg_speed, compressed_trail) don't exist in production DB.
         
-        The issue: after serializer.save() does INSERT, Django tries to SELECT 
-        the instance back to populate auto_now_add fields. That SELECT fails 
-        because max_speed column may not exist.
-        
-        Fix: Instead of serializing the instance, build the response entirely 
-        from validated_data. Track creation time in Python, not via DB roundtrip.
+        Also handles truck/driver lookup by identifier (truck_identifier, plate, 
+        phone_number, or name) in addition to UUID, so the frontend can send 
+        human-readable identifiers like 'trk1' instead of UUIDs.
         """
         try:
-            # Pop the optional fields before validation so DRF never touches them
             data = request.data.copy()
             if isinstance(data, dict):
                 data.pop('max_speed', None)
                 data.pop('avg_speed', None)
                 data.pop('compressed_trail', None)
+                
+                # Resolve truck and driver identifiers to model instances
+                truck_identifier = data.get('truck')
+                driver_identifier = data.get('driver')
+                
+                truck = self._resolve_truck(truck_identifier)
+                if not truck and truck_identifier:
+                    return Response(
+                        {'error': f'Truck "{truck_identifier}" not found. Available trucks: {list(FleetTruck.objects.values_list("truck_identifier", "id")[:20])}'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                driver = self._resolve_driver(driver_identifier)
+                if not driver and driver_identifier:
+                    return Response(
+                        {'error': f'Driver "{driver_identifier}" not found. Available drivers: {list(FleetDriver.objects.values_list("phone_number", "id")[:20])}'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Replace identifiers with actual model instances for the serializer
+                data['truck'] = truck.id if truck else None
+                data['driver'] = driver.id if driver else None
             
             serializer = self.get_serializer(data=data)
             serializer.is_valid(raise_exception=True)
             
-            # Save validated data directly using the model manager
-            # which strips optional fields during INSERT
-            validated = serializer.validated_data.copy()
+            # Build truck_name and driver_name
+            if truck:
+                truck_name = truck.truck_identifier
+            else:
+                truck_name = None
+            if driver:
+                driver_name = driver.get_display_name()
+            else:
+                driver_name = None
             
-            # Build truck_name and driver_name before they get consumed
-            truck_id = validated.get('truck')
-            driver_id = validated.get('driver')
-            truck_name = None
-            driver_name = None
-            if truck_id:
-                try:
-                    t = FleetTruck.objects.get(id=truck_id)
-                    truck_name = t.truck_identifier
-                except FleetTruck.DoesNotExist:
-                    pass
-            if driver_id:
-                try:
-                    d = FleetDriver.objects.get(id=driver_id)
-                    driver_name = f"{d.first_name} {d.last_name}"
-                except FleetDriver.DoesNotExist:
-                    pass
+            validated = serializer.validated_data.copy()
             
             # Create the mission directly, bypassing serializer's auto-retrieve
             # This avoids the SELECT that would fail on missing max_speed column
@@ -132,7 +172,6 @@ class MissionViewSet(viewsets.ModelViewSet):
             response_data['avg_speed'] = '0.00'
             response_data['compressed_trail'] = []
             
-            # Store the instance for Potential further use (e.g., signals)
             serializer.instance = mission
             
             logger.info(f'Mission {mission.mission_number} created successfully (id={mission.id})')
