@@ -48,6 +48,10 @@ class FleetDriver(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
 
+    def get_display_name(self):
+        """Return the driver's full name for display purposes"""
+        return f"{self.first_name} {self.last_name}"
+
 
 class FleetTruck(models.Model):
     """Truck fleet management"""
@@ -136,16 +140,16 @@ class FleetMission(models.Model):
     # Changed to null=True without defaults to prevent Django from including them in INSERT
     # These columns may not exist in production database until migration is applied
     # NON-PERSISTENT FIELDS (NO MIGRATION NEEDED)
-max_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True, editable=False)
-avg_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True, editable=False)
-compressed_trail = models.JSONField(default=list, blank=True, help_text="Compressed list of [lat, lng, ts] for auditing", editable=False)
+    max_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True, editable=False)
+    avg_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True, editable=False)
+    compressed_trail = models.JSONField(default=list, blank=True, help_text="Compressed list of [lat, lng, ts] for auditing", editable=False)
 
-def save(self, *args, **kwargs):
-    # Prevent these fields from ever touching the database
-    self.max_speed = 0
-    self.avg_speed = 0
-    self.compressed_trail = []
-    super().save(*args, **kwargs)
+    def save(self, *args, **kwargs):
+        # Prevent these fields from ever touching the database
+        self.max_speed = 0
+        self.avg_speed = 0
+        self.compressed_trail = []
+        super().save(*args, **kwargs)
 
     class Meta:
         db_table = 'fleet_missions'
@@ -153,8 +157,23 @@ def save(self, *args, **kwargs):
     def __str__(self):
         return self.mission_number
 
-    # Note: Logic to update max_speed, avg_speed, and compressed_trail should be handled
-    # in the view or signal when TruckLocation is created for this mission.
+    def get_origin_coords(self):
+        """Safely extract origin lat/lon from JSONField"""
+        if isinstance(self.origin, dict):
+            return {
+                'lat': float(self.origin.get('lat', self.origin.get('latitude', 0))),
+                'lon': float(self.origin.get('lon', self.origin.get('lng', self.origin.get('longitude', 0))))
+            }
+        return {'lat': 0, 'lon': 0}
+
+    def get_destination_coords(self):
+        """Safely extract destination lat/lon from JSONField"""
+        if isinstance(self.destination, dict):
+            return {
+                'lat': float(self.destination.get('lat', self.destination.get('latitude', 0))),
+                'lon': float(self.destination.get('lon', self.destination.get('lng', self.destination.get('longitude', 0))))
+            }
+        return {'lat': 0, 'lon': 0}
 
 
 class FleetActivity(models.Model):

@@ -67,7 +67,7 @@ def mobile_driver_registration(request):
 
         # Update driver to active and assign truck
         driver.truck = truck
-        driver.is_active = True
+        driver.status = 'active'
         driver.save()
 
         # Generate unique auth token and tracking session ID
@@ -140,19 +140,13 @@ def mobile_location_update(request):
         # Update driver location
         driver.latitude = latitude
         driver.longitude = longitude
-        driver.current_speed = speed
         driver.updated_at = timezone.now()
         driver.save()
 
-        # ✅ CRITICAL: Also update truck's current location so web app can see it
+        # Also update truck's current location so web app can see it
         if driver.truck:
             driver.truck.last_latitude = float(latitude)
             driver.truck.last_longitude = float(longitude)
-            driver.truck.current_location = {
-                'lat': float(latitude),
-                'lng': float(longitude),
-                'timestamp': timezone.now().isoformat()
-            }
             driver.truck.save()
 
         # Store location history
@@ -170,13 +164,9 @@ def mobile_location_update(request):
         # Check for overspeeding alert
         if speed > 120:  # 120 km/h threshold
             Alert.objects.create(
-                driver=driver,
-                truck=driver.truck,
-                alert_type='overspeeding',
+                alert_type='speed',
+                severity='high',
                 message=f'Overspeeding: {speed} km/h',
-                latitude=latitude,
-                longitude=longitude,
-                speed=speed
             )
 
         return Response({
@@ -224,19 +214,12 @@ def mobile_alert(request):
             )
 
         # Create alert
+        severity = 'high' if alert_type in ['overspeeding', 'route_deviation'] else 'medium'
         alert = Alert.objects.create(
-            driver=driver,
-            truck=driver.truck,
             alert_type=alert_type,
             message=message,
-            latitude=latitude,
-            longitude=longitude,
-            speed=speed,
-            severity='high' if alert_type in ['overspeeding', 'route_deviation'] else 'medium'
+            severity=severity,
         )
-
-        # TODO: Trigger notification to admin dashboard
-        # TODO: Send notification to dispatcher
 
         return Response({
             'success': True,
@@ -262,28 +245,30 @@ def mobile_driver_profile(request, driver_id):
         # Get current mission
         current_mission = FleetMission.objects.filter(
             truck=driver.truck,
-            status='in_progress'
+            status__in=['enroute', 'in_progress']
         ).first()
+
+        origin_data = current_mission.get_origin_coords() if current_mission else None
+        destination_data = current_mission.get_destination_coords() if current_mission else None
 
         return Response({
             'id': str(driver.id),
-            'name': driver.name,
+            'name': driver.get_display_name(),
             'phone': driver.phone_number,
             'email': driver.email,
             'performance_points': driver.performance_mark,
-            'current_speed': driver.current_speed or 0,
             'latitude': driver.latitude,
             'longitude': driver.longitude,
             'truck_id': str(driver.truck.id) if driver.truck else None,
-            'truck_name': driver.truck.truck_name if driver.truck else None,
+            'truck_name': driver.truck.truck_identifier if driver.truck else None,
             'current_mission': {
                 'id': str(current_mission.id),
                 'mission_number': current_mission.mission_number,
                 'status': current_mission.status,
                 'distance_total_m': current_mission.distance_total_m,
                 'progress_pct': current_mission.progress_pct,
-                'origin': {'lat': float(current_mission.origin_latitude), 'lon': float(current_mission.origin_longitude)},
-                'destination': {'lat': float(current_mission.destination_latitude), 'lon': float(current_mission.destination_longitude)},
+                'origin': origin_data,
+                'destination': destination_data,
             } if current_mission else None,
         }, status=status.HTTP_200_OK)
 
@@ -320,20 +305,9 @@ def mobile_driver_current_mission(request, driver_id):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Extract coordinates from mission - support both old and new field formats
-        origin_data = mission.origin if isinstance(mission.origin, dict) else {
-            'lat': mission.origin_latitude if hasattr(mission, 'origin_latitude') else 0,
-            'lon': mission.origin_longitude if hasattr(mission, 'origin_longitude') else 0
-        }
-        destination_data = mission.destination if isinstance(mission.destination, dict) else {
-            'lat': mission.destination_latitude if hasattr(mission, 'destination_latitude') else 0,
-            'lon': mission.destination_longitude if hasattr(mission, 'destination_longitude') else 0
-        }
-        current_location_data = mission.current_location if isinstance(mission.current_location, dict) else None
-
-        # Ensure current_location exists for map rendering
-        if not current_location_data and origin_data:
-            current_location_data = origin_data
+        # Extract coordinates from mission origin/destination JSONFields
+        origin_data = mission.get_origin_coords()
+        destination_data = mission.get_destination_coords()
 
         return Response({
             'id': str(mission.id),
@@ -341,18 +315,9 @@ def mobile_driver_current_mission(request, driver_id):
             'status': mission.status,
             'distance_total_m': float(mission.distance_total_m) if mission.distance_total_m else 0,
             'progress_pct': float(mission.progress_pct) if mission.progress_pct else 0,
-            'origin': {
-                'lat': float(origin_data.get('lat') or origin_data.get('latitude', 0)),
-                'lon': float(origin_data.get('lon') or origin_data.get('longitude', 0))
-            },
-            'destination': {
-                'lat': float(destination_data.get('lat') or destination_data.get('latitude', 0)),
-                'lon': float(destination_data.get('lon') or destination_data.get('longitude', 0))
-            },
-            'current_location': {
-                'lat': float(current_location_data.get('lat') or current_location_data.get('latitude', 0)),
-                'lon': float(current_location_data.get('lon') or current_location_data.get('longitude', 0))
-            } if current_location_data else None,
+            'origin': origin_data,
+            'destination': destination_data,
+            'current_location': origin_data,
             'driver_id': str(driver.id),
             'truck_id': str(mission.truck.id),
             'created_at': mission.created_at.isoformat() if mission.created_at else None,
@@ -387,15 +352,8 @@ def mobile_driver_missions(request, driver_id):
 
         data = []
         for mission in missions:
-            # Extract coordinates from mission - support both old and new field formats
-            origin_data = mission.origin if isinstance(mission.origin, dict) else {
-                'lat': mission.origin_latitude if hasattr(mission, 'origin_latitude') else 0,
-                'lon': mission.origin_longitude if hasattr(mission, 'origin_longitude') else 0
-            }
-            destination_data = mission.destination if isinstance(mission.destination, dict) else {
-                'lat': mission.destination_latitude if hasattr(mission, 'destination_latitude') else 0,
-                'lon': mission.destination_longitude if hasattr(mission, 'destination_longitude') else 0
-            }
+            origin_data = mission.get_origin_coords()
+            destination_data = mission.get_destination_coords()
             
             data.append({
                 'id': str(mission.id),
@@ -403,14 +361,8 @@ def mobile_driver_missions(request, driver_id):
                 'status': mission.status,
                 'distance_total_m': float(mission.distance_total_m) if mission.distance_total_m else 0,
                 'progress_pct': float(mission.progress_pct) if mission.progress_pct else 0,
-                'origin': {
-                    'lat': float(origin_data.get('lat') or origin_data.get('latitude', 0)),
-                    'lon': float(origin_data.get('lon') or origin_data.get('longitude', 0))
-                },
-                'destination': {
-                    'lat': float(destination_data.get('lat') or destination_data.get('latitude', 0)),
-                    'lon': float(destination_data.get('lon') or destination_data.get('longitude', 0))
-                },
+                'origin': origin_data,
+                'destination': destination_data,
                 'created_at': mission.created_at.isoformat() if mission.created_at else None,
                 'updated_at': mission.updated_at.isoformat() if mission.updated_at else None,
             })
@@ -525,12 +477,12 @@ def validate_driver_pin(request):
     """
     Validate PIN code and register driver to truck
     PIN is 6-digit alphanumeric code sent to driver via SMS or displayed on dashboard
-    ✅ UPDATED: Accepts latitude/longitude, records location history for audit trail
+    Updated: Accepts latitude/longitude, records location history for audit trail
     """
     try:
         pin = request.data.get('pin', '').upper()
         phone_number = request.data.get('phone_number', '')
-        # ✅ NEW: Get current location from mobile app for audit trail
+        # Get current location from mobile app for audit trail
         latitude = request.data.get('latitude')
         longitude = request.data.get('longitude')
         accuracy = request.data.get('accuracy', 0)
@@ -551,7 +503,6 @@ def validate_driver_pin(request):
 
         # Get truck by PIN from cache
         from django.core.cache import cache
-        from .models import FleetTruck, FleetDriver, TruckLocation
         
         # Try to find PIN in active registrations (in a real app, store PINs properly)
         # For now, we'll search through recent trucks
@@ -586,22 +537,21 @@ def validate_driver_pin(request):
 
         # Link driver to truck
         driver.truck = truck_found
-        driver.is_active = True
-        # ✅ NEW: Update driver's current location if provided
+        driver.status = 'active'
+        # Update driver's current location if provided
         if latitude is not None and longitude is not None:
             driver.latitude = float(latitude)
             driver.longitude = float(longitude)
-            driver.last_location_update = timezone.now()
         driver.save()
 
-        # ✅ NEW: Override truck's current location with driver's actual location
+        # Override truck's current location with driver's actual location
         if latitude is not None and longitude is not None:
             truck_found.last_latitude = float(latitude)
             truck_found.last_longitude = float(longitude)
             truck_found.last_location_ts = timezone.now()
             truck_found.save()
             
-            # ✅ NEW: Record location history entry for audit trail
+            # Record location history entry for audit trail
             TruckLocation.objects.create(
                 truck=truck_found,
                 driver=driver,
@@ -614,7 +564,7 @@ def validate_driver_pin(request):
             )
             import logging
             logger = logging.getLogger(__name__)
-            logger.info(f'✅ Truck {truck_found.truck_identifier} location recorded on driver link: ({latitude}, {longitude})')
+            logger.info(f'Truck {truck_found.truck_identifier} location recorded on driver link: ({latitude}, {longitude})')
 
         # Generate tracking ID and auth token
         import uuid
@@ -701,20 +651,23 @@ def generate_mission_qr(request, mission_id):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Get coordinates safely
+        origin_coords = mission.get_origin_coords()
+        destination_coords = mission.get_destination_coords()
+
         # Create QR code data
         qr_data = json.dumps({
             'type': 'driver_mission_assignment',
             'mission_id': str(mission.id),
             'driver_id': str(driver.id),
             'truck_id': str(truck.id),
-            'driver_name': driver.name,
+            'driver_name': driver.get_display_name(),
             'driver_phone': driver.phone_number,
-            'destination_latitude': float(mission.destination_latitude),
-            'destination_longitude': float(mission.destination_longitude),
-            'origin_latitude': float(mission.origin_latitude),
-            'origin_longitude': float(mission.origin_longitude),
+            'destination_latitude': destination_coords['lat'],
+            'destination_longitude': destination_coords['lon'],
+            'origin_latitude': origin_coords['lat'],
+            'origin_longitude': origin_coords['lon'],
             'mission_number': mission.mission_number,
-            'destination_address': mission.destination_address or '',
             'timestamp': datetime.now().isoformat(),
         })
 
@@ -772,7 +725,7 @@ def get_available_missions(request, driver_id):
         if not truck:
             return Response({
                 'driver_id': str(driver.id),
-                'driver_name': driver.get_display_name() if hasattr(driver, 'get_display_name') else f'{driver.first_name} {driver.last_name}',
+                'driver_name': driver.get_display_name(),
                 'truck_id': None,
                 'truck_name': None,
                 'missions': [],
@@ -812,11 +765,9 @@ def get_available_missions(request, driver_id):
                 'created_at': mission.created_at.isoformat() if mission.created_at else None,
             })
         
-        driver_name = driver.get_display_name() if hasattr(driver, 'get_display_name') else f'{driver.first_name} {driver.last_name}'
-        
         return Response({
             'driver_id': str(driver.id),
-            'driver_name': driver_name,
+            'driver_name': driver.get_display_name(),
             'truck_id': str(truck.id),
             'truck_name': truck.truck_identifier,
             'missions': missions_data,
@@ -871,13 +822,13 @@ def start_mission_tracking(request):
     """
     Start tracking for a mission
     Accepts either mission_id or mission_number
-    ✅ UPDATED: Accepts latitude/longitude, records location history for audit trail
+    Updated: Accepts latitude/longitude, records location history for audit trail
     """
     try:
         driver_id = request.data.get('driver_id')
         mission_id = request.data.get('mission_id')
         mission_number = request.data.get('mission_number')
-        # ✅ NEW: Get current location from mobile app for audit trail
+        # Get current location from mobile app for audit trail
         latitude = request.data.get('latitude')
         longitude = request.data.get('longitude')
         accuracy = request.data.get('accuracy', 0)
@@ -914,23 +865,26 @@ def start_mission_tracking(request):
         mission.driver = driver
         mission.started_at = timezone.now()
         
-        # ✅ FIXED: Initialize current_location to origin coordinates
+        # Initialize current location to origin coordinates
         # This ensures the truck pin appears on the map when mission starts
-        if mission.origin and not mission.current_location:
-            mission.current_location = mission.origin
+        if mission.origin:
+            if isinstance(mission.origin, dict):
+                lat = mission.origin.get('lat', mission.origin.get('latitude', 0))
+                lon = mission.origin.get('lon', mission.origin.get('lng', mission.origin.get('longitude', 0)))
+                mission.origin['lat'] = lat
+                mission.origin['lon'] = lon
         
-        # ✅ NEW: Override mission location with driver's actual location if provided
+        # Override mission origin with driver's actual location if provided
         if latitude is not None and longitude is not None:
-            mission.current_location = {
+            mission.origin = {
                 'lat': float(latitude),
-                'lng': float(longitude)
+                'lon': float(longitude)
             }
         
         mission.save()
         
-        # ✅ NEW: Record location history entry for audit trail AND update truck's current coordinates
+        # Record location history entry for audit trail AND update truck's current coordinates
         if latitude is not None and longitude is not None:
-            from .models import TruckLocation
             TruckLocation.objects.create(
                 truck=mission.truck,
                 driver=driver,
@@ -942,19 +896,14 @@ def start_mission_tracking(request):
                 timestamp=timezone.now()
             )
             
-            # ✅ CRITICAL: Update truck's current location fields so web app can access them
+            # Update truck's current location fields so web app can access them
             mission.truck.last_latitude = float(latitude)
             mission.truck.last_longitude = float(longitude)
-            mission.truck.current_location = {
-                'lat': float(latitude),
-                'lng': float(longitude),
-                'timestamp': timezone.now().isoformat()
-            }
             mission.truck.save()
             
             import logging
             logger = logging.getLogger(__name__)
-            logger.info(f'✅ Mission {mission.mission_number} location recorded on start: ({latitude}, {longitude})')
+            logger.info(f'Mission {mission.mission_number} location recorded on start: ({latitude}, {longitude})')
         
         # Cache mission tracking session
         from django.core.cache import cache
@@ -966,8 +915,6 @@ def start_mission_tracking(request):
             'tracking_enabled': True
         }, timeout=None)
         
-        driver_name = driver.get_display_name() if hasattr(driver, 'get_display_name') else f'{driver.first_name} {driver.last_name}'
-        
         return Response({
             'success': True,
             'mission_id': str(mission.id),
@@ -975,7 +922,7 @@ def start_mission_tracking(request):
             'status': mission.status,
             'origin': mission.origin,
             'destination': mission.destination,
-            'driver_name': driver_name,
+            'driver_name': driver.get_display_name(),
             'tracking_id': str(mission.id),
             'message': f'Started tracking mission {mission.mission_number}',
             'location_synced': latitude is not None and longitude is not None

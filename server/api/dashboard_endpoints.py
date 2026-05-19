@@ -68,7 +68,7 @@ def trucks_list_with_mission_data(request):
                     'last_latitude': getattr(t, 'last_latitude', 0),
                     'last_longitude': getattr(t, 'last_longitude', 0),
                     'speed_kmh': getattr(t, 'speed_kmh', 0),
-                    'assigned_driver': t.assigned_driver.get_display_name() if hasattr(t, 'assigned_driver') and t.assigned_driver else None
+                    'assigned_driver': t.drivers.first().get_display_name() if t.drivers.exists() else None
                 })
             except Exception:
                 continue

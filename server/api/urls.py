@@ -8,7 +8,7 @@ import importlib
 from .views import (
     DriverViewSet, TruckViewSet, MissionViewSet,
     LocationViewSet, ActivityViewSet, PerformanceViewSet,
-    AlertViewSet, health_check, api_root,
+    AlertViewSet, health_check, api_root, setup_admin_account,
     dashboard_drivers, dashboard_trucks, dashboard_missions,
     dashboard_summary, dashboard_recalculate_performance,
     truck_tracking_all_locations, calculate_distance,
@@ -53,6 +53,8 @@ mobile = safe_import('mobile_endpoints', [
 urlpatterns = [
     path('v1/', api_root, name='api-root'),
     path('v1/health/', health_check, name='health-check'),
+    # Admin setup endpoint
+    path('v1/setup-admin-account/', setup_admin_account, name='setup-admin-account'),
     # Dashboard endpoints (specific, before router)
     path('v1/dashboard/drivers/', dashboard_drivers, name='dashboard-drivers'),
     path('v1/dashboard/trucks/', dashboard_trucks, name='dashboard-trucks'),

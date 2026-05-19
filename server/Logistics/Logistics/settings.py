@@ -54,6 +54,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'api',   
+    'fleet.apps.FleetConfig',      # ✅ CORRECT (no server. prefix)
+    'api.apps.ApiConfig',
     
 ]
 

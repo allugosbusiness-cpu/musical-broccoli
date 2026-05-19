@@ -2,16 +2,6 @@
 Fleet Management v2.0 - REST API Views
 Django REST Framework ViewSets for V2 models
 """
-def get_driver_by_id_or_name(driver_id):
-    from .models import FleetDriver
-    import uuid
-    try:
-        return FleetDriver.objects.get(id=driver_id)
-    except (FleetDriver.DoesNotExist, ValueError):
-        if isinstance(driver_id, str) and ' ' in driver_id:
-            first, last = driver_id.split(' ', 1)
-            return FleetDriver.objects.get(first_name__iexact=first.strip(), last_name__iexact=last.strip())
-        raise FleetDriver.DoesNotExist(f"Driver not found: {driver_id}")
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
@@ -140,6 +130,60 @@ class CheckpointViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
 
 
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+def setup_admin_account(request):
+    """
+    Setup or verify admin account existence.
+    GET: Check if admin exists
+    POST: Create initial admin account
+    Returns success response for frontend validation.
+    """
+    try:
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        if request.method == 'GET':
+            admin_exists = User.objects.filter(is_superuser=True).exists()
+            return Response({
+                'success': True,
+                'admin_exists': admin_exists,
+                'message': 'Admin account status checked'
+            })
+        
+        # POST: Create admin
+        data = request.data or {}
+        username = data.get('username', 'admin')
+        email = data.get('email', 'admin@pulsetrack.com')
+        password = data.get('password', 'admin123')
+        
+        if User.objects.filter(is_superuser=True).exists():
+            return Response({
+                'success': True,
+                'admin_exists': True,
+                'message': 'Admin account already exists'
+            })
+        
+        User.objects.create_superuser(
+            username=username,
+            email=email,
+            password=password
+        )
+        
+        return Response({
+            'success': True,
+            'admin_exists': True,
+            'message': 'Admin account created successfully'
+        }, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        logger.error(f'Error in setup-admin-account: {str(e)}')
+        return Response({
+            'success': False,
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @api_view(['GET'])
 def health_check(request):
     """API health check endpoint"""
@@ -195,13 +239,50 @@ def dashboard_trucks(request):
 def dashboard_missions(request):
     """Get all missions for dashboard"""
     try:
-        # Defer optional columns that may not exist in production database
-        # This allows the query to work even if max_speed, avg_speed, compressed_trail columns are missing
-        missions = FleetMission.objects.select_related('truck', 'driver').defer(
-            'max_speed', 'avg_speed', 'compressed_trail'
-        ).all()
-        serializer = MissionSerializer(missions, many=True)
-        return Response(serializer.data)
+        # First try: use raw queryset without defer to get all fields
+        # If optional columns (max_speed, avg_speed, compressed_trail) don't exist
+        # in the production DB yet, this will fail with FieldError.
+        # We catch that and fall back to values() which skips unknown columns.
+        try:
+            missions = FleetMission.objects.select_related('truck', 'driver').all()
+            serializer = MissionSerializer(missions, many=True)
+            return Response(serializer.data)
+        except Exception as inner_e:
+            logger.warning(f'Direct mission query failed, trying values() fallback: {str(inner_e)}')
+            # Fallback: query only known-good fields via values()
+            # Build response manually without the optional columns
+            missions = FleetMission.objects.values(
+                'id', 'mission_number', 'status', 'priority', 'truck', 'driver',
+                'origin', 'destination', 'distance_total_m',
+                'cargo', 'mission_date', 'started_at', 'completed_at',
+                'delivered_at', 'created_at', 'updated_at'
+            )
+            result = []
+            for m in missions:
+                truck_name = None
+                driver_name = None
+                if m.get('truck'):
+                    try:
+                        t = FleetTruck.objects.filter(id=m['truck']).first()
+                        if t:
+                            truck_name = t.truck_identifier
+                    except Exception:
+                        pass
+                if m.get('driver'):
+                    try:
+                        d = FleetDriver.objects.filter(id=m['driver']).first()
+                        if d:
+                            driver_name = f"{d.first_name} {d.last_name}"
+                    except Exception:
+                        pass
+                m['truck_name'] = truck_name
+                m['driver_name'] = driver_name
+                # Add empty values for optional fields that don't exist in DB
+                m['max_speed'] = '0.00'
+                m['avg_speed'] = '0.00'
+                m['compressed_trail'] = []
+                result.append(m)
+            return Response(result)
     except Exception as e:
         logger.error(f'Error fetching dashboard missions: {str(e)}')
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -216,7 +297,7 @@ def dashboard_summary(request):
         total_trucks = FleetTruck.objects.count()
         active_trucks = FleetTruck.objects.filter(status='idle').count() + FleetTruck.objects.filter(status='enroute').count()
         total_missions = FleetMission.objects.count()
-        active_missions = FleetMission.objects.filter(status='in_progress').count()
+        active_missions = FleetMission.objects.filter(status='enroute').count()
         active_alerts = Alert.objects.filter(is_resolved=False).count()
         
         return Response({
