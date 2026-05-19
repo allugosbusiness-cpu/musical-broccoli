@@ -696,9 +696,7 @@ def mobile_get_available_missions(request, driver_id):
         
         # Get missions that are assigned to this driver or are available (not yet assigned)
         # Missions can be: planned, assigned, enroute, paused, completed, cancelled
-        missions = FleetMission.objects.select_related('truck', 'driver').defer(
-            'max_speed', 'avg_speed', 'compressed_trail'
-        ).filter(
+        missions = FleetMission.objects.select_related('truck', 'driver').filter(
             driver=driver,
             status__in=['assigned', 'planned']
         ).order_by('-created_at')
@@ -733,18 +731,14 @@ def mobile_get_current_mission(request, driver_id):
             )
         
         # Get the mission currently being tracked (status='enroute')
-        mission = FleetMission.objects.select_related('truck', 'driver').defer(
-            'max_speed', 'avg_speed', 'compressed_trail'
-        ).filter(
+        mission = FleetMission.objects.select_related('truck', 'driver').filter(
             driver=driver,
             status='enroute'
         ).first()
         
         if not mission:
             # If no enroute mission, try to get the most recent one
-            mission = FleetMission.objects.select_related('truck', 'driver').defer(
-                'max_speed', 'avg_speed', 'compressed_trail'
-            ).filter(
+            mission = FleetMission.objects.select_related('truck', 'driver').filter(
                 driver=driver
             ).order_by('-started_at').first()
             
