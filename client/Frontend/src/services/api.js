@@ -350,9 +350,9 @@ export const getTruckTrail = async (truckId, limit = 100) => {
 
 export const getTruckTrailWithDirections = async (truckId, limit = 200) => {
   try {
-    // Use legacy API endpoint (not v1)
+    // Use v1 API endpoint
     const baseUrl = 'https://pulsetrack-back.onrender.com';
-    const response = await axios.get(`${baseUrl}/api/trucks/${truckId}/truck_trail_with_directions/`, { 
+    const response = await axios.get(`${baseUrl}/api/v1/trucks/${truckId}/truck_trail_with_directions/`, { 
       params: { limit },
       withCredentials: true
     });

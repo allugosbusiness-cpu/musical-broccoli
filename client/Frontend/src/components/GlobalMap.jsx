@@ -773,7 +773,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
       for (const truck of trucks) {
         try {
           const response = await fetch(
-            `${getApiBase()}/trucks/${truck.id}/truck_trail_with_directions/?limit=100`
+            `${getApiBase()}/v1/trucks/${truck.id}/truck_trail_with_directions/?limit=100`
           );
           
           // Skip if endpoint not found (404 = no trail data yet for this truck)

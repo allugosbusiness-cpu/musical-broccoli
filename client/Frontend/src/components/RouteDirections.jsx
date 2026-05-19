@@ -17,7 +17,7 @@ export default function RouteDirections({ truckId, truckPlate, onClose }) {
       try {
         setLoading(true);
         const response = await axios.get(
-          `${getApiBase()}/trucks/${truckId}/truck_trail_with_directions/`,
+          `${getApiBase()}/v1/trucks/${truckId}/truck_trail_with_directions/`,
           { params: { limit: 300 } }
         );
         
