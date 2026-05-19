@@ -57,21 +57,18 @@ def get_driver_by_id_or_name(driver_identifier):
             except FleetDriver.DoesNotExist:
                 return None
         return None
-@method_decorator(csrf_exempt, name='dispatch')
 class DriverViewSet(viewsets.ModelViewSet):
     queryset = FleetDriver.objects.all()
     serializer_class = DriverSerializer
     permission_classes = [AllowAny]
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class TruckViewSet(viewsets.ModelViewSet):
     queryset = FleetTruck.objects.all()
     serializer_class = TruckSerializer
     permission_classes = [AllowAny]
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class MissionViewSet(viewsets.ModelViewSet):
     queryset = FleetMission.objects.select_related('truck', 'driver').defer(
         'max_speed', 'avg_speed', 'compressed_trail'
@@ -80,35 +77,30 @@ class MissionViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class LocationViewSet(viewsets.ModelViewSet):
     queryset = TruckLocation.objects.all()
     serializer_class = TruckLocationSerializer
     permission_classes = [AllowAny]
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ActivityViewSet(viewsets.ModelViewSet):
     queryset = FleetActivity.objects.all()
     serializer_class = FleetActivitySerializer
     permission_classes = [AllowAny]
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class PerformanceViewSet(viewsets.ModelViewSet):
     queryset = FleetDriverPerformanceDaily.objects.all()
     serializer_class = PerformanceSerializer
     permission_classes = [AllowAny]
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class AlertViewSet(viewsets.ModelViewSet):
     queryset = Alert.objects.all()
     serializer_class = AlertSerializer
     permission_classes = [AllowAny]
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class CheckpointViewSet(viewsets.ModelViewSet):
     """Placeholder for compatibility"""
     queryset = FleetMission.objects.none()
