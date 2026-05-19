@@ -71,5 +71,9 @@ def ensure_fleet_activity_table(sender, **kwargs):
 
 # Manually register the pre_save signal for FleetMission
 # (The @receiver decorator with sender=None doesn't work, so we do it manually)
-from .models import FleetMission
-pre_save.connect(strip_optional_mission_fields, sender=FleetMission)
+try:
+    from .models import FleetMission
+    pre_save.connect(strip_optional_mission_fields, sender=FleetMission)
+    print("[OK] FleetMission pre_save signal registered successfully")
+except Exception as e:
+    print(f"[ERROR] Failed to register FleetMission pre_save signal: {e}")

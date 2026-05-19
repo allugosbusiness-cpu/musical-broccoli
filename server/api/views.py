@@ -70,28 +70,29 @@ class TruckViewSet(viewsets.ModelViewSet):
 
 
 class MissionViewSet(viewsets.ModelViewSet):
-    # Use defer() to exclude columns that may not exist in production database
-    # max_speed, avg_speed, and compressed_trail are optional fields added later
-    queryset = FleetMission.objects.select_related('truck', 'driver').defer(
-        'max_speed', 'avg_speed', 'compressed_trail'
-    ).all()
+    # Don't use defer() as it still tries to SELECT the columns
+    # Instead, let the signal handle removing them from the instance
+    queryset = FleetMission.objects.select_related('truck', 'driver').all()
     serializer_class = MissionSerializer
     permission_classes = [AllowAny]
     
+    def get_queryset(self):
+        """Exclude optional columns that may not exist in production database"""
+        # Use only() to explicitly select only the fields we need
+        # This prevents Django from trying to SELECT columns that don't exist
+        fields_to_select = [
+            'id', 'fleet_id', 'mission_number', 'status', 'priority',
+            'truck', 'driver', 'origin', 'destination', 'distance_total_m',
+            'progress_pct', 'cargo', 'mission_date', 'started_at', 'completed_at',
+            'delivered_at', 'created_at', 'updated_at'
+        ]
+        return FleetMission.objects.select_related('truck', 'driver').only(*fields_to_select)
+    
     def perform_create(self, serializer):
         """Override to avoid inserting optional fields that may not exist in DB"""
-        # This prevents Django ORM from trying to INSERT max_speed, avg_speed, compressed_trail
-        # if those columns don't exist in production database yet
-        try:
-            serializer.save()
-        except Exception as e:
-            # If we get column-not-found error, try creating without those fields
-            if 'does not exist' in str(e):
-                # Extract validated data and remove optional speed/trail fields
-                validated_data = serializer.validated_data
-                mission = FleetMission.objects.create(**validated_data)
-                return mission
-            raise
+        # The pre_save signal will strip max_speed, avg_speed, compressed_trail
+        # from the instance before Django tries to save them
+        serializer.save()
     
     def create(self, request, *args, **kwargs):
         """Override create to catch and log errors"""
