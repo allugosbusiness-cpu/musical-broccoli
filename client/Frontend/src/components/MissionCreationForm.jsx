@@ -190,25 +190,21 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
       const apiUrl = `${getApiV1Base()}/missions/`;
       
       // 🔑 CRITICAL: LOG THE ACTUAL PAYLOAD BEFORE SENDING
+      // Payload matches what backend MissionSerializer.create() expects
       const payload = {
         mission_number: formData.identifier || `MIS-${Date.now()}`,
         truck: formData.truck_id,
         driver: formData.driver_id,
         status: 'planned',
         origin: {
-          name: originSearch || 'Origin',
           latitude: parseFloat(formData.origin.lat),
           longitude: parseFloat(formData.origin.lon),
         },
         destination: {
-          name: destinationSearch || 'Destination',
           latitude: parseFloat(formData.destination.lat),
           longitude: parseFloat(formData.destination.lon),
         },
         priority: 'normal',
-        // Convert string inputs to numbers for backend DecimalFields
-        planned_distance_km: parseFloat(formData.planned_distance_km),
-        planned_duration_minutes: parseFloat(formData.planned_duration_minutes),
       };
       
       console.log('📤 Sending mission payload:', payload);
