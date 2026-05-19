@@ -55,7 +55,6 @@ class MissionSerializer(serializers.ModelSerializer):
     distance_total_m = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True)
     
     class Meta:
-        class Meta:
     model = FleetMission
     fields = [
         'id', 'mission_number', 'status', 'priority', 'truck', 'driver',
