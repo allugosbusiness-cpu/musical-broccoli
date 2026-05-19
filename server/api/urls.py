@@ -14,7 +14,7 @@ from .views import (
     truck_tracking_all_locations, calculate_distance,
     mobile_driver_registration, mobile_get_available_missions,
     mission_start_tracking, mobile_get_current_mission,
-    mobile_location_update
+    mobile_location_update, truck_trail_with_directions
 )
 
 router = DefaultRouter()
@@ -61,6 +61,7 @@ urlpatterns = [
     path('v1/dashboard/recalculate-performance/', dashboard_recalculate_performance, name='dashboard-recalculate-performance'),
     # Truck tracking endpoints (specific, before router)
     path('v1/truck-tracking/all-locations/', truck_tracking_all_locations, name='truck-tracking-all-locations'),
+    path('v1/trucks/<str:truck_id>/truck_trail_with_directions/', truck_trail_with_directions, name='truck-trail-with-directions'),
     path('v1/calculate-distance/', calculate_distance, name='calculate-distance'),
     # Mobile endpoints (specific, before router)
     path('v1/mobile/driver-registration/', mobile_driver_registration, name='mobile-driver-registration'),
