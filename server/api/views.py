@@ -68,7 +68,9 @@ class TruckViewSet(viewsets.ModelViewSet):
 
 
 class MissionViewSet(viewsets.ModelViewSet):
-    queryset = FleetMission.objects.select_related('truck', 'driver').all()
+    queryset = FleetMission.objects.select_related('truck', 'driver').defer(
+        'max_speed', 'avg_speed', 'compressed_trail'
+    ).all()
     serializer_class = MissionSerializer
     permission_classes = [AllowAny]
 
@@ -159,7 +161,11 @@ def dashboard_trucks(request):
 def dashboard_missions(request):
     """Get all missions for dashboard"""
     try:
-        missions = FleetMission.objects.select_related('truck', 'driver').all()
+        # Defer optional columns that may not exist in production database
+        # This allows the query to work even if max_speed, avg_speed, compressed_trail columns are missing
+        missions = FleetMission.objects.select_related('truck', 'driver').defer(
+            'max_speed', 'avg_speed', 'compressed_trail'
+        ).all()
         serializer = MissionSerializer(missions, many=True)
         return Response(serializer.data)
     except Exception as e:
@@ -391,7 +397,9 @@ def mobile_get_available_missions(request, driver_id):
         
         # Get missions that are assigned to this driver or are available (not yet assigned)
         # Missions can be: planned, assigned, enroute, paused, completed, cancelled
-        missions = FleetMission.objects.select_related('truck', 'driver').filter(
+        missions = FleetMission.objects.select_related('truck', 'driver').defer(
+            'max_speed', 'avg_speed', 'compressed_trail'
+        ).filter(
             driver=driver,
             status__in=['assigned', 'planned']
         ).order_by('-created_at')
@@ -426,14 +434,18 @@ def mobile_get_current_mission(request, driver_id):
             )
         
         # Get the mission currently being tracked (status='enroute')
-        mission = FleetMission.objects.select_related('truck', 'driver').filter(
+        mission = FleetMission.objects.select_related('truck', 'driver').defer(
+            'max_speed', 'avg_speed', 'compressed_trail'
+        ).filter(
             driver=driver,
             status='enroute'
         ).first()
         
         if not mission:
             # If no enroute mission, try to get the most recent one
-            mission = FleetMission.objects.select_related('truck', 'driver').filter(
+            mission = FleetMission.objects.select_related('truck', 'driver').defer(
+                'max_speed', 'avg_speed', 'compressed_trail'
+            ).filter(
                 driver=driver
             ).order_by('-started_at').first()
             
