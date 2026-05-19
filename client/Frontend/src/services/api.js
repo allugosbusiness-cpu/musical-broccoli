@@ -1,6 +1,5 @@
 import axios from 'axios';
-import API_CONFIG, { getValidatedApiUrl, checkApiHealth } from '../config/apiConfig';
-// RETRY_CONFIG will be loaded lazily to avoid circular dependency
+import API_CONFIG, { RETRY_CONFIG, getValidatedApiUrl, checkApiHealth } from '../config/apiConfig';
 
 
 // Log environment info
