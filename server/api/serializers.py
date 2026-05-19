@@ -1,9 +1,12 @@
 ﻿from rest_framework import serializers
+import logging
 from .models import (
     FleetDriver, FleetTruck, FleetMission, 
     FleetDriverPerformanceDaily, FleetAdminAuditLog, TruckLocation, 
     FleetActivity, Alert
 )
+
+logger = logging.getLogger(__name__)
 
 
 class DriverSerializer(serializers.ModelSerializer):
@@ -67,6 +70,26 @@ class MissionSerializer(serializers.ModelSerializer):
     
     def get_driver_name(self, obj):
         return f"{obj.driver.first_name} {obj.driver.last_name}" if obj.driver else None
+    
+    def to_representation(self, instance):
+        """Override to handle missing optional fields gracefully"""
+        try:
+            return super().to_representation(instance)
+        except Exception as e:
+            # If field doesn't exist in DB, return partial data
+            logger.warning(f"Serialization error: {str(e)}")
+            return {
+                'id': str(instance.id),
+                'mission_number': instance.mission_number,
+                'status': instance.status,
+                'priority': instance.priority,
+                'truck': str(instance.truck.id) if instance.truck else None,
+                'driver': str(instance.driver.id) if instance.driver else None,
+                'truck_name': instance.truck.truck_identifier if instance.truck else None,
+                'driver_name': f"{instance.driver.first_name} {instance.driver.last_name}" if instance.driver else None,
+                'created_at': instance.created_at.isoformat() if instance.created_at else None,
+                'updated_at': instance.updated_at.isoformat() if instance.updated_at else None,
+            }
     
     def _calculate_distance(self, origin, destination):
         """Calculate distance between two coordinates using Haversine formula (meters)"""
