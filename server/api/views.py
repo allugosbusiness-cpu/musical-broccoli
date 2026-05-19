@@ -18,6 +18,8 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 import logging
 
 from .models import (
@@ -55,18 +57,21 @@ def get_driver_by_id_or_name(driver_identifier):
             except FleetDriver.DoesNotExist:
                 return None
         return None
+@method_decorator(csrf_exempt, name='dispatch')
 class DriverViewSet(viewsets.ModelViewSet):
     queryset = FleetDriver.objects.all()
     serializer_class = DriverSerializer
     permission_classes = [AllowAny]
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class TruckViewSet(viewsets.ModelViewSet):
     queryset = FleetTruck.objects.all()
     serializer_class = TruckSerializer
     permission_classes = [AllowAny]
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class MissionViewSet(viewsets.ModelViewSet):
     queryset = FleetMission.objects.select_related('truck', 'driver').defer(
         'max_speed', 'avg_speed', 'compressed_trail'
@@ -75,30 +80,35 @@ class MissionViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class LocationViewSet(viewsets.ModelViewSet):
     queryset = TruckLocation.objects.all()
     serializer_class = TruckLocationSerializer
     permission_classes = [AllowAny]
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class ActivityViewSet(viewsets.ModelViewSet):
     queryset = FleetActivity.objects.all()
     serializer_class = FleetActivitySerializer
     permission_classes = [AllowAny]
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class PerformanceViewSet(viewsets.ModelViewSet):
     queryset = FleetDriverPerformanceDaily.objects.all()
     serializer_class = PerformanceSerializer
     permission_classes = [AllowAny]
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class AlertViewSet(viewsets.ModelViewSet):
     queryset = Alert.objects.all()
     serializer_class = AlertSerializer
     permission_classes = [AllowAny]
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CheckpointViewSet(viewsets.ModelViewSet):
     """Placeholder for compatibility"""
     queryset = FleetMission.objects.none()
@@ -199,6 +209,7 @@ def dashboard_summary(request):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@csrf_exempt
 @api_view(['POST'])
 def dashboard_recalculate_performance(request):
     """Recalculate driver performance metrics"""
@@ -257,6 +268,7 @@ def truck_tracking_all_locations(request):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@csrf_exempt
 @api_view(['POST'])
 def calculate_distance(request):
     """Calculate distance between two coordinates
@@ -305,6 +317,7 @@ def calculate_distance(request):
 
 
 # Mobile Endpoints
+@csrf_exempt
 @api_view(['POST'])
 def mobile_driver_registration(request):
     """Register a mobile driver - returns driver_id for AsyncStorage"""
@@ -383,6 +396,7 @@ def mobile_driver_registration(request):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@csrf_exempt
 @api_view(['POST'])
 def mobile_validate_pin(request):
     """
@@ -552,6 +566,7 @@ def mobile_get_current_mission(request, driver_id):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@csrf_exempt
 @api_view(['POST'])
 def mission_start_tracking(request):
     """Start tracking for a mission - called when driver accepts and starts mission
@@ -611,6 +626,7 @@ def mission_start_tracking(request):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@csrf_exempt
 @api_view(['POST'])
 def mobile_location_update(request):
     """Update driver location during mission tracking (supports driver_id UUID or driver_name)"""

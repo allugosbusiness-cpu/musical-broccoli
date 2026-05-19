@@ -681,19 +681,20 @@ const apiV1 = axios.create({
   withCredentials: true, // ✅ CRITICAL: Include cookies (for CSRF token, session auth)
 });
 
-// ✅ Add CSRF token interceptor to apiV1 (same as main api instance)
+// ✅ Add CSRF token interceptor to apiV1 (disabled - backend is CSRF-exempt for API endpoints)
 apiV1.interceptors.request.use(
   config => {
-    // Add CSRF token for POST, PUT, PATCH, DELETE requests
-    if (['post', 'put', 'patch', 'delete'].includes(config.method)) {
-      const csrfToken = getCsrfToken();
-      if (csrfToken) {
-        config.headers['X-CSRFToken'] = csrfToken;
-        console.log('🔐 [API V1] Added CSRF token to request headers');
-      } else {
-        console.warn('⚠️ [API V1] No CSRF token found - request may be rejected');
-      }
-    }
+    // CSRF token disabled for REST API endpoints - backend uses @csrf_exempt
+    // If CSRF is re-enabled in future, uncomment code below:
+    // if (['post', 'put', 'patch', 'delete'].includes(config.method)) {
+    //   const csrfToken = getCsrfToken();
+    //   if (csrfToken) {
+    //     config.headers['X-CSRFToken'] = csrfToken;
+    //     console.log('🔐 [API V1] Added CSRF token to request headers');
+    //   } else {
+    //     console.warn('⚠️ [API V1] No CSRF token found - request may be rejected');
+    //   }
+    // }
     return config;
   },
   error => {
