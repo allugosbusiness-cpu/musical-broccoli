@@ -55,18 +55,18 @@ class MissionSerializer(serializers.ModelSerializer):
     distance_total_m = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True)
     
     class Meta:
-        model = FleetMission
-        fields = [
-            'id', 'mission_number', 'status', 'priority', 'truck', 'driver',
-            'truck_name', 'driver_name',
-            'origin', 'destination', 'distance_total_m',
-            'cargo', 'mission_date', 'started_at', 'completed_at',
-            'delivered_at', 'created_at', 'updated_at'
-        ]
-        # Explicitly exclude fields that may not exist in production database
-        # These are optional speed/trail fields that may not be migrated yet
-        read_only_fields = ['id', 'created_at', 'updated_at', 'truck_name', 'driver_name']
-    
+        class Meta:
+    model = FleetMission
+    fields = [
+        'id', 'mission_number', 'status', 'priority', 'truck', 'driver',
+        'truck_name', 'driver_name',
+        'origin', 'destination', 'distance_total_m',
+        'cargo', 'mission_date', 'started_at', 'completed_at',
+        'delivered_at', 'created_at', 'updated_at',
+        'max_speed', 'avg_speed', 'compressed_trail'  # ← ADD THESE 3 LINES
+    ]
+    read_only_fields = ['max_speed', 'avg_speed', 'compressed_trail', 'id', 'created_at', 'updated_at', 'truck_name', 'driver_name']  # ← ADD THESE 3 LINES
+
     def get_truck_name(self, obj):
         return obj.truck.truck_identifier if obj.truck else None
     
