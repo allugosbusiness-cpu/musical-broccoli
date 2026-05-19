@@ -75,6 +75,17 @@ class MissionViewSet(viewsets.ModelViewSet):
     ).all()
     serializer_class = MissionSerializer
     permission_classes = [AllowAny]
+    
+    def create(self, request, *args, **kwargs):
+        """Override create to catch and log errors"""
+        try:
+            return super().create(request, *args, **kwargs)
+        except Exception as e:
+            logger.error(f'Mission creation error: {str(e)}', exc_info=True)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class LocationViewSet(viewsets.ModelViewSet):
