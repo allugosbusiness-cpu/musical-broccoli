@@ -135,14 +135,17 @@ class FleetMission(models.Model):
     # New fields for speed and compressed trail
     # Changed to null=True without defaults to prevent Django from including them in INSERT
     # These columns may not exist in production database until migration is applied
-    max_speed = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, editable=False)
-    avg_speed = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, editable=False)
-    compressed_trail = models.JSONField(null=True, blank=True, help_text="Compressed list of [lat, lng, ts] for auditing", editable=False)
+    # NON-PERSISTENT FIELDS (NO MIGRATION NEEDED)
+max_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True, editable=False)
+avg_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True, editable=False)
+compressed_trail = models.JSONField(default=list, blank=True, help_text="Compressed list of [lat, lng, ts] for auditing", editable=False)
 
-    def save(self, *args, **kwargs):
-        # Optional fields may not exist in production database.
-        # The pre_save signal will strip these from __dict__ before Django builds SQL
-        super().save(*args, **kwargs)
+def save(self, *args, **kwargs):
+    # Prevent these fields from ever touching the database
+    self.max_speed = 0
+    self.avg_speed = 0
+    self.compressed_trail = []
+    super().save(*args, **kwargs)
 
     class Meta:
         db_table = 'fleet_missions'
