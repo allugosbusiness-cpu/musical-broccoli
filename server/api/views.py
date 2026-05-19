@@ -2,6 +2,16 @@
 Fleet Management v2.0 - REST API Views
 Django REST Framework ViewSets for V2 models
 """
+def get_driver_by_id_or_name(driver_id):
+    from .models import FleetDriver
+    import uuid
+    try:
+        return FleetDriver.objects.get(id=driver_id)
+    except (FleetDriver.DoesNotExist, ValueError):
+        if isinstance(driver_id, str) and ' ' in driver_id:
+            first, last = driver_id.split(' ', 1)
+            return FleetDriver.objects.get(first_name__iexact=first.strip(), last_name__iexact=last.strip())
+        raise FleetDriver.DoesNotExist(f"Driver not found: {driver_id}")
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
