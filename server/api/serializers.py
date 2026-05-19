@@ -112,7 +112,6 @@ class MissionSerializer(serializers.ModelSerializer):
         
         # Remove optional fields that may not exist in production database
         # These fields are defined in the model but may not have been migrated yet
-        # The model's save() method also resets them to defaults, so this is safe
         validated_data.pop('max_speed', None)
         validated_data.pop('avg_speed', None)
         validated_data.pop('compressed_trail', None)

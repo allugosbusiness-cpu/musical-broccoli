@@ -1,10 +1,27 @@
 """
 Post-migration signals to ensure FleetActivity table exists
 """
-from django.db.models.signals import post_migrate
+from django.db.models.signals import post_migrate, pre_save
 from django.dispatch import receiver
 from django.db import connection
 from django.core.management import call_command
+
+
+@receiver(pre_save, sender=None)
+def strip_optional_mission_fields(sender, instance, **kwargs):
+    """Strip optional mission fields that may not exist in production database.
+    
+    This handles the case where max_speed, avg_speed, and compressed_trail are
+    defined in the model but the columns haven't been migrated to the database yet.
+    """
+    from .models import FleetMission
+    
+    if sender == FleetMission:
+        # These fields may not exist as columns in production PostgreSQL yet
+        # Set them to None so Django doesn't try to INSERT them
+        instance.max_speed = None
+        instance.avg_speed = None
+        instance.compressed_trail = None
 
 
 @receiver(post_migrate)

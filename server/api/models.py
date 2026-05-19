@@ -133,15 +133,15 @@ class FleetMission(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     # New fields for speed and compressed trail
-    max_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True, editable=False)
-    avg_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True, editable=False)
-    compressed_trail = models.JSONField(default=list, blank=True, help_text="Compressed list of [lat, lng, ts] for auditing", editable=False)
+    # Changed to null=True without defaults to prevent Django from including them in INSERT
+    # These columns may not exist in production database until migration is applied
+    max_speed = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, editable=False)
+    avg_speed = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, editable=False)
+    compressed_trail = models.JSONField(null=True, blank=True, help_text="Compressed list of [lat, lng, ts] for auditing", editable=False)
 
     def save(self, *args, **kwargs):
-        # Reset these fields to defaults before saving (prevents DB writes)
-        self.max_speed = 0
-        self.avg_speed = 0
-        self.compressed_trail = []
+        # These optional fields may not exist as columns in production database yet
+        # They are set to None, so Django won't include them in INSERT statements
         super().save(*args, **kwargs)
 
     class Meta:
