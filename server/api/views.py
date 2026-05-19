@@ -78,31 +78,68 @@ class MissionViewSet(viewsets.ModelViewSet):
     serializer_class = MissionSerializer
     permission_classes = [AllowAny]
     
-    def perform_create(self, serializer):
-        """Override to avoid inserting optional fields that may not exist in DB"""
-        # This prevents Django ORM from trying to INSERT max_speed, avg_speed, compressed_trail
-        # if those columns don't exist in production database yet
-        try:
-            serializer.save()
-        except Exception as e:
-            # If we get column-not-found error, try creating without those fields
-            if 'does not exist' in str(e):
-                # Extract validated data and remove optional speed/trail fields
-                validated_data = serializer.validated_data
-                mission = FleetMission.objects.create(**validated_data)
-                return mission
-            raise
-    
     def create(self, request, *args, **kwargs):
-        """Override create to catch and log errors"""
+        """Override create to handle missing optional columns in production database"""
         try:
+            # Try normal create path first
             return super().create(request, *args, **kwargs)
         except Exception as e:
-            logger.error(f'Mission creation error: {str(e)}', exc_info=True)
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            error_str = str(e)
+            # If the error is about missing optional columns, use raw SQL
+            if 'max_speed' in error_str or 'avg_speed' in error_str or 'compressed_trail' in error_str:
+                logger.warning(f'Optional columns not in DB, using fallback: {error_str}')
+                
+                # Use raw SQL to insert without the missing columns
+                from django.db import connection
+                import uuid as uuid_module
+                
+                try:
+                    serializer = self.get_serializer(data=request.data)
+                    serializer.is_valid(raise_exception=True)
+                    
+                    # Get validated data and remove problematic fields
+                    validated_data = serializer.validated_data
+                    validated_data.pop('max_speed', None)
+                    validated_data.pop('avg_speed', None) 
+                    validated_data.pop('compressed_trail', None)
+                    
+                    # Create mission ID if not provided
+                    if 'id' not in validated_data:
+                        validated_data['id'] = uuid_module.uuid4()
+                    
+                    # Build column list and values
+                    columns = list(validated_data.keys())
+                    values = list(validated_data.values())
+                    
+                    # Build SQL
+                    column_names = ', '.join([f'"{col}"' for col in columns])
+                    placeholders = ', '.join(['%s'] * len(columns])
+                    insert_sql = f'INSERT INTO fleet_missions ({column_names}) VALUES ({placeholders}) RETURNING id'
+                    
+                    # Execute insert
+                    with connection.cursor() as cursor:
+                        cursor.execute(insert_sql, values)
+                        result_id = cursor.fetchone()[0]
+                    
+                    # Fetch the created object
+                    instance = FleetMission.objects.get(id=result_id)
+                    return Response(
+                        MissionSerializer(instance).data,
+                        status=status.HTTP_201_CREATED
+                    )
+                except Exception as fallback_error:
+                    logger.error(f'Fallback raw SQL failed: {fallback_error}', exc_info=True)
+                    return Response(
+                        {'error': str(e)},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                # Some other error
+                logger.error(f'Mission creation error: {error_str}', exc_info=True)
+                return Response(
+                    {'error': error_str},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
 
 class LocationViewSet(viewsets.ModelViewSet):
