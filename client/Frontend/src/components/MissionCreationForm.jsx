@@ -197,13 +197,13 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
         status: 'planned',
         origin: {
           name: originSearch || 'Origin',
-          lat: parseFloat(formData.origin.lat),
-          lng: parseFloat(formData.origin.lon),
+          latitude: parseFloat(formData.origin.lat),
+          longitude: parseFloat(formData.origin.lon),
         },
         destination: {
           name: destinationSearch || 'Destination',
-          lat: parseFloat(formData.destination.lat),
-          lng: parseFloat(formData.destination.lon),
+          latitude: parseFloat(formData.destination.lat),
+          longitude: parseFloat(formData.destination.lon),
         },
         priority: 'normal',
       });
@@ -235,6 +235,12 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
       }, 2000);
     } catch (err) {
       console.error('❌ Mission creation error:', err.response?.data || err.message);
+      // Log full error response for debugging
+      if (err.response) {
+        console.error('Error response data:', err.response.data);
+        console.error('Error response status:', err.response.status);
+        console.error('Error response headers:', err.response.headers);
+      }
       setError(err.response?.data?.detail || err.response?.data?.error || err.message || 'Failed to create mission');
     } finally {
       setLoading(false);
