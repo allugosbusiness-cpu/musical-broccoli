@@ -1,5 +1,7 @@
 import axios from 'axios';
-import API_CONFIG, { RETRY_CONFIG, getValidatedApiUrl, checkApiHealth } from '../config/apiConfig';
+import API_CONFIG, { getValidatedApiUrl, checkApiHealth } from '../config/apiConfig';
+// RETRY_CONFIG will be loaded lazily to avoid circular dependency
+
 
 // Log environment info
 console.log(`🌍 Environment: ${import.meta.env.MODE}`);
@@ -390,6 +392,27 @@ export const recordTruckPosition = async (truckId, latitude, longitude, speed = 
     return null;
   }
 };
+
+// ✅ Add CSRF token interceptor to apiV1 (disabled - backend is CSRF-exempt for API endpoints)
+apiV1.interceptors.request.use(
+  config => {
+    // CSRF token disabled for REST API endpoints - backend uses @csrf_exempt
+    // If CSRF is re-enabled in future, uncomment code below:
+    // if (['post', 'put', 'patch', 'delete'].includes(config.method)) {
+    //   const csrfToken = getCsrfToken();
+    //   if (csrfToken) {
+    //     config.headers['X-CSRFToken'] = csrfToken;
+    //     console.log('🔐 [API V1] Added CSRF token to request headers');
+    //   } else {
+    //     console.warn('⚠️ [API V1] No CSRF token found - request may be rejected');
+    //   }
+    // }
+    return config;
+  },
+  error => {
+    return Promise.reject(error);
+  }
+);
 
 // ✅ Add CSRF token interceptor to apiV1 (disabled - backend is CSRF-exempt for API endpoints)
 apiV1.interceptors.request.use(
