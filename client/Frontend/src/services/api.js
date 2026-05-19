@@ -1,7 +1,6 @@
 import axios from 'axios';
 import API_CONFIG, { RETRY_CONFIG, getValidatedApiUrl, checkApiHealth } from '../config/apiConfig';
 
-
 // Log environment info
 console.log(`🌍 Environment: ${import.meta.env.MODE}`);
 
@@ -43,44 +42,6 @@ api.interceptors.request.use(
     return config;
   },
   error => {
-    return Promise.reject(error);
-  }
-);
-
-// Retry interceptor for network resilience
-api.interceptors.response.use(
-  response => response,
-  async error => {
-    const config = error.config;
-
-    // Skip retry if not configured
-    if (!config || !config.retryCount) {
-      config.retryCount = 0;
-    }
-
-    // Check if should retry
-    const isRetryable = 
-      RETRY_CONFIG.retryableStatusCodes.includes(error.response?.status) ||
-      error.code === 'ECONNABORTED' ||
-      error.code === 'ECONNREFUSED' ||
-      error.code === 'ETIMEDOUT' ||
-      !error.response; // Network error
-
-    if (isRetryable && config.retryCount < RETRY_CONFIG.maxRetries) {
-      config.retryCount += 1;
-      
-      // Calculate exponential backoff
-      const delay = RETRY_CONFIG.retryDelay * Math.pow(RETRY_CONFIG.backoffMultiplier, config.retryCount - 1);
-      
-      console.warn(
-        `⚠️ API Request failed (attempt ${config.retryCount}/${RETRY_CONFIG.maxRetries}). ` +
-        `Retrying in ${delay}ms... [${error.message}]`
-      );
-
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return api(config);
-    }
-
     return Promise.reject(error);
   }
 );
@@ -184,7 +145,7 @@ export const getAlerts = async (filters = {}) => {
     // Alerts can have large response sizes, use longer timeout (30 seconds instead of 15)
     // Also add limit parameter to prevent loading thousands of alerts (default 100)
     const params = {
-      limit: 50,  // Get last 100 alerts
+      limit: 100,  // Get last 100 alerts
       ...filters   // Can override with custom limit if needed
     };
     
@@ -391,89 +352,6 @@ export const recordTruckPosition = async (truckId, latitude, longitude, speed = 
     return null;
   }
 };
-
-// ✅ Add CSRF token interceptor to apiV1 (disabled - backend is CSRF-exempt for API endpoints)
-apiV1.interceptors.request.use(
-  config => {
-    // CSRF token disabled for REST API endpoints - backend uses @csrf_exempt
-    // If CSRF is re-enabled in future, uncomment code below:
-    // if (['post', 'put', 'patch', 'delete'].includes(config.method)) {
-    //   const csrfToken = getCsrfToken();
-    //   if (csrfToken) {
-    //     config.headers['X-CSRFToken'] = csrfToken;
-    //     console.log('🔐 [API V1] Added CSRF token to request headers');
-    //   } else {
-    //     console.warn('⚠️ [API V1] No CSRF token found - request may be rejected');
-    //   }
-    // }
-    return config;
-  },
-  error => {
-    return Promise.reject(error);
-  }
-);
-
-// ✅ Add CSRF token interceptor to apiV1 (disabled - backend is CSRF-exempt for API endpoints)
-apiV1.interceptors.request.use(
-  config => {
-    // CSRF token disabled for REST API endpoints - backend uses @csrf_exempt
-    // If CSRF is re-enabled in future, uncomment code below:
-    // if (['post', 'put', 'patch', 'delete'].includes(config.method)) {
-    //   const csrfToken = getCsrfToken();
-    //   if (csrfToken) {
-    //     config.headers['X-CSRFToken'] = csrfToken;
-    //     console.log('🔐 [API V1] Added CSRF token to request headers');
-    //   } else {
-    //     console.warn('⚠️ [API V1] No CSRF token found - request may be rejected');
-    //   }
-    // }
-    return config;
-  },
-  error => {
-    return Promise.reject(error);
-  }
-);
-
-// 🚨 ADD THIS RETRY INTERCEPTOR BLOCK HERE 🚨
-// Retry interceptor for network resilience (MATCHES regular api instance)
-apiV1.interceptors.response.use(
-  response => response,
-  async error => {
-    const config = error.config;
-
-    // Skip retry if not configured
-    if (!config || !config.retryCount) {
-      config.retryCount = 0;
-    }
-
-    // Check if should retry
-    const isRetryable = 
-      RETRY_CONFIG.retryableStatusCodes.includes(error.response?.status) ||
-      error.code === 'ECONNABORTED' ||
-      error.code === 'ECONNREFUSED' ||
-      error.code === 'ETIMEDOUT' ||
-      !error.response; // Network error
-
-    if (isRetryable && config.retryCount < RETRY_CONFIG.maxRetries) {
-      config.retryCount += 1;
-      
-      // Calculate exponential backoff
-      const delay = RETRY_CONFIG.retryDelay * Math.pow(RETRY_CONFIG.backoffMultiplier, config.retryCount - 1);
-      
-      console.warn(
-        `⚠️ [API V1] Request failed (attempt ${config.retryCount}/${RETRY_CONFIG.maxRetries}). ` +
-        `Retrying in ${delay}ms... [${error.message}]`
-      );
-
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return apiV1(config); // CRITICAL: Must use apiV1 here
-    }
-
-    return Promise.reject(error);
-  }
-);
-// 🚨 END OF RETRY INTERCEPTOR BLOCK 🚨
-
 
 // Real-time GPS Position Recording for Mobile App
 export const recordGPSPosition = async (truckId, latitude, longitude, speed = 0, heading = null, altitude = null, accuracy = null) => {
@@ -768,7 +646,7 @@ const apiV1 = axios.create({
 // ✅ Add CSRF token interceptor to apiV1 (disabled - backend is CSRF-exempt for API endpoints)
 apiV1.interceptors.request.use(
   config => {
-    // CSRF token disabled for REST API endpoints - backend uses @csrf_exempt
+    // CSSF token disabled for REST API endpoints - backend uses @csrf_exempt
     // If CSRF is re-enabled in future, uncomment code below:
     // if (['post', 'put', 'patch', 'delete'].includes(config.method)) {
     //   const csrfToken = getCsrfToken();
@@ -1154,5 +1032,71 @@ export const getMissionRouteGeometry = async (missionId) => {
     return null;
   }
 };
+
+// 🚨 INITIALIZE INTERCEPTORS AFTER MODULE IS FULLY LOADED 🚨
+function initializeInterceptors() {
+  // Regular API instance interceptor (moved from top level)
+  api.interceptors.response.use(
+    response => response,
+    async error => {
+      const config = error.config;
+      if (!config || !config.retryCount) config.retryCount = 0;
+      
+      const isRetryable = 
+        RETRY_CONFIG.retryableStatusCodes.includes(error.response?.status) ||
+        error.code === 'ECONNABORTED' ||
+        error.code === 'ECONNREFUSED' ||
+        error.code === 'ETIMEDOUT' ||
+        !error.response;
+        
+      if (isRetryable && config.retryCount < RETRY_CONFIG.maxRetries) {
+        config.retryCount += 1;
+        const delay = RETRY_CONFIG.retryDelay * Math.pow(RETRY_CONFIG.backoffMultiplier, config.retryCount - 1);
+        
+        console.warn(
+          `⚠️ API Request failed (attempt ${config.retryCount}/${RETRY_CONFIG.maxRetries}). ` +
+          `Retrying in ${delay}ms... [${error.message}]`
+        );
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return api(config);
+      }
+      return Promise.reject(error);
+    }
+  );
+
+  // API V1 instance interceptor (moved from top level)
+  apiV1.interceptors.response.use(
+    response => response,
+    async error => {
+      const config = error.config;
+      if (!config || !config.retryCount) config.retryCount = 0;
+      
+      const isRetryable = 
+        RETRY_CONFIG.retryableStatusCodes.includes(error.response?.status) ||
+        error.code === 'ECONNABORTED' ||
+        error.code === 'ECONNREFUSED' ||
+        error.code === 'ETIMEDOUT' ||
+        !error.response;
+        
+      if (isRetryable && config.retryCount < RETRY_CONFIG.maxRetries) {
+        config.retryCount += 1;
+        const delay = RETRY_CONFIG.retryDelay * Math.pow(RETRY_CONFIG.backoffMultiplier, config.retryCount - 1);
+        
+        console.warn(
+          `⚠️ [API V1] Request failed (attempt ${config.retryCount}/${RETRY_CONFIG.maxRetries}). ` +
+          `Retrying in ${delay}ms... [${error.message}]`
+        );
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return apiV1(config);
+      }
+      return Promise.reject(error);
+    }
+  );
+}
+
+// Initialize interceptors after module definition
+initializeInterceptors();
 
 export default api;
