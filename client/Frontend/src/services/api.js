@@ -818,9 +818,15 @@ export const createV1Mission = async (data) => {
     return response.data;
   } catch (error) {
     console.error('Error creating v1 mission:', error);
+    if (error.response) {
+      console.error('Error response data:', error.response.data);
+      console.error('Error response status:', error.response.status);
+      console.error('Error response headers:', error.response.headers);
+    }
     throw error;
   }
 };
+
 
 export const updateV1Mission = async (id, data) => {
   try {
