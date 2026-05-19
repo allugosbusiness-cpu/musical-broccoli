@@ -206,6 +206,9 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
           longitude: parseFloat(formData.destination.lon),
         },
         priority: 'normal',
+        // Convert string inputs to numbers for backend DecimalFields
+        planned_distance_km: parseFloat(formData.planned_distance_km),
+        planned_duration_minutes: parseFloat(formData.planned_duration_minutes),
       };
       
       console.log('📤 Sending mission payload:', payload);
