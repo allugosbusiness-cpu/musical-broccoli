@@ -23,6 +23,28 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
+# ===== Helper Functions =====
+def get_driver_by_id_or_name(driver_identifier):
+    """
+    Get driver by UUID (ID) or by full name.
+    Tries UUID first, then falls back to name lookup.
+    Returns driver or None.
+    """
+    from django.core.exceptions import ValidationError
+    try:
+        # Try UUID first
+        return FleetDriver.objects.get(id=driver_identifier)
+    except (FleetDriver.DoesNotExist, ValueError, ValidationError):
+        # Not a valid UUID, try name lookup
+        # Split name into first and last name (simplistic: assumes "First Last" format)
+        name_parts = driver_identifier.strip().split(maxsplit=1)
+        if len(name_parts) == 2:
+            first_name, last_name = name_parts
+            try:
+                return FleetDriver.objects.get(first_name__iexact=first_name, last_name__iexact=last_name)
+            except FleetDriver.DoesNotExist:
+                return None
+        return None
 class DriverViewSet(viewsets.ModelViewSet):
     queryset = FleetDriver.objects.all()
     serializer_class = DriverSerializer
@@ -347,10 +369,15 @@ def mobile_driver_registration(request):
 
 @api_view(['GET'])
 def mobile_get_available_missions(request, driver_id):
-    """Get available missions for a driver"""
+    """Get available missions for a driver (supports both driver_id UUID and driver_name)"""
     try:
-        # Verify driver exists
-        driver = FleetDriver.objects.get(id=driver_id)
+        # Verify driver exists - try ID first, then name
+        driver = get_driver_by_id_or_name(driver_id)
+        if not driver:
+            return Response(
+                {'error': f'Driver {driver_id} not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
         
         # Get missions that are assigned to this driver or are available (not yet assigned)
         # Missions can be: planned, assigned, enroute, paused, completed, cancelled
@@ -371,12 +398,6 @@ def mobile_get_available_missions(request, driver_id):
             'count': missions.count()
         }, status=status.HTTP_200_OK)
         
-    except FleetDriver.DoesNotExist:
-        logger.warning(f'Driver not found: {driver_id}')
-        return Response(
-            {'error': f'Driver {driver_id} not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
     except Exception as e:
         logger.error(f'Error fetching available missions: {str(e)}')
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -384,10 +405,15 @@ def mobile_get_available_missions(request, driver_id):
 
 @api_view(['GET'])
 def mobile_get_current_mission(request, driver_id):
-    """Get the current mission being tracked by a driver"""
+    """Get the current mission being tracked by a driver (supports both driver_id UUID and driver_name)"""
     try:
-        # Verify driver exists
-        driver = FleetDriver.objects.get(id=driver_id)
+        # Verify driver exists - try ID first, then name
+        driver = get_driver_by_id_or_name(driver_id)
+        if not driver:
+            return Response(
+                {'error': f'Driver {driver_id} not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
         
         # Get the mission currently being tracked (status='enroute')
         mission = FleetMission.objects.select_related('truck', 'driver').filter(
@@ -412,16 +438,11 @@ def mobile_get_current_mission(request, driver_id):
         return Response({
             'success': True,
             'driver_id': str(driver.id),
+            'driver_name': f"{driver.first_name} {driver.last_name}",
             'mission': serializer.data,
             'status': mission.status
         }, status=status.HTTP_200_OK)
         
-    except FleetDriver.DoesNotExist:
-        logger.warning(f'Driver not found: {driver_id}')
-        return Response(
-            {'error': f'Driver {driver_id} not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
     except Exception as e:
         logger.error(f'Error fetching current mission: {str(e)}')
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -429,23 +450,34 @@ def mobile_get_current_mission(request, driver_id):
 
 @api_view(['POST'])
 def mission_start_tracking(request):
-    """Start tracking for a mission - called when driver accepts and starts mission"""
+    """Start tracking for a mission - called when driver accepts and starts mission
+    Supports driver_id (UUID) or driver_name, and mission_id or mission_number
+    """
     try:
         data = request.data
-        driver_id = data.get('driver_id')
-        mission_id = data.get('mission_id')
+        driver_identifier = data.get('driver_id') or data.get('driver_name')
+        mission_identifier = data.get('mission_id') or data.get('mission_number')
         
-        if not driver_id or not mission_id:
+        if not driver_identifier or not mission_identifier:
             return Response(
-                {'error': 'driver_id and mission_id are required'},
+                {'error': 'driver_id/driver_name and mission_id/mission_number are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Verify driver exists
-        driver = FleetDriver.objects.get(id=driver_id)
+        # Verify driver exists - try ID/name
+        driver = get_driver_by_id_or_name(driver_identifier)
+        if not driver:
+            return Response(
+                {'error': f'Driver {driver_identifier} not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
         
-        # Get and update mission
-        mission = FleetMission.objects.get(id=mission_id)
+        # Get and update mission - try ID first, then mission_number
+        try:
+            mission = FleetMission.objects.get(id=mission_identifier)
+        except (FleetMission.DoesNotExist, ValueError):
+            # Try mission_number
+            mission = FleetMission.objects.get(mission_number=mission_identifier)
         
         # Update mission status to ENROUTE
         mission.status = 'enroute'
@@ -458,20 +490,16 @@ def mission_start_tracking(request):
             'success': True,
             'message': f'Mission tracking started for mission {mission.mission_number}',
             'driver_id': str(driver.id),
+            'driver_name': f"{driver.first_name} {driver.last_name}",
             'mission': serializer.data,
+            'mission_number': mission.mission_number,
             'started_at': mission.started_at.isoformat()
         }, status=status.HTTP_200_OK)
         
-    except FleetDriver.DoesNotExist:
-        logger.warning(f'Driver not found: {driver_id}')
-        return Response(
-            {'error': f'Driver {driver_id} not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
     except FleetMission.DoesNotExist:
-        logger.warning(f'Mission not found: {mission_id}')
+        logger.warning(f'Mission not found: {mission_identifier}')
         return Response(
-            {'error': f'Mission {mission_id} not found'},
+            {'error': f'Mission {mission_identifier} not found'},
             status=status.HTTP_404_NOT_FOUND
         )
     except Exception as e:
@@ -481,10 +509,10 @@ def mission_start_tracking(request):
 
 @api_view(['POST'])
 def mobile_location_update(request):
-    """Update driver location during mission tracking"""
+    """Update driver location during mission tracking (supports driver_id UUID or driver_name)"""
     try:
         data = request.data
-        driver_id = data.get('driver_id')
+        driver_identifier = data.get('driver_id') or data.get('driver_name')
         mission_id = data.get('mission_id')
         latitude = data.get('latitude')
         longitude = data.get('longitude')
@@ -492,14 +520,21 @@ def mobile_location_update(request):
         accuracy = data.get('accuracy', 0)
         altitude = data.get('altitude', 0)
         
-        if not driver_id or not latitude or not longitude:
+        if not driver_identifier or not latitude or not longitude:
             return Response(
-                {'error': 'driver_id, latitude, and longitude are required'},
+                {'error': 'driver_id/driver_name, latitude, and longitude are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Get or create truck location record
-        driver = FleetDriver.objects.get(id=driver_id)
+        # Get or create truck location record - try ID first, then name
+        driver = get_driver_by_id_or_name(driver_identifier)
+        if not driver:
+            logger.warning(f'Driver not found: {driver_identifier}')
+            return Response(
+                {'error': f'Driver {driver_identifier} not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
         truck = driver.truck
         
         if not truck:
@@ -534,12 +569,70 @@ def mobile_location_update(request):
             'timestamp': location.timestamp.isoformat()
         }, status=status.HTTP_200_OK)
         
-    except FleetDriver.DoesNotExist:
-        logger.warning(f'Driver not found: {driver_id}')
-        return Response(
-            {'error': f'Driver {driver_id} not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
     except Exception as e:
         logger.error(f'Error updating location: {str(e)}')
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def truck_trail_with_directions(request, truck_id):
+    """Get truck location trail with calculated directions for frontend tracking map"""
+    try:
+        limit = request.query_params.get('limit', 100)
+        try:
+            limit = int(limit)
+        except (TypeError, ValueError):
+            limit = 100
+        
+        # Get locations for this truck, ordered by timestamp
+        locations = TruckLocation.objects.filter(
+            truck_id=truck_id
+        ).select_related('truck', 'driver').order_by('-timestamp')[:limit]
+        
+        if not locations:
+            return Response({
+                'truck_id': truck_id,
+                'trail': [],
+                'count': 0,
+                'message': 'No location data found'
+            }, status=status.HTTP_200_OK)
+        
+        # Build trail with direction calculations
+        trail = []
+        for i, loc in enumerate(reversed(locations)):  # Reverse to get chronological order
+            trail_point = {
+                'latitude': float(loc.latitude),
+                'longitude': float(loc.longitude),
+                'speed': float(loc.speed),
+                'accuracy': float(loc.accuracy),
+                'altitude': float(loc.altitude),
+                'timestamp': loc.timestamp.isoformat(),
+                'sequence': i + 1,
+            }
+            
+            # Calculate direction to next point if available
+            if i > 0:
+                from math import atan2, degrees, sqrt
+                prev = trail[i-1]
+                dlat = loc.latitude - prev['latitude']
+                dlon = loc.longitude - prev['longitude']
+                distance = sqrt(dlat**2 + dlon**2) * 111000  # Rough conversion to meters
+                bearing = degrees(atan2(dlon, dlat)) % 360  # Bearing in degrees
+                trail_point['bearing'] = bearing
+                trail_point['distance_m'] = distance
+            
+            trail.append(trail_point)
+        
+        return Response({
+            'truck_id': truck_id,
+            'truck_identifier': locations[0].truck.truck_identifier,
+            'plate': locations[0].truck.plate,
+            'trail': trail,
+            'count': len(trail),
+            'driver_name': f"{locations[0].driver.first_name} {locations[0].driver.last_name}" if locations[0].driver else None
+        }, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        logger.error(f'Error fetching truck trail: {str(e)}')
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
