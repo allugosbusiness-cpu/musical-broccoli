@@ -12,7 +12,7 @@ from .views import (
     dashboard_drivers, dashboard_trucks, dashboard_missions,
     dashboard_summary, dashboard_recalculate_performance,
     truck_tracking_all_locations, calculate_distance,
-    mobile_driver_registration, mobile_get_available_missions,
+    mobile_driver_registration, mobile_validate_pin, mobile_get_available_missions,
     mission_start_tracking, mobile_get_current_mission,
     mobile_location_update, truck_trail_with_directions
 )
@@ -65,6 +65,7 @@ urlpatterns = [
     path('v1/calculate-distance/', calculate_distance, name='calculate-distance'),
     # Mobile endpoints (specific, before router)
     path('v1/mobile/driver-registration/', mobile_driver_registration, name='mobile-driver-registration'),
+    path('v1/mobile/validate-pin/', mobile_validate_pin, name='mobile-validate-pin'),
     path('v1/mobile/driver/<str:driver_id>/available-missions/', mobile_get_available_missions, name='mobile-available-missions'),
     path('v1/mobile/driver/<str:driver_id>/current-mission/', mobile_get_current_mission, name='mobile-current-mission'),
     path('v1/mobile/driver/<str:driver_id>/location/', mobile_location_update, name='mobile-location-update'),

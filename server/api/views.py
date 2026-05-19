@@ -383,6 +383,88 @@ def mobile_driver_registration(request):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['POST'])
+def mobile_validate_pin(request):
+    """
+    Validate PIN for driver authentication/registration.
+    Supports drivers who prefer PIN entry over QR code scanning.
+    PIN field is currently not enforced (placeholder for PIN system).
+    """
+    try:
+        import json
+        data = request.data
+        
+        phone_number = data.get('phone_number')
+        pin = data.get('pin', '')
+        first_name = data.get('first_name', 'Mobile')
+        last_name = data.get('last_name', 'Driver')
+        
+        if not phone_number:
+            return Response(
+                {'error': 'phone_number is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # For now, accept any PIN (placeholder for actual PIN validation system)
+        # TODO: Implement actual PIN generation and validation
+        if not pin:
+            return Response(
+                {'error': 'PIN is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if driver exists or create
+        driver, created = FleetDriver.objects.get_or_create(
+            phone_number=phone_number,
+            defaults={
+                'first_name': first_name,
+                'last_name': last_name,
+                'status': 'active'
+            }
+        )
+        
+        # Assign first available truck if not assigned
+        truck_id = None
+        truck_name = None
+        if not driver.truck:
+            truck = FleetTruck.objects.filter(status='active').first()
+            if truck:
+                driver.truck = truck
+                driver.save()
+                truck_id = str(truck.id)
+                truck_name = truck.truck_identifier
+                logger.info(f'Assigned truck {truck_name} to driver {phone_number}')
+        else:
+            truck_id = str(driver.truck.id) if driver.truck else None
+            truck_name = driver.truck.truck_identifier if driver.truck else None
+        
+        serializer = DriverSerializer(driver)
+        driver_data = serializer.data
+        
+        # Generate auth token (simplified)
+        import uuid
+        auth_token = str(uuid.uuid4())
+        
+        response_data = {
+            'success': True,
+            'created': created,
+            'driver_id': str(driver.id),
+            'driver_name': f"{driver.first_name} {driver.last_name}",
+            'truck_id': truck_id,
+            'truck_name': truck_name,
+            'tracking_id': str(uuid.uuid4()),
+            'token': auth_token,
+            'phone_number': driver.phone_number,
+            'driver': driver_data,
+            'message': 'Driver authenticated successfully' if not created else 'Driver created and authenticated'
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+    except Exception as e:
+        logger.error(f'Error validating PIN: {str(e)}')
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @api_view(['GET'])
 def mobile_get_available_missions(request, driver_id):
     """Get available missions for a driver (supports both driver_id UUID and driver_name)"""
