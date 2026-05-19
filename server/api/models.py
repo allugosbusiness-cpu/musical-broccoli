@@ -120,16 +120,17 @@ class FleetMission(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     # New fields for speed and compressed trail
-   max_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True, editable=False)
-avg_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True, editable=False)
-compressed_trail = models.JSONField(default=list, blank=True, help_text="Compressed list of [lat, lng, ts] for auditing", editable=False)
+    max_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True, editable=False)
+    avg_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True, editable=False)
+    compressed_trail = models.JSONField(default=list, blank=True, help_text="Compressed list of [lat, lng, ts] for auditing", editable=False)
 
-def save(self, *args, **kwargs):
-    # Reset these fields to defaults before saving (prevents DB writes)
-    self.max_speed = 0
-    self.avg_speed = 0
-    self.compressed_trail = []
-    super().save(*args, **kwargs)
+    def save(self, *args, **kwargs):
+        # Reset these fields to defaults before saving (prevents DB writes)
+        self.max_speed = 0
+        self.avg_speed = 0
+        self.compressed_trail = []
+        super().save(*args, **kwargs)
+
     class Meta:
         db_table = 'fleet_missions'
 
