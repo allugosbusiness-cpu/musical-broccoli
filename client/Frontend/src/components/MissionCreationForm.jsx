@@ -144,7 +144,7 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
         ...prev,
         origin: {
           ...prev.origin,
-          [key]: parseFloat(value) || '',
+          [key]: value, // Store raw string value from input (will be parsed later)
         }
       }));
     } else if (name.startsWith('destination_')) {
@@ -153,7 +153,7 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
         ...prev,
         destination: {
           ...prev.destination,
-          [key]: parseFloat(value) || '',
+          [key]: value,
         }
       }));
     } else {
@@ -167,8 +167,10 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
   const validateForm = () => {
     if (!formData.truck_id) return 'Please select a truck';
     if (!formData.driver_id) return 'Please select a driver';
-    if (!formData.origin.lat || !formData.origin.lon) return 'Please enter origin coordinates';
-    if (!formData.destination.lat || !formData.destination.lon) return 'Please enter destination coordinates';
+    if (formData.origin.lat === '' || formData.origin.lon === '') return 'Please enter origin coordinates';
+    if (formData.destination.lat === '' || formData.destination.lon === '') return 'Please enter destination coordinates';
+    if (formData.planned_distance_km === '') return 'Please enter planned distance';
+    if (formData.planned_duration_minutes === '') return 'Please enter planned duration';
     return null;
   };
 
@@ -186,25 +188,33 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
 
     try {
       const apiUrl = `${getApiV1Base()}/missions/`;
-      console.log('📝 Creating mission at:', apiUrl);
-
-      const response = await axios.post(apiUrl, {
+      
+      // 🔑 CRITICAL: LOG THE ACTUAL PAYLOAD BEFORE SENDING
+      const payload = {
         mission_number: formData.identifier || `MIS-${Date.now()}`,
         truck: formData.truck_id,
         driver: formData.driver_id,
         status: 'planned',
         origin: {
           name: originSearch || 'Origin',
-          lat: parseFloat(formData.origin.lat),
-          lng: parseFloat(formData.origin.lon),
+          latitude: parseFloat(formData.origin.lat),
+          longitude: parseFloat(formData.origin.lon),
         },
         destination: {
           name: destinationSearch || 'Destination',
-          lat: parseFloat(formData.destination.lat),
-          lng: parseFloat(formData.destination.lon),
+          latitude: parseFloat(formData.destination.lat),
+          longitude: parseFloat(formData.destination.lon),
         },
         priority: 'normal',
-      });
+        // Convert string inputs to numbers for backend DecimalFields
+        planned_distance_km: parseFloat(formData.planned_distance_km),
+        planned_duration_minutes: parseFloat(formData.planned_duration_minutes),
+      };
+      
+      console.log('📤 Sending mission payload:', payload);
+      console.log('🔗 API URL:', apiUrl);
+
+      const response = await axios.post(apiUrl, payload);
 
       console.log('✅ Mission created successfully:', response.data);
       setSuccess(true);
@@ -232,7 +242,13 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
         if (onClose) onClose();
       }, 2000);
     } catch (err) {
-      console.error('❌ Mission creation error:', err.response?.data || err.message);
+      console.error('❌ Mission creation error:', err);
+      // Log full error response for debugging
+      if (err.response) {
+        console.error('Error response data:', err.response.data);
+        console.error('Error response status:', err.response.status);
+        console.error('Error response headers:', err.response.headers);
+      }
       setError(err.response?.data?.detail || err.response?.data?.error || err.message || 'Failed to create mission');
     } finally {
       setLoading(false);
