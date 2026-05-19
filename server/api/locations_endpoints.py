@@ -1,197 +1,100 @@
 """
-Location suggestions API endpoints
-Provides location search and autocomplete for mission creation
+Location endpoints for autocomplete and reverse geocoding
 """
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from math import radians, cos, sin, asin, sqrt
 
-import logging
-from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
-from .location_suggestions import search_locations, get_locations_by_type, get_all_location_types
+from .location_suggestions import search_locations, get_locations_by_type, ZIMBABWE_LOCATIONS, MANICALAND_LOCATIONS
 
-logger = logging.getLogger(__name__)
 
-@require_http_methods(["GET"])
-def location_search(request):
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def reverse_geocode(request):
     """
-    GET /api/v1/locations/search/?q=mutare&limit=10
+    Reverse geocode: Find the nearest named location for given lat/lon.
+    Searches through the local Zimbabwe location database and returns
+    the closest matching location name.
     
-    Search for locations by name
-    
-    Query parameters:
-    - q: Search query (location name)
-    - limit: Maximum number of results (default: 10)
-    - type: Filter by location type (optional)
+    Query params: lat, lon
+    Returns: { name, lat, lon, type, distance_km }
     """
     try:
-        query = request.GET.get('q', '')
-        limit = int(request.GET.get('limit', 10))
-        location_type = request.GET.get('type', None)
+        lat = float(request.query_params.get('lat', 0))
+        lon = float(request.query_params.get('lon', 0))
         
-        if location_type:
-            locations = get_locations_by_type(location_type, limit)
+        if not lat or not lon:
+            return Response(
+                {'error': 'lat and lon query parameters are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        all_locations = MANICALAND_LOCATIONS + ZIMBABWE_LOCATIONS
+        
+        # Find nearest location using Haversine distance
+        nearest = None
+        nearest_distance = float('inf')
+        
+        for loc in all_locations:
+            # Haversine
+            dlat = radians(loc['lat'] - lat)
+            dlon = radians(loc['lon'] - lon)
+            a = sin(dlat/2)**2 + cos(radians(lat)) * cos(radians(loc['lat'])) * sin(dlon/2)**2
+            c = 2 * asin(sqrt(a))
+            distance = 6371 * c  # km
+            
+            if distance < nearest_distance:
+                nearest_distance = distance
+                nearest = loc
+        
+        if nearest and nearest_distance < 100:  # Only return if within 100km
+            return Response({
+                'name': nearest['name'],
+                'lat': nearest['lat'],
+                'lon': nearest['lon'],
+                'type': nearest['type'],
+                'distance_km': round(nearest_distance, 2)
+            }, status=status.HTTP_200_OK)
         else:
-            locations = search_locations(query, limit)
-        
-        logger.info(f"📍 Location search: '{query}' type={location_type} found {len(locations)} results")
-        
-        return JsonResponse({
-            'query': query,
-            'count': len(locations),
-            'results': locations,
-        }, status=200)
-        
-    except Exception as e:
-        logger.error(f"❌ Location search error: {str(e)}")
-        return JsonResponse({'error': str(e)}, status=400)
-
-
-@require_http_methods(["GET"])
-def location_types(request):
-    """
-    GET /api/v1/locations/types/
-    
-    Get all available location types for filtering
-    """
-    try:
-        types = get_all_location_types()
-        logger.info(f"📍 Location types requested: {len(types)} types available")
-        
-        return JsonResponse({
-            'count': len(types),
-            'types': types,
-        }, status=200)
-        
-    except Exception as e:
-        logger.error(f"❌ Location types error: {str(e)}")
-        return JsonResponse({'error': str(e)}, status=400)
-
-
-@require_http_methods(["GET"])
-def location_autocomplete(request):
-    """
-    GET /api/v1/locations/autocomplete/?q=sch
-    
-    Autocomplete locations for dropdowns
-    Limited results (5) for performance
-    """
-    try:
-        query = request.GET.get('q', '')
-        
-        if len(query) < 2:
-            return JsonResponse({
-                'query': query,
-                'results': [],
-            }, status=200)
-        
-        locations = search_locations(query, 5)
-        
-        return JsonResponse({
-            'query': query,
-            'count': len(locations),
-            'results': [
-                {
-                    'id': f"{loc['lat']},{loc['lon']}",
-                    'name': loc['name'],
-                    'type': loc['type'],
-                    'lat': loc['lat'],
-                    'lon': loc['lon'],
-                }
-                for loc in locations
-            ],
-        }, status=200)
-        
-    except Exception as e:
-        logger.error(f"❌ Autocomplete error: {str(e)}")
-        return JsonResponse({'error': str(e)}, status=400)
-
-
-@require_http_methods(["GET"])
-def location_reverse_geocode(request):
-    """
-    GET /api/v1/locations/reverse-geocode/?lat=-17.8&lon=31.0
-    
-    Reverse geocode coordinates to find nearby location names
-    Returns closest known location or generates a location name from coordinates
-    """
-    try:
-        lat = request.GET.get('lat')
-        lon = request.GET.get('lon')
-        
-        if lat is None or lon is None:
-            return JsonResponse({
-                'error': 'lat and lon parameters required'
-            }, status=400)
-        
-        try:
-            lat = float(lat)
-            lon = float(lon)
-        except ValueError:
-            return JsonResponse({
-                'error': 'Invalid latitude or longitude'
-            }, status=400)
-        
-        # ✅ NEW: Accept and suggest any location
-        # Find closest location from database
-        from .models import FleetLocation
-        try:
-            locations = FleetLocation.objects.all()
-            if not locations.exists():
-                # If no database locations, create generic suggestion
-                return JsonResponse({
-                    'lat': lat,
-                    'lon': lon,
-                    'name': f'Location ({lat:.4f}, {lon:.4f})',
-                    'accuracy': 'custom',
-                    'type': 'custom_coordinates'
-                }, status=200)
-            
-            # Find closest location using simple distance calculation
-            closest = None
-            min_distance = float('inf')
-            for loc in locations:
-                # Simple Haversine distance
-                from math import radians, cos, sin, asin, sqrt
-                lon1, lat1, lon2, lat2 = map(radians, [loc.longitude, loc.latitude, lon, lat])
-                dlat = lat2 - lat1
-                dlon = lon2 - lon1
-                a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-                c = 2 * asin(sqrt(a))
-                km = 6371 * c
-                
-                if km < min_distance:
-                    min_distance = km
-                    closest = loc
-            
-            if closest and min_distance < 5:  # Within 5km
-                return JsonResponse({
-                    'lat': lat,
-                    'lon': lon,
-                    'name': closest.name,
-                    'closest_location': closest.name,
-                    'distance_km': round(min_distance, 2),
-                    'type': closest.location_type,
-                    'accuracy': 'nearby'
-                }, status=200)
-            else:
-                # Return custom location with coordinates
-                return JsonResponse({
-                    'lat': lat,
-                    'lon': lon,
-                    'name': f'Location ({lat:.4f}, {lon:.4f})',
-                    'accuracy': 'custom',
-                    'type': 'custom_coordinates',
-                    'nearest_km': round(min_distance, 2) if closest else None
-                }, status=200)
-        except Exception as db_err:
-            logger.warning(f"⚠️ Database lookup failed: {str(db_err)}, returning generic location")
-            return JsonResponse({
+            return Response({
+                'name': f'Approx: {round(lat, 4)}, {round(lon, 4)}',
                 'lat': lat,
                 'lon': lon,
-                'name': f'Location ({lat:.4f}, {lon:.4f})',
-                'accuracy': 'custom',
-                'type': 'custom_coordinates'
-            }, status=200)
-        
+                'type': 'unknown',
+                'distance_km': 0
+            }, status=status.HTTP_200_OK)
+            
+    except (TypeError, ValueError) as e:
+        return Response(
+            {'error': f'Invalid coordinates: {str(e)}'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
     except Exception as e:
-        logger.error(f"❌ Reverse geocoding error: {str(e)}")
-        return JsonResponse({'error': str(e)}, status=400)
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def location_autocomplete(request):
+    """
+    Autocomplete location search.
+    Query params: q (search query)
+    Returns: { results: [{name, lat, lon, type}] }
+    """
+    try:
+        query = request.query_params.get('q', '')
+        results = search_locations(query, limit=10)
+        
+        return Response({
+            'results': results
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

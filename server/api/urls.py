@@ -16,6 +16,7 @@ from .views import (
     mission_start_tracking, mobile_get_current_mission,
     mobile_location_update, truck_trail_with_directions
 )
+from .locations_endpoints import reverse_geocode, location_autocomplete
 
 router = DefaultRouter()
 router.register(r'drivers', DriverViewSet, basename='driver')
