@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from django.utils import timezone
+from django.db import connection
 from .models import FleetDriver, FleetTruck, FleetMission
 
 
@@ -61,6 +62,143 @@ def get_available_missions(request, driver_id):
         return Response(
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+def _safe_create_mission(data):
+    """
+    Safely create a mission even when optional columns are missing from the database.
+    This handles the case where max_speed, avg_speed, and compressed_trail columns
+    don't exist in the production database.
+    """
+    try:
+        # Check which columns exist in the database
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'fleet_missions' 
+                AND column_name IN ('max_speed', 'avg_speed', 'compressed_trail')
+            """)
+            existing_columns = {row[0] for row in cursor.fetchall()}
+        
+        # Prepare data for insertion
+        create_data = data.copy()
+        
+        # Remove columns that don't exist in the database
+        if 'max_speed' not in existing_columns:
+            create_data.pop('max_speed', None)
+        if 'avg_speed' not in existing_columns:
+            create_data.pop('avg_speed', None)
+        if 'compressed_trail' not in existing_columns:
+            create_data.pop('compressed_trail', None)
+        
+        # Create the mission using safe method
+        mission = FleetMission.objects.create(**create_data)
+        
+        # Set default values for missing columns after creation
+        if 'max_speed' not in existing_columns:
+            mission.max_speed = 0
+        if 'avg_speed' not in existing_columns:
+            mission.avg_speed = 0
+        if 'compressed_trail' not in existing_columns:
+            mission.compressed_trail = []
+        
+        # Save only if we need to set computed values
+        if any(col not in existing_columns for col in ['max_speed', 'avg_speed', 'compressed_trail']):
+            mission.save(update_fields=['max_speed', 'avg_speed', 'compressed_trail'])
+        
+        return mission
+    except Exception as e:
+        raise Exception(f"Failed to create mission: {str(e)}")
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def create_mission(request):
+    """
+    Create a new mission with graceful handling of missing database columns.
+    This endpoint works even when max_speed, avg_speed, and compressed_trail columns
+    are missing from the production database.
+    """
+    try:
+        # Get required fields
+        mission_number = request.data.get('mission_number')
+        if not mission_number:
+            return Response(
+                {'error': 'mission_number is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if mission already exists
+        if FleetMission.objects.filter(mission_number=mission_number).exists():
+            return Response(
+                {'error': f'Mission {mission_number} already exists'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Prepare mission data
+        mission_data = {
+            'mission_number': mission_number,
+            'status': request.data.get('status', 'planned'),
+            'priority': request.data.get('priority', 'normal'),
+            'origin': request.data.get('origin', {}),
+            'destination': request.data.get('destination', {}),
+            'distance_total_m': request.data.get('distance_total_m', 0),
+            'progress_pct': request.data.get('progress_pct', 0),
+            'cargo': request.data.get('cargo', {}),
+            'mission_date': request.data.get('mission_date'),
+        }
+        
+        # Handle truck assignment
+        truck_identifier = request.data.get('truck')
+        if truck_identifier:
+            truck = FleetTruck.objects.filter(
+                truck_identifier=truck_identifier
+            ).first()
+            if not truck:
+                return Response(
+                    {'error': f'Truck {truck_identifier} not found'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            mission_data['truck'] = truck
+        
+        # Handle driver assignment
+        driver_identifier = request.data.get('driver')
+        if driver_identifier:
+            driver = FleetDriver.objects.filter(
+                phone_number=driver_identifier
+            ).first()
+            if not driver:
+                return Response(
+                    {'error': f'Driver {driver_identifier} not found'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            mission_data['driver'] = driver
+        
+        # Create mission safely
+        mission = _safe_create_mission(mission_data)
+        
+        return Response({
+            'success': True,
+            'mission_id': str(mission.id),
+            'mission_number': mission.mission_number,
+            'status': mission.status,
+            'origin': mission.origin,
+            'destination': mission.destination,
+            'truck_name': mission.truck.truck_identifier if mission.truck else None,
+            'driver_name': mission.driver.get_display_name() if mission.driver else None,
+            'max_speed': mission.max_speed,
+            'avg_speed': mission.avg_speed,
+            'compressed_trail': mission.compressed_trail,
+            'created_at': mission.created_at.isoformat(),
+            'message': f'Mission {mission.mission_number} created successfully'
+        }, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_400_BAD_REQUEST
         )
 
 

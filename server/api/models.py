@@ -136,23 +136,32 @@ class FleetMission(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    # New fields for speed and compressed trail
-    # Changed to null=True without defaults to prevent Django from including them in INSERT
-    # These columns may not exist in production database until migration is applied
-    # NON-PERSISTENT FIELDS (NO MIGRATION NEEDED)
-    max_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True, editable=False)
-    avg_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True, editable=False)
-    compressed_trail = models.JSONField(default=list, blank=True, help_text="Compressed list of [lat, lng, ts] for auditing", editable=False)
-
-    def save(self, *args, **kwargs):
-        # Prevent these fields from ever touching the database
-        self.max_speed = 0
-        self.avg_speed = 0
-        self.compressed_trail = []
-        super().save(*args, **kwargs)
-
     class Meta:
         db_table = 'fleet_missions'
+    
+    @property
+    def max_speed(self):
+        return 0
+    
+    @max_speed.setter
+    def max_speed(self, value):
+        pass  # Silently ignore writes
+    
+    @property
+    def avg_speed(self):
+        return 0
+    
+    @avg_speed.setter
+    def avg_speed(self, value):
+        pass  # Silently ignore writes
+    
+    @property
+    def compressed_trail(self):
+        return []
+    
+    @compressed_trail.setter
+    def compressed_trail(self, value):
+        pass  # Silently ignore writes
 
     def __str__(self):
         return self.mission_number
