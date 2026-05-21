@@ -145,43 +145,34 @@ class MissionViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(data=data)
             serializer.is_valid(raise_exception=True)
             
-            # Build truck_name and driver_name
-            if truck:
-                truck_name = truck.truck_identifier
-            else:
-                truck_name = None
-            if driver:
-                driver_name = driver.get_display_name()
-            else:
-                driver_name = None
-            
             validated = serializer.validated_data.copy()
             
-            # IMPORTANT: Do NOT use FleetMission.objects.create() because Django
-            # will do a SELECT after INSERT to refresh auto_now_add fields,
-            # which will fail because max_speed column doesn't exist in production DB.
-            # Instead, create the model instance in memory and use save(force_insert=True).
-            now = timezone.now()
-            mission = FleetMission(**validated)
-            mission.max_speed = 0
-            mission.avg_speed = 0
-            mission.compressed_trail = []
-            # Set timestamps manually to avoid ORM auto-refresh SELECT
-            mission.created_at = now
-            mission.updated_at = now
-            # force_insert=True tells Django to only do INSERT, never SELECT after
-            mission.save(force_insert=True)
+            # Use the standard DRF serializer.save() to create the mission.
+            # The FleetMissionManager.create() and FleetMission.save() override
+            # handle max_speed/avg_speed/compressed_trail safely.
+            mission = serializer.save()
             
-            # Build response from validated data + created mission metadata
-            response_data = dict(validated)
-            response_data['id'] = str(mission.id)
-            response_data['created_at'] = now.isoformat()
-            response_data['updated_at'] = now.isoformat()
-            response_data['truck_name'] = truck_name
-            response_data['driver_name'] = driver_name
-            response_data['max_speed'] = '0.00'
-            response_data['avg_speed'] = '0.00'
-            response_data['compressed_trail'] = []
+            # Build response data safely - avoid model instances in response
+            response_data = {
+                'id': str(mission.id),
+                'mission_number': mission.mission_number,
+                'status': mission.status,
+                'priority': mission.priority,
+                'truck': str(mission.truck_id) if mission.truck_id else None,
+                'driver': str(mission.driver_id) if mission.driver_id else None,
+                'truck_name': truck.truck_identifier if truck else None,
+                'driver_name': driver.get_display_name() if driver else None,
+                'origin': mission.origin,
+                'destination': mission.destination,
+                'distance_total_m': float(mission.distance_total_m) if mission.distance_total_m else 0,
+                'cargo': mission.cargo,
+                'mission_date': mission.mission_date.isoformat() if mission.mission_date else None,
+                'started_at': mission.started_at.isoformat() if mission.started_at else None,
+                'completed_at': mission.completed_at.isoformat() if mission.completed_at else None,
+                'delivered_at': mission.delivered_at.isoformat() if mission.delivered_at else None,
+                'created_at': mission.created_at.isoformat(),
+                'updated_at': mission.updated_at.isoformat(),
+            }
             
             serializer.instance = mission
             

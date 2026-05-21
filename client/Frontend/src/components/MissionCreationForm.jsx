@@ -197,12 +197,12 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
         driver: formData.driver_id,
         status: 'planned',
         origin: {
-          latitude: parseFloat(formData.origin.lat),
-          longitude: parseFloat(formData.origin.lon),
+          lat: parseFloat(formData.origin.lat),
+          lon: parseFloat(formData.origin.lon),
         },
         destination: {
-          latitude: parseFloat(formData.destination.lat),
-          longitude: parseFloat(formData.destination.lon),
+          lat: parseFloat(formData.destination.lat),
+          lon: parseFloat(formData.destination.lon),
         },
         priority: 'normal',
       };
