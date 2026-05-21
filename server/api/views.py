@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 import logging
+import uuid
 
 from .models import (
     FleetDriver, FleetTruck, FleetMission, TruckLocation,
@@ -105,67 +106,80 @@ class MissionViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """
-        Override create to handle mission creation when optional columns 
-        (max_speed, avg_speed, compressed_trail) don't exist in production DB.
+        Create mission directly via the model manager to avoid DRF serializer
+        internal .get() calls that raise DoesNotExist (the mission doesn't exist 
+        yet because we're creating it).
         
-        Also handles truck/driver lookup by identifier (truck_identifier, plate, 
-        phone_number, or name) in addition to UUID, so the frontend can send 
-        human-readable identifiers like 'trk1' instead of UUIDs.
+        Handles truck/driver lookup by identifier, optional column removal, 
+        and coordinate normalization.
         """
         try:
-            # Convert request data to mutable dict regardless of whether
-            # it's a DRF QueryDict or plain dict
+            # Convert request data
             data = dict(request.data.items()) if hasattr(request.data, 'items') else dict(request.data)
+            
+            # Remove optional columns that don't exist in production DB
             data.pop('max_speed', None)
             data.pop('avg_speed', None)
             data.pop('compressed_trail', None)
+            data.pop('planned_distance_km', None)
+            data.pop('planned_duration_minutes', None)
+            data.pop('identifier', None)
+            data.pop('notes', None)
             
-            # Resolve truck and driver identifiers to model instances
+            # Resolve truck
             truck_identifier = data.get('truck')
             driver_identifier = data.get('driver')
             
             truck = self._resolve_truck(truck_identifier)
             if not truck and truck_identifier:
                 return Response(
-                    {'error': f'Truck "{truck_identifier}" not found. Available trucks: {list(FleetTruck.objects.values_list("truck_identifier", "id")[:20])}'},
+                    {'error': f'Truck "{truck_identifier}" not found'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
             driver = self._resolve_driver(driver_identifier)
             if not driver and driver_identifier:
                 return Response(
-                    {'error': f'Driver "{driver_identifier}" not found. Available drivers: {list(FleetDriver.objects.values_list("phone_number", "id")[:20])}'},
+                    {'error': f'Driver "{driver_identifier}" not found'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Replace identifiers with actual model instances for the serializer
-            data['truck'] = truck.id if truck else None
-            data['driver'] = driver.id if driver else None
-            
-            # Ensure origin/destination are dicts with lat/lon
+            # Normalize coordinates
             origin = data.get('origin', {})
             destination = data.get('destination', {})
             if isinstance(origin, dict):
-                data['origin'] = {
+                origin = {
                     'lat': float(origin.get('lat', 0)),
                     'lon': float(origin.get('lon', origin.get('lng', 0)))
                 }
             if isinstance(destination, dict):
-                data['destination'] = {
+                destination = {
                     'lat': float(destination.get('lat', 0)),
                     'lon': float(destination.get('lon', destination.get('lng', 0)))
                 }
             
-            serializer = self.get_serializer(data=data)
-            serializer.is_valid(raise_exception=True)
+            # Generate mission number if not provided
+            mission_number = data.get('mission_number') or f"MIS-{timezone.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:4]}"
             
-            # Use the standard DRF serializer.save() to create the mission.
-            # The FleetMissionManager.create() and FleetMission.save() override
-            # handle max_speed/avg_speed/compressed_trail safely.
-            mission = serializer.save()
+            # Build create kwargs directly - bypass serializer to avoid internal .get() calls
+            create_kwargs = {
+                'id': uuid.uuid4(),
+                'mission_number': mission_number,
+                'status': data.get('status', 'planned'),
+                'priority': data.get('priority', 'normal'),
+                'truck': truck,
+                'driver': driver,
+                'origin': origin,
+                'destination': destination,
+                'cargo': data.get('cargo', {}),
+            }
             
-            # Build response data safely - avoid model instances in response
-            response_data = {
+            # Create mission directly through the safe FleetMissionManager
+            mission = FleetMission.objects.create(**create_kwargs)
+            
+            logger.info(f'Mission {mission.mission_number} created successfully (id={mission.id})')
+            
+            return Response({
                 'id': str(mission.id),
                 'mission_number': mission.mission_number,
                 'status': mission.status,
@@ -178,17 +192,9 @@ class MissionViewSet(viewsets.ModelViewSet):
                 'destination': mission.destination,
                 'distance_total_m': float(mission.distance_total_m) if mission.distance_total_m else 0,
                 'cargo': mission.cargo,
-                'mission_date': mission.mission_date.isoformat() if mission.mission_date else None,
-                'started_at': mission.started_at.isoformat() if mission.started_at else None,
-                'completed_at': mission.completed_at.isoformat() if mission.completed_at else None,
-                'delivered_at': mission.delivered_at.isoformat() if mission.delivered_at else None,
                 'created_at': mission.created_at.isoformat(),
                 'updated_at': mission.updated_at.isoformat(),
-            }
-            
-            logger.info(f'Mission {mission.mission_number} created successfully (id={mission.id})')
-            
-            return Response(response_data, status=status.HTTP_201_CREATED)
+            }, status=status.HTTP_201_CREATED)
             
         except Exception as e:
             import traceback
