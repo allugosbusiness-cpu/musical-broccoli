@@ -142,10 +142,22 @@ class MissionViewSet(viewsets.ModelViewSet):
             data['truck'] = truck.id if truck else None
             data['driver'] = driver.id if driver else None
             
+            # Ensure origin/destination are dicts with lat/lon
+            origin = data.get('origin', {})
+            destination = data.get('destination', {})
+            if isinstance(origin, dict):
+                data['origin'] = {
+                    'lat': float(origin.get('lat', 0)),
+                    'lon': float(origin.get('lon', origin.get('lng', 0)))
+                }
+            if isinstance(destination, dict):
+                data['destination'] = {
+                    'lat': float(destination.get('lat', 0)),
+                    'lon': float(destination.get('lon', destination.get('lng', 0)))
+                }
+            
             serializer = self.get_serializer(data=data)
             serializer.is_valid(raise_exception=True)
-            
-            validated = serializer.validated_data.copy()
             
             # Use the standard DRF serializer.save() to create the mission.
             # The FleetMissionManager.create() and FleetMission.save() override
@@ -174,16 +186,16 @@ class MissionViewSet(viewsets.ModelViewSet):
                 'updated_at': mission.updated_at.isoformat(),
             }
             
-            serializer.instance = mission
-            
             logger.info(f'Mission {mission.mission_number} created successfully (id={mission.id})')
             
             return Response(response_data, status=status.HTTP_201_CREATED)
             
         except Exception as e:
-            logger.error(f'Mission creation error: {str(e)}', exc_info=True)
+            import traceback
+            tb = traceback.format_exc()
+            logger.error(f'Mission creation error: {str(e)}\n{tb}')
             return Response(
-                {'error': str(e)},
+                {'error': str(e), 'detail': f'Type: {type(e).__name__}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -556,12 +568,12 @@ def mobile_driver_registration(request):
                 qr_truck_id = qr_data.get('truck_id')
                 if qr_truck_id:
                     # Verify truck exists
-                    truck = FleetTruck.objects.filter(id=qr_truck_id).first()
-                    if truck:
-                        driver.truck = truck
+                    truck_obj = FleetTruck.objects.filter(id=qr_truck_id).first()
+                    if truck_obj:
+                        driver.truck = truck_obj
                         driver.save()
-                        truck_id = str(truck.id)
-                        truck_name = truck.truck_identifier
+                        truck_id = str(truck_obj.id)
+                        truck_name = truck_obj.truck_identifier
                         logger.info(f'Assigned truck {truck_name} to driver {phone_number}')
                     else:
                         logger.warning(f'QR truck_id {qr_truck_id} not found in database')
@@ -780,11 +792,16 @@ def mission_start_tracking(request):
             )
         
         # Get and update mission - try ID first, then mission_number
-        try:
-            mission = FleetMission.objects.get(id=mission_identifier)
-        except (FleetMission.DoesNotExist, ValueError):
+        mission = FleetMission.objects.filter(id=mission_identifier).first()
+        if not mission:
             # Try mission_number
-            mission = FleetMission.objects.get(mission_number=mission_identifier)
+            mission = FleetMission.objects.filter(mission_number=mission_identifier).first()
+        if not mission:
+            logger.warning(f'Mission not found: {mission_identifier}')
+            return Response(
+                {'error': f'Mission {mission_identifier} not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
         
         # Update mission status to ENROUTE
         mission.status = 'enroute'
@@ -800,15 +817,9 @@ def mission_start_tracking(request):
             'driver_name': f"{driver.first_name} {driver.last_name}",
             'mission': serializer.data,
             'mission_number': mission.mission_number,
-            'started_at': mission.started_at.isoformat()
+            'started_at': mission.started_at.isoformat() if mission.started_at else None
         }, status=status.HTTP_200_OK)
         
-    except FleetMission.DoesNotExist:
-        logger.warning(f'Mission not found: {mission_identifier}')
-        return Response(
-            {'error': f'Mission {mission_identifier} not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
     except Exception as e:
         logger.error(f'Error starting mission tracking: {str(e)}')
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
