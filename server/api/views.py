@@ -905,24 +905,42 @@ def mission_start_tracking(request):
 @csrf_exempt
 @api_view(['POST'])
 def mobile_location_update(request):
-    """Update driver location during mission tracking (supports driver_id UUID or driver_name)"""
+    """Update driver location during mission tracking (supports driver_id UUID or driver_name)
+    
+    CRITICAL: Creates a NEW TruckLocation record each time (not update_or_create).
+    This ensures every GPS ping is recorded for the trail/map.
+    Also updates truck.last_latitude/last_longitude for real-time pin position.
+    """
     try:
         data = request.data
         driver_identifier = data.get('driver_id') or data.get('driver_name')
         mission_id = data.get('mission_id')
-        latitude = data.get('latitude')
-        longitude = data.get('longitude')
-        speed = data.get('speed', 0)
-        accuracy = data.get('accuracy', 0)
-        altitude = data.get('altitude', 0)
         
-        if not driver_identifier or not latitude or not longitude:
+        # Parse coordinates - accept both string and number formats
+        try:
+            latitude = float(data.get('latitude', 0))
+            longitude = float(data.get('longitude', 0))
+            speed = float(data.get('speed', 0))
+            accuracy = float(data.get('accuracy', 0))
+            altitude = float(data.get('altitude', 0))
+        except (TypeError, ValueError) as e:
             return Response(
-                {'error': 'driver_id/driver_name, latitude, and longitude are required'},
+                {'error': f'Invalid numeric values: {str(e)}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Get or create truck location record - try ID first, then name
+        if not driver_identifier:
+            return Response(
+                {'error': 'driver_id/driver_name is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not latitude or not longitude:
+            return Response(
+                {'error': 'latitude and longitude are required and must be non-zero'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Find driver by ID, phone, or name
         driver = get_driver_by_id_or_name(driver_identifier)
         if not driver:
             logger.warning(f'Driver not found: {driver_identifier}')
@@ -932,32 +950,35 @@ def mobile_location_update(request):
             )
         
         truck = driver.truck
-        
         if not truck:
             return Response(
                 {'error': 'Driver has no truck assigned'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Create or update location
-        location, created = TruckLocation.objects.update_or_create(
+        # CRITICAL: Always CREATE a new record (not update_or_create).
+        # update_or_create overwrites the SAME record each time, losing GPS trail history.
+        location = TruckLocation.objects.create(
             truck=truck,
             driver=driver,
-            defaults={
-                'latitude': latitude,
-                'longitude': longitude,
-                'speed': speed,
-                'accuracy': accuracy,
-                'altitude': altitude,
-                'timestamp': timezone.now()
-            }
+            latitude=latitude,
+            longitude=longitude,
+            speed=speed,
+            accuracy=accuracy,
+            altitude=altitude,
+            timestamp=timezone.now()
         )
         
-        logger.info(f'Updated location for truck {truck.truck_identifier}: ({latitude}, {longitude}), speed: {speed}')
+        # Update truck's live position for real-time map pin
+        truck.last_latitude = latitude
+        truck.last_longitude = longitude
+        truck.save(update_fields=['last_latitude', 'last_longitude'])
+        
+        logger.info(f'📍 Location recorded for truck {truck.truck_identifier}: ({latitude}, {longitude}) speed={speed}km/h')
         
         return Response({
             'success': True,
-            'message': 'Location updated',
+            'message': 'Location recorded',
             'location_id': str(location.id),
             'latitude': float(location.latitude),
             'longitude': float(location.longitude),
@@ -966,7 +987,8 @@ def mobile_location_update(request):
         }, status=status.HTTP_200_OK)
         
     except Exception as e:
-        logger.error(f'Error updating location: {str(e)}')
+        import traceback
+        logger.error(f'Error updating location: {str(e)}\n{traceback.format_exc()}')
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
