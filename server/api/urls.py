@@ -74,6 +74,8 @@ urlpatterns = [
     path('v1/mobile/driver/<str:driver_id>/current-mission/', mobile_get_current_mission, name='mobile-current-mission'),
     path('v1/mobile/driver/<str:driver_id>/location/', mobile_location_update, name='mobile-location-update'),
     path('v1/mobile/mission/start-tracking/', mission_start_tracking, name='mobile-mission-start-tracking'),
+    # Fallback: also support phone_number-based mission lookup
+    path('v1/mobile/missions/by-phone/<str:phone>/', mobile_get_available_missions, name='mobile-missions-by-phone'),
     # Legacy mobile endpoints (if module exists)
     path('v1/mobile/register/', mobile.get('mobile_driver_registration', dummy_view), name='mobile-register'),
     path('v1/mobile/location/', mobile.get('mobile_location_update', dummy_view), name='mobile-location'),
