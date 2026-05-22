@@ -557,6 +557,13 @@ def mobile_driver_registration(request):
             }
         )
         
+        # Always update driver name to what was submitted (not just on creation)
+        # This fixes the bug where the app defaults to "Mobile Driver"
+        if not created:
+            driver.first_name = first_name
+            driver.last_name = last_name
+            driver.save(update_fields=['first_name', 'last_name'])
+        
         # Extract truck from QR data if provided
         truck_id = None
         truck_name = None
