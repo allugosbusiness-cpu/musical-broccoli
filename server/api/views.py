@@ -546,14 +546,36 @@ def mobile_driver_registration(request):
         data = request.data
         
         phone_number = data.get('phone_number')
-        first_name = data.get('first_name', 'Mobile')
-        last_name = data.get('last_name', 'Driver')
+        
+        # Support multiple name formats:
+        # 1. first_name + last_name (separate fields)
+        # 2. name (single field, e.g. "Allan Mugogo")
+        # 3. driver_name (single field)
+        first_name = data.get('first_name') or ''
+        last_name = data.get('last_name') or ''
+        
+        # If first_name/last_name not sent, try 'name' or 'driver_name' field
+        if not first_name and not last_name:
+            full_name = data.get('name') or data.get('driver_name') or ''
+            if ' ' in full_name.strip():
+                parts = full_name.strip().split(maxsplit=1)
+                first_name = parts[0]
+                last_name = parts[1]
+            else:
+                first_name = full_name or 'Mobile'
+                last_name = 'Driver'
+        else:
+            first_name = first_name or 'Mobile'
+            last_name = last_name or 'Driver'
         
         if not phone_number:
             return Response(
                 {'error': 'phone_number is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        # Log what we received for debugging
+        logger.info(f'Registration request: phone={phone_number}, first={first_name}, last={last_name}')
         
         # Check if driver exists
         driver, created = FleetDriver.objects.get_or_create(
