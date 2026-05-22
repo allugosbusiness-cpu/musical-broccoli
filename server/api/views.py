@@ -703,14 +703,29 @@ def mobile_get_available_missions(request, driver_id):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Get missions that are assigned to this driver or are available (not yet assigned)
-        # Missions can be: planned, assigned, enroute, paused, completed, cancelled
-        missions = FleetMission.objects.select_related('truck', 'driver').filter(
+        # Build mission data manually using values() to avoid SELECT *
+        # which fails on production DB (missing max_speed, avg_speed, compressed_trail columns)
+        mission_qs = FleetMission.objects.filter(
             driver=driver,
             status__in=['assigned', 'planned']
-        ).order_by('-created_at')
+        ).order_by('-created_at').values(
+            'id', 'mission_number', 'status', 'priority',
+            'origin', 'destination', 'distance_total_m', 'cargo',
+            'created_at'
+        )
         
-        serializer = MissionSerializer(missions, many=True)
+        missions_data = []
+        for m in mission_qs:
+            missions_data.append({
+                'id': str(m['id']),
+                'mission_number': m['mission_number'],
+                'status': m['status'],
+                'origin': m['origin'] if isinstance(m['origin'], dict) else {'lat': 0, 'lon': 0},
+                'destination': m['destination'] if isinstance(m['destination'], dict) else {'lat': 0, 'lon': 0},
+                'distance_total_m': float(m['distance_total_m']) if m['distance_total_m'] else 0,
+                'cargo': m['cargo'] if m['cargo'] else {},
+                'created_at': m['created_at'].isoformat() if m['created_at'] else None,
+            })
         
         return Response({
             'success': True,
@@ -718,12 +733,13 @@ def mobile_get_available_missions(request, driver_id):
             'driver_name': f"{driver.first_name} {driver.last_name}",
             'truck_id': str(driver.truck.id) if driver.truck else None,
             'truck_name': driver.truck.truck_identifier if driver.truck else None,
-            'missions': serializer.data,
-            'count': missions.count()
+            'missions': missions_data,
+            'count': len(missions_data)
         }, status=status.HTTP_200_OK)
         
     except Exception as e:
-        logger.error(f'Error fetching available missions: {str(e)}')
+        import traceback
+        logger.error(f'Error fetching available missions: {str(e)}\n{traceback.format_exc()}')
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -739,36 +755,42 @@ def mobile_get_current_mission(request, driver_id):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Get the mission currently being tracked (status='enroute')
-        mission = FleetMission.objects.select_related('truck', 'driver').filter(
+        # Use values() to avoid SELECT * which fails on missing columns
+        mission = FleetMission.objects.filter(
             driver=driver,
             status='enroute'
+        ).values(
+            'id', 'mission_number', 'status', 'priority',
+            'origin', 'destination', 'distance_total_m', 'cargo',
+            'started_at', 'created_at'
         ).first()
         
         if not mission:
-            # If no enroute mission, try to get the most recent one
-            mission = FleetMission.objects.select_related('truck', 'driver').filter(
-                driver=driver
-            ).order_by('-started_at').first()
-            
-            if not mission:
-                return Response(
-                    {'error': 'No active mission found', 'status': None},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-        
-        serializer = MissionSerializer(mission)
+            return Response(
+                {'error': 'No active mission found', 'status': None},
+                status=status.HTTP_404_NOT_FOUND
+            )
         
         return Response({
             'success': True,
             'driver_id': str(driver.id),
             'driver_name': f"{driver.first_name} {driver.last_name}",
-            'mission': serializer.data,
-            'status': mission.status
+            'mission': {
+                'id': str(mission['id']),
+                'mission_number': mission['mission_number'],
+                'status': mission['status'],
+                'origin': mission['origin'] if isinstance(mission['origin'], dict) else {'lat': 0, 'lon': 0},
+                'destination': mission['destination'] if isinstance(mission['destination'], dict) else {'lat': 0, 'lon': 0},
+                'distance_total_m': float(mission['distance_total_m']) if mission['distance_total_m'] else 0,
+                'cargo': mission['cargo'] if mission['cargo'] else {},
+                'created_at': mission['created_at'].isoformat() if mission['created_at'] else None,
+            },
+            'status': mission['status']
         }, status=status.HTTP_200_OK)
         
     except Exception as e:
-        logger.error(f'Error fetching current mission: {str(e)}')
+        import traceback
+        logger.error(f'Error fetching current mission: {str(e)}\n{traceback.format_exc()}')
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
