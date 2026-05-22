@@ -30,30 +30,35 @@ logger = logging.getLogger(__name__)
 def get_driver_by_id_or_name(driver_identifier):
     """
     Get driver by UUID (ID), phone_number, or by full name.
-    Tries UUID first, then phone_number, then name lookup.
+    All lookups use .filter().first() to avoid MultipleObjectsReturned.
     Returns driver or None.
     """
     from django.core.exceptions import ValidationError
+    
     # Try UUID first
-    try:
-        return FleetDriver.objects.get(id=driver_identifier)
-    except (FleetDriver.DoesNotExist, ValueError, ValidationError):
-        pass
-    
-    # Try phone number
-    try:
-        return FleetDriver.objects.get(phone_number=driver_identifier)
-    except FleetDriver.DoesNotExist:
-        pass
-    
-    # Try name lookup (split "First Last" format)
-    name_parts = driver_identifier.strip().split(maxsplit=1)
-    if len(name_parts) == 2:
-        first_name, last_name = name_parts
+    if driver_identifier:
         try:
-            return FleetDriver.objects.get(first_name__iexact=first_name, last_name__iexact=last_name)
-        except FleetDriver.DoesNotExist:
-            return None
+            driver = FleetDriver.objects.filter(id=driver_identifier).first()
+            if driver:
+                return driver
+        except (ValueError, ValidationError):
+            pass
+        
+        # Try phone number
+        driver = FleetDriver.objects.filter(phone_number=driver_identifier).first()
+        if driver:
+            return driver
+        
+        # Try name lookup (split "First Last" format)
+        name_parts = driver_identifier.strip().split(maxsplit=1)
+        if len(name_parts) == 2:
+            first_name, last_name = name_parts
+            driver = FleetDriver.objects.filter(
+                first_name__iexact=first_name, 
+                last_name__iexact=last_name
+            ).order_by('-created_at').first()
+            if driver:
+                return driver
     
     return None
 class DriverViewSet(viewsets.ModelViewSet):
