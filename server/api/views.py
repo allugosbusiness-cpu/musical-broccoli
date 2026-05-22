@@ -747,26 +747,33 @@ def mobile_get_available_missions(request, driver_id):
         
         # Build mission data manually using values() to avoid SELECT *
         # which fails on production DB (missing max_speed, avg_speed, compressed_trail columns)
-        mission_qs = FleetMission.objects.filter(
+        # Match missions where driver is assigned to the mission OR missions 
+        # assigned to the driver's truck (even if driver not explicitly linked)
+        driver_mission_qs = FleetMission.objects.filter(
             driver=driver,
             status__in=['assigned', 'planned']
-        ).order_by('-created_at').values(
-            'id', 'mission_number', 'status', 'priority',
-            'origin', 'destination', 'distance_total_m', 'cargo',
-            'created_at'
         )
         
+        truck_mission_qs = FleetMission.objects.filter(
+            truck=driver.truck,
+            status__in=['assigned', 'planned']
+        ) if driver.truck else FleetMission.objects.none()
+        
+        # Combine and deduplicate by ID
+        combined = list(driver_mission_qs) + [m for m in truck_mission_qs if m not in driver_mission_qs]
+        combined.sort(key=lambda m: m.created_at or timezone.datetime.min, reverse=True)
+        
         missions_data = []
-        for m in mission_qs:
+        for mission in combined:
             missions_data.append({
-                'id': str(m['id']),
-                'mission_number': m['mission_number'],
-                'status': m['status'],
-                'origin': m['origin'] if isinstance(m['origin'], dict) else {'lat': 0, 'lon': 0},
-                'destination': m['destination'] if isinstance(m['destination'], dict) else {'lat': 0, 'lon': 0},
-                'distance_total_m': float(m['distance_total_m']) if m['distance_total_m'] else 0,
-                'cargo': m['cargo'] if m['cargo'] else {},
-                'created_at': m['created_at'].isoformat() if m['created_at'] else None,
+                'id': str(mission.id),
+                'mission_number': mission.mission_number,
+                'status': mission.status,
+                'origin': mission.origin if isinstance(mission.origin, dict) else {'lat': 0, 'lon': 0},
+                'destination': mission.destination if isinstance(mission.destination, dict) else {'lat': 0, 'lon': 0},
+                'distance_total_m': float(mission.distance_total_m) if mission.distance_total_m else 0,
+                'cargo': mission.cargo if mission.cargo else {},
+                'created_at': mission.created_at.isoformat() if mission.created_at else None,
             })
         
         return Response({
