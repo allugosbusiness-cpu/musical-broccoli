@@ -29,25 +29,33 @@ logger = logging.getLogger(__name__)
 # ===== Helper Functions =====
 def get_driver_by_id_or_name(driver_identifier):
     """
-    Get driver by UUID (ID) or by full name.
-    Tries UUID first, then falls back to name lookup.
+    Get driver by UUID (ID), phone_number, or by full name.
+    Tries UUID first, then phone_number, then name lookup.
     Returns driver or None.
     """
     from django.core.exceptions import ValidationError
+    # Try UUID first
     try:
-        # Try UUID first
         return FleetDriver.objects.get(id=driver_identifier)
     except (FleetDriver.DoesNotExist, ValueError, ValidationError):
-        # Not a valid UUID, try name lookup
-        # Split name into first and last name (simplistic: assumes "First Last" format)
-        name_parts = driver_identifier.strip().split(maxsplit=1)
-        if len(name_parts) == 2:
-            first_name, last_name = name_parts
-            try:
-                return FleetDriver.objects.get(first_name__iexact=first_name, last_name__iexact=last_name)
-            except FleetDriver.DoesNotExist:
-                return None
-        return None
+        pass
+    
+    # Try phone number
+    try:
+        return FleetDriver.objects.get(phone_number=driver_identifier)
+    except FleetDriver.DoesNotExist:
+        pass
+    
+    # Try name lookup (split "First Last" format)
+    name_parts = driver_identifier.strip().split(maxsplit=1)
+    if len(name_parts) == 2:
+        first_name, last_name = name_parts
+        try:
+            return FleetDriver.objects.get(first_name__iexact=first_name, last_name__iexact=last_name)
+        except FleetDriver.DoesNotExist:
+            return None
+    
+    return None
 class DriverViewSet(viewsets.ModelViewSet):
     queryset = FleetDriver.objects.all()
     serializer_class = DriverSerializer
