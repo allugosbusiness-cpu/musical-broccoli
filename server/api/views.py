@@ -664,8 +664,8 @@ def mobile_validate_pin(request):
         
         phone_number = data.get('phone_number')
         pin = data.get('pin', '')
-        first_name = data.get('first_name', 'Mobile')
-        last_name = data.get('last_name', 'Driver')
+        first_name = data.get('first_name', '')
+        last_name = data.get('last_name', '')
         
         if not phone_number:
             return Response(
@@ -681,6 +681,16 @@ def mobile_validate_pin(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Support multiple name formats
+        if not first_name and not last_name:
+            # If no names provided at all, fall back to defaults
+            first_name = 'Mobile'
+            last_name = 'Driver'
+        else:
+            # Default missing name part to empty string
+            first_name = first_name or ''
+            last_name = last_name or ''
+        
         # Check if driver exists or create
         driver, created = FleetDriver.objects.get_or_create(
             phone_number=phone_number,
@@ -690,6 +700,13 @@ def mobile_validate_pin(request):
                 'status': 'active'
             }
         )
+        
+        # Always update driver name to what was submitted (not just on creation)
+        # This fixes the bug where previously registered drivers have "Mobile Driver"
+        if not created:
+            driver.first_name = first_name
+            driver.last_name = last_name
+            driver.save(update_fields=['first_name', 'last_name'])
         
         # Assign first available truck if not assigned
         truck_id = None
