@@ -30,16 +30,28 @@ const MissionsScreen = ({ navigation }) => {
   const loadMissions = async () => {
     try {
       const session = await storage.getDriverSession();
+      console.log('[MissionsScreen] driver session:', session);
       setDriverSession(session);
 
       if (session && session.driver_id) {
+        console.log('[MissionsScreen] fetching available missions for driver:', session.driver_id);
         const result = await apiService.getAvailableMissions(session.driver_id);
+        console.log('[MissionsScreen] available missions result:', result);
+        
         if (result && result.missions) {
+          console.log('[MissionsScreen] setting missions:', result.missions);
           setMissions(result.missions);
+        } else {
+          console.log('[MissionsScreen] no missions in result');
+          setMissions([]);
         }
+      } else {
+        console.log('[MissionsScreen] no driver session or driver_id');
+        setMissions([]);
       }
     } catch (error) {
-      console.error('Error loading missions:', error);
+      console.error('[MissionsScreen] error loading missions:', error.message, error);
+      setMissions([]);
     } finally {
       setLoading(false);
     }

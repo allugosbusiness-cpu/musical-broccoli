@@ -111,12 +111,14 @@ async function processLocationUpdate(location) {
     // Send to backend
     if (driverId) {
       try {
+        console.log('[LocationService] sending location update for driver:', driverId);
         const result = await apiService.sendLocationUpdate(driverId, locationData);
+        console.log('[LocationService] location update result:', result);
         if (result && result.success) {
           lastSentLocation = coords;
         }
       } catch (error) {
-        console.log('Failed to send location update, will retry:', error.message);
+        console.log('[LocationService] failed to send location update:', error.message);
         // Location is cached, will be sent on next successful attempt
       }
     }

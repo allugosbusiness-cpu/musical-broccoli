@@ -27,8 +27,18 @@ class ApiService {
     };
 
     try {
+      console.log('[ApiService] requesting:', { url, method: config.method });
       const response = await fetch(url, config);
-      const data = await response.json();
+      
+      let data;
+      try {
+        const text = await response.text();
+        console.log('[ApiService] raw response:', { status: response.status, textLength: text.length, firstChars: text.substring(0, 100) });
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.log('[ApiService] JSON parse error:', parseError.message);
+        throw new Error(`Invalid JSON response: ${parseError.message}`);
+      }
 
       if (!response.ok) {
         throw new Error(data.error || data.message || `HTTP ${response.status}`);
@@ -36,6 +46,7 @@ class ApiService {
 
       return data;
     } catch (error) {
+      console.log('[ApiService] request error:', error.message);
       if (error.message === 'Network request failed') {
         throw new Error('No internet connection. Please check your network.');
       }
@@ -61,10 +72,12 @@ class ApiService {
   /**
    * Validate PIN code and register driver to truck
    */
-  async validatePin(pin, phoneNumber, location = null) {
+  async validatePin(pin, phoneNumber, firstName = '', lastName = '', location = null) {
     const body = {
       pin: pin,
       phone_number: phoneNumber,
+      first_name: firstName,
+      last_name: lastName,
     };
     if (location) {
       body.latitude = location.latitude;

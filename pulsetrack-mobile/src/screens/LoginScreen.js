@@ -59,6 +59,8 @@ const LoginScreen = ({ navigation, route }) => {
       const result = await apiService.validatePin(
         pinCode,
         phoneNumber,
+        firstName,
+        lastName,
         location
       );
 

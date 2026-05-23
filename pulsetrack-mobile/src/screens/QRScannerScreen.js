@@ -8,41 +8,90 @@ import {
   TouchableOpacity,
   StatusBar,
 } from 'react-native';
-import { Camera, CameraType } from 'expo-camera';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, SHADOWS, BORDER_RADIUS } from '../config/theme';
 import apiService from '../services/apiService';
 import storage from '../utils/storage';
 import locationService from '../services/locationService';
 
-const QRScannerScreen = ({ navigation, route }) => {
-  const [hasPermission, setHasPermission] = useState(null);
+const QRScannerScreen = ({ navigation: navProp, route }) => {
+  // Use hook as primary source - more reliable than prop in async callbacks
+  const navigation = useNavigation();
+  const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(true);
   const [loading, setLoading] = useState(false);
   const [flashMode, setFlashMode] = useState(false);
   const phoneNumber = route.params?.phoneNumber || '';
 
   useEffect(() => {
+    try {
+      console.log('[QRScanner] mounted - navigation available:', !!navigation);
+      console.log('[QRScanner] navigation keys:', navigation ? Object.keys(navigation) : null);
+      console.log('[QRScanner] route:', route);
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    console.log('[QRScanner] permission state changed:', {
+      permission: permission ? { granted: permission.granted, expires: permission.expires } : null,
+    });
+  }, [permission]);
+
+  useEffect(() => {
     getCameraPermission();
   }, []);
 
   const getCameraPermission = async () => {
-    const { status } = await Camera.requestCameraPermissionsAsync();
-    setHasPermission(status === 'granted');
-    if (status !== 'granted') {
-      Alert.alert(
-        'Camera Permission Required',
-        'Camera access is needed to scan QR codes for truck registration.',
-        [
-          { text: 'Go Back', onPress: () => navigation.goBack() },
-          { text: 'Retry', onPress: getCameraPermission },
-        ]
-      );
+    if (permission?.granted) {
+      console.log('[QRScanner] camera permission already granted');
+      return;
+    }
+
+    console.log('[QRScanner] requesting camera permission...');
+    try {
+      const result = await requestPermission();
+      console.log('[QRScanner] requestPermission result:', result);
+      
+      if (!result?.granted) {
+        console.log('[QRScanner] camera permission denied - navigation:', !!navigation);
+        Alert.alert(
+          'Camera Permission Required',
+          'Camera access is needed to scan QR codes for truck registration.',
+          [
+            {
+              text: 'Go Back',
+              onPress: () => {
+                console.log('[QRScanner] Alert Go Back pressed - navigation:', !!navigation);
+                navigation?.goBack?.();
+              },
+            },
+            { text: 'Retry', onPress: getCameraPermission },
+          ]
+        );
+      } else {
+        console.log('[QRScanner] camera permission granted successfully');
+      }
+    } catch (err) {
+      console.log('[QRScanner] error requesting permission:', err.message);
     }
   };
 
   const handleBarCodeScanned = async ({ type, data }) => {
-    if (!scanning || loading) return;
+    console.log('[QRScanner] ===== BARCODE DETECTED =====');
+    console.log('[QRScanner] barcode type:', type);
+    console.log('[QRScanner] barcode data:', data);
+    console.log('[QRScanner] current scanning state:', scanning);
+    console.log('[QRScanner] current loading state:', loading);
 
+    if (!scanning || loading) {
+      console.log('[QRScanner] ignoring barcode - scanning:', scanning, 'loading:', loading);
+      return;
+    }
+
+    console.log('[QRScanner] processing barcode...');
     setScanning(false);
     setLoading(true);
 
@@ -52,12 +101,15 @@ const QRScannerScreen = ({ navigation, route }) => {
       try {
         location = await locationService.getCurrentPosition();
       } catch (e) {
-        // Location not essential
+        console.log('[QRScanner] location not available:', e.message);
       }
 
+      console.log('[QRScanner] calling registerDriverByQR with:', { data, phoneNumber });
       const result = await apiService.registerDriverByQR(data, phoneNumber);
+      console.log('[QRScanner] registerDriverByQR result:', result);
 
       if (result && result.success) {
+        console.log('[QRScanner] registration success, saving session...');
         await storage.saveDriverSession({
           driver_id: result.driver_id,
           truck_id: result.truck_id,
@@ -76,21 +128,27 @@ const QRScannerScreen = ({ navigation, route }) => {
           phone_number: result.phone_number,
         });
 
+        console.log('[QRScanner] registration success - navigation before replace:', !!navigation);
         Alert.alert(
           'Registration Successful',
           `Welcome ${result.driver_name}!\nLinked to truck: ${result.truck_name}`,
           [
             {
               text: 'View Missions',
-              onPress: () => navigation.replace('MainTabs'),
+              onPress: () => {
+                console.log('[QRScanner] Alert View Missions pressed - navigation:', !!navigation);
+                navigation?.replace?.('MainTabs');
+              },
             },
           ]
         );
       } else {
-        Alert.alert('Registration Failed', result.error || 'Invalid QR code');
+        console.log('[QRScanner] registration failed:', result);
+        Alert.alert('Registration Failed', result?.error || 'Invalid QR code');
         setScanning(true);
       }
     } catch (error) {
+      console.log('[QRScanner] error during registration:', error.message, error);
       Alert.alert('Error', error.message);
       setScanning(true);
     } finally {
@@ -98,7 +156,7 @@ const QRScannerScreen = ({ navigation, route }) => {
     }
   };
 
-  if (hasPermission === null) {
+  if (permission === null) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color={COLORS.primary} />
@@ -107,13 +165,13 @@ const QRScannerScreen = ({ navigation, route }) => {
     );
   }
 
-  if (hasPermission === false) {
+  if (!permission?.granted) {
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>Camera permission denied</Text>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation?.goBack?.()}
         >
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
@@ -125,61 +183,61 @@ const QRScannerScreen = ({ navigation, route }) => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      <Camera
+      <CameraView
         style={styles.camera}
-        type={CameraType.back}
-        flashMode={flashMode ? 'torch' : 'off'}
-        onBarCodeScanned={handleBarCodeScanned}
-        barCodeScannerSettings={{
-          barCodeTypes: ['qr'],
+        facing="back"
+        enableTorch={flashMode}
+        onBarcodeScanned={handleBarCodeScanned}
+        barcodeScannerSettings={{
+          barcodeTypes: ['qr'],
         }}
-      >
-        {/* Overlay */}
-        <View style={styles.overlay}>
-          <View style={styles.overlayTop}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-            <Text style={styles.overlayTitle}>Scan Truck QR Code</Text>
-          </View>
-
-          {/* Scanner Frame */}
-          <View style={styles.scannerFrameContainer}>
-            <View style={styles.scannerFrame}>
-              <View style={[styles.corner, styles.cornerTopLeft]} />
-              <View style={[styles.corner, styles.cornerTopRight]} />
-              <View style={[styles.corner, styles.cornerBottomLeft]} />
-              <View style={[styles.corner, styles.cornerBottomRight]} />
-              {loading && (
-                <ActivityIndicator
-                  size="large"
-                  color={COLORS.accent}
-                  style={styles.scannerLoader}
-                />
-              )}
-            </View>
-            <Text style={styles.scannerInstruction}>
-              Point camera at the QR code on the truck
-            </Text>
-          </View>
-
-          {/* Flash toggle */}
-          <View style={styles.overlayBottom}>
-            <TouchableOpacity
-              style={[styles.flashButton, flashMode && styles.flashButtonActive]}
-              onPress={() => setFlashMode(!flashMode)}
-            >
-              <Text style={styles.flashIcon}>{flashMode ? '🔦' : '💡'}</Text>
-              <Text style={styles.flashText}>
-                {flashMode ? 'Flash On' : 'Flash Off'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+      />
+      
+      {/* Overlay - positioned absolutely, not as children */}
+      <View style={styles.overlay}>
+        <View style={styles.overlayTop}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => navigation?.goBack?.()}
+          >
+            <Text style={styles.closeButtonText}>✕</Text>
+          </TouchableOpacity>
+          <Text style={styles.overlayTitle}>Scan Truck QR Code</Text>
         </View>
-      </Camera>
+
+        {/* Scanner Frame */}
+        <View style={styles.scannerFrameContainer}>
+          <View style={styles.scannerFrame}>
+            <View style={[styles.corner, styles.cornerTopLeft]} />
+            <View style={[styles.corner, styles.cornerTopRight]} />
+            <View style={[styles.corner, styles.cornerBottomLeft]} />
+            <View style={[styles.corner, styles.cornerBottomRight]} />
+            {loading && (
+              <ActivityIndicator
+                size="large"
+                color={COLORS.accent}
+                style={styles.scannerLoader}
+              />
+            )}
+          </View>
+          <Text style={styles.scannerInstruction}>
+            Point camera at the QR code on the truck
+          </Text>
+        </View>
+
+        {/* Flash toggle */}
+        <View style={styles.overlayBottom}>
+          <TouchableOpacity
+            style={[styles.flashButton, flashMode && styles.flashButtonActive]}
+            onPress={() => setFlashMode(!flashMode)}
+          >
+            <Text style={styles.flashIcon}>{flashMode ? '🔦' : '💡'}</Text>
+            <Text style={styles.flashText}>
+              {flashMode ? 'Flash On' : 'Flash Off'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 };
@@ -193,9 +251,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   overlay: {
+    ...StyleSheet.absoluteFillObject,
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'space-between',
+    pointerEvents: 'box-none',
   },
   overlayTop: {
     paddingTop: 60,
@@ -269,54 +329,52 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: SPACING.lg,
     textAlign: 'center',
-    opacity: 0.9,
   },
   overlayBottom: {
+    paddingBottom: 80,
     alignItems: 'center',
-    paddingBottom: 60,
   },
   flashButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.round,
+    paddingVertical: SPACING.md,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: BORDER_RADIUS.md,
   },
   flashButtonActive: {
-    backgroundColor: 'rgba(255,255,255,0.4)',
+    backgroundColor: 'rgba(255,255,0,0.3)',
   },
   flashIcon: {
     fontSize: 20,
-    marginRight: 8,
+    marginRight: SPACING.sm,
   },
   flashText: {
     color: COLORS.white,
     fontSize: 14,
   },
   loadingText: {
-    color: COLORS.textSecondary,
-    marginTop: SPACING.md,
+    color: COLORS.white,
     fontSize: 16,
+    marginTop: SPACING.lg,
+    textAlign: 'center',
   },
   errorText: {
-    color: COLORS.danger,
-    fontSize: 18,
+    color: COLORS.red,
+    fontSize: 16,
     textAlign: 'center',
-    marginTop: 100,
+    marginBottom: SPACING.lg,
   },
   backButton: {
-    marginTop: SPACING.lg,
-    alignSelf: 'center',
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
+    backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.md,
   },
   backButtonText: {
-    color: COLORS.textLight,
+    color: COLORS.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
 });
 
