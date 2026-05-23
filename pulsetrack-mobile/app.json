@@ -1,0 +1,69 @@
+{
+  "expo": {
+    "name": "PulseTrack Fleet",
+    "slug": "pulsetrack-fleet",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#1a237e"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.pulsetrack.fleet",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Camera is used to scan QR codes on trucks for driver registration and mission assignment.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "PulseTrack needs your location to track fleet movements, provide route information, and send real-time speed/location data to fleet managers.",
+        "NSLocationWhenInUseUsageDescription": "PulseTrack needs your location while the app is open to track your driving route.",
+        "NSLocationAlwaysUsageDescription": "PulseTrack needs background location to continue tracking fleet movements even when the app is in the background.",
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1a237e"
+      },
+      "package": "com.pulsetrack.fleet",
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+        }
+      }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "PulseTrack needs your location to track fleet movements and provide real-time data to fleet managers.",
+          "locationAlwaysPermission": "PulseTrack needs background location to continue tracking fleet movements even when the app is in the background.",
+          "locationWhenInUsePermission": "PulseTrack needs your location while the app is open to track your driving route."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Camera is used to scan QR codes on trucks for driver registration."
+        }
+      ]
+    ],
+    "extra": {
+      "apiBaseUrl": "https://pulsetrack-back.onrender.com/api/v1",
+      "locationUpdateInterval": 120000,
+      "locationDistanceFilter": 50
+    }
+  }
+}

@@ -1,0 +1,323 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  TouchableOpacity,
+  StatusBar,
+} from 'react-native';
+import { Camera, CameraType } from 'expo-camera';
+import { COLORS, SPACING, SHADOWS, BORDER_RADIUS } from '../config/theme';
+import apiService from '../services/apiService';
+import storage from '../utils/storage';
+import locationService from '../services/locationService';
+
+const QRScannerScreen = ({ navigation, route }) => {
+  const [hasPermission, setHasPermission] = useState(null);
+  const [scanning, setScanning] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [flashMode, setFlashMode] = useState(false);
+  const phoneNumber = route.params?.phoneNumber || '';
+
+  useEffect(() => {
+    getCameraPermission();
+  }, []);
+
+  const getCameraPermission = async () => {
+    const { status } = await Camera.requestCameraPermissionsAsync();
+    setHasPermission(status === 'granted');
+    if (status !== 'granted') {
+      Alert.alert(
+        'Camera Permission Required',
+        'Camera access is needed to scan QR codes for truck registration.',
+        [
+          { text: 'Go Back', onPress: () => navigation.goBack() },
+          { text: 'Retry', onPress: getCameraPermission },
+        ]
+      );
+    }
+  };
+
+  const handleBarCodeScanned = async ({ type, data }) => {
+    if (!scanning || loading) return;
+
+    setScanning(false);
+    setLoading(true);
+
+    try {
+      // Try to get current location for audit trail
+      let location = null;
+      try {
+        location = await locationService.getCurrentPosition();
+      } catch (e) {
+        // Location not essential
+      }
+
+      const result = await apiService.registerDriverByQR(data, phoneNumber);
+
+      if (result && result.success) {
+        await storage.saveDriverSession({
+          driver_id: result.driver_id,
+          truck_id: result.truck_id,
+          tracking_id: result.tracking_id,
+          token: result.token,
+          driver_name: result.driver_name,
+          truck_name: result.truck_name,
+          phone_number: result.phone_number,
+          gps_tracking_enabled: result.gps_tracking_enabled,
+        });
+
+        await storage.saveDriverProfile({
+          driver_id: result.driver_id,
+          driver_name: result.driver_name,
+          truck_name: result.truck_name,
+          phone_number: result.phone_number,
+        });
+
+        Alert.alert(
+          'Registration Successful',
+          `Welcome ${result.driver_name}!\nLinked to truck: ${result.truck_name}`,
+          [
+            {
+              text: 'View Missions',
+              onPress: () => navigation.replace('MainTabs'),
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Registration Failed', result.error || 'Invalid QR code');
+        setScanning(true);
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+      setScanning(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (hasPermission === null) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Requesting camera permission...</Text>
+      </View>
+    );
+  }
+
+  if (hasPermission === false) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>Camera permission denied</Text>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      
+      <Camera
+        style={styles.camera}
+        type={CameraType.back}
+        flashMode={flashMode ? 'torch' : 'off'}
+        onBarCodeScanned={handleBarCodeScanned}
+        barCodeScannerSettings={{
+          barCodeTypes: ['qr'],
+        }}
+      >
+        {/* Overlay */}
+        <View style={styles.overlay}>
+          <View style={styles.overlayTop}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.closeButtonText}>✕</Text>
+            </TouchableOpacity>
+            <Text style={styles.overlayTitle}>Scan Truck QR Code</Text>
+          </View>
+
+          {/* Scanner Frame */}
+          <View style={styles.scannerFrameContainer}>
+            <View style={styles.scannerFrame}>
+              <View style={[styles.corner, styles.cornerTopLeft]} />
+              <View style={[styles.corner, styles.cornerTopRight]} />
+              <View style={[styles.corner, styles.cornerBottomLeft]} />
+              <View style={[styles.corner, styles.cornerBottomRight]} />
+              {loading && (
+                <ActivityIndicator
+                  size="large"
+                  color={COLORS.accent}
+                  style={styles.scannerLoader}
+                />
+              )}
+            </View>
+            <Text style={styles.scannerInstruction}>
+              Point camera at the QR code on the truck
+            </Text>
+          </View>
+
+          {/* Flash toggle */}
+          <View style={styles.overlayBottom}>
+            <TouchableOpacity
+              style={[styles.flashButton, flashMode && styles.flashButtonActive]}
+              onPress={() => setFlashMode(!flashMode)}
+            >
+              <Text style={styles.flashIcon}>{flashMode ? '🔦' : '💡'}</Text>
+              <Text style={styles.flashText}>
+                {flashMode ? 'Flash On' : 'Flash Off'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Camera>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.black,
+  },
+  camera: {
+    flex: 1,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'space-between',
+  },
+  overlayTop: {
+    paddingTop: 60,
+    paddingHorizontal: SPACING.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
+  },
+  closeButtonText: {
+    color: COLORS.white,
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  overlayTitle: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  scannerFrameContainer: {
+    alignItems: 'center',
+  },
+  scannerFrame: {
+    width: 250,
+    height: 250,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  corner: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderColor: COLORS.accent,
+  },
+  cornerTopLeft: {
+    top: 0,
+    left: 0,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
+  },
+  cornerTopRight: {
+    top: 0,
+    right: 0,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
+  },
+  cornerBottomLeft: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
+  },
+  cornerBottomRight: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+  },
+  scannerLoader: {
+    position: 'absolute',
+  },
+  scannerInstruction: {
+    color: COLORS.white,
+    fontSize: 14,
+    marginTop: SPACING.lg,
+    textAlign: 'center',
+    opacity: 0.9,
+  },
+  overlayBottom: {
+    alignItems: 'center',
+    paddingBottom: 60,
+  },
+  flashButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.round,
+  },
+  flashButtonActive: {
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  flashIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  flashText: {
+    color: COLORS.white,
+    fontSize: 14,
+  },
+  loadingText: {
+    color: COLORS.textSecondary,
+    marginTop: SPACING.md,
+    fontSize: 16,
+  },
+  errorText: {
+    color: COLORS.danger,
+    fontSize: 18,
+    textAlign: 'center',
+    marginTop: 100,
+  },
+  backButton: {
+    marginTop: SPACING.lg,
+    alignSelf: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  backButtonText: {
+    color: COLORS.textLight,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
+
+export default QRScannerScreen;
