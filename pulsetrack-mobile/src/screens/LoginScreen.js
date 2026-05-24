@@ -101,8 +101,14 @@ const LoginScreen = ({ navigation, route }) => {
       Alert.alert('Validation Error', 'Please enter your phone number first');
       return;
     }
+    if (!firstName && !lastName) {
+      Alert.alert('Validation Error', 'Please enter your name (first name at minimum)');
+      return;
+    }
+    const driverName = `${firstName} ${lastName}`.trim();
     navigation.navigate('QRScanner', {
       phoneNumber: phoneNumber,
+      driverName: driverName,
     });
   };
 

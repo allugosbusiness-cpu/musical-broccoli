@@ -59,12 +59,13 @@ class ApiService {
   /**
    * Register driver by scanning QR code
    */
-  async registerDriverByQR(qrData, phoneNumber) {
+  async registerDriverByQR(qrData, phoneNumber, driverName = null) {
     return this.request(API_CONFIG.endpoints.driverRegistration, {
       method: 'POST',
       body: JSON.stringify({
         qr_data: qrData,
         phone_number: phoneNumber,
+        driver_name: driverName,
       }),
     });
   }

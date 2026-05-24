@@ -23,6 +23,7 @@ const QRScannerScreen = ({ navigation: navProp, route }) => {
   const [loading, setLoading] = useState(false);
   const [flashMode, setFlashMode] = useState(false);
   const phoneNumber = route.params?.phoneNumber || '';
+  const driverName = route.params?.driverName || 'Mobile Driver';
 
   useEffect(() => {
     try {
@@ -104,8 +105,8 @@ const QRScannerScreen = ({ navigation: navProp, route }) => {
         console.log('[QRScanner] location not available:', e.message);
       }
 
-      console.log('[QRScanner] calling registerDriverByQR with:', { data, phoneNumber });
-      const result = await apiService.registerDriverByQR(data, phoneNumber);
+      console.log('[QRScanner] calling registerDriverByQR with:', { data, phoneNumber, driverName });
+      const result = await apiService.registerDriverByQR(data, phoneNumber, driverName);
       console.log('[QRScanner] registerDriverByQR result:', result);
 
       if (result && result.success) {

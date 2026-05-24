@@ -921,7 +921,7 @@ def mission_start_tracking(request):
 
 @csrf_exempt
 @api_view(['POST'])
-def mobile_location_update(request):
+def mobile_location_update(request, driver_id=None):
     """Update driver location during mission tracking (supports driver_id UUID or driver_name)
     
     CRITICAL: Creates a NEW TruckLocation record each time (not update_or_create).
@@ -930,7 +930,8 @@ def mobile_location_update(request):
     """
     try:
         data = request.data
-        driver_identifier = data.get('driver_id') or data.get('driver_name')
+        # Get driver_id from URL parameter first, then from request data
+        driver_identifier = driver_id or data.get('driver_id') or data.get('driver_name')
         mission_id = data.get('mission_id')
         
         # Parse coordinates - accept both string and number formats
