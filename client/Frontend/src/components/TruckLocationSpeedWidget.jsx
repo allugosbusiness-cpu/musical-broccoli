@@ -17,21 +17,25 @@ export default function TruckLocationSpeedWidget() {
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
 
-  // Fetch truck locations every 5 seconds
+  // Fetch truck locations every 3 seconds from real-time tracking endpoint
   useEffect(() => {
     const fetchLocations = async () => {
       try {
         setLoading(true);
         const response = await axios.get(
-          `${getApiBase()}/v1/trucks/`
+          `${getApiBase()}/v1/truck-tracking/all-locations/`
         );
 
-        if (response.data.results) {
+        if (response.data.trucks) {
+          setTrucks(response.data.trucks);
+          setLastUpdate(new Date());
+          setError(null);
+        } else if (response.data.results) {
           setTrucks(response.data.results);
           setLastUpdate(new Date());
           setError(null);
-        } else if (response.data) {
-          setTrucks(Array.isArray(response.data) ? response.data : []);
+        } else if (Array.isArray(response.data)) {
+          setTrucks(response.data);
           setLastUpdate(new Date());
           setError(null);
         }
@@ -44,7 +48,7 @@ export default function TruckLocationSpeedWidget() {
     };
 
     fetchLocations();
-    const interval = setInterval(fetchLocations, 5000); // Update every 5 seconds
+    const interval = setInterval(fetchLocations, 3000); // Update every 3 seconds for real-time
 
     return () => clearInterval(interval);
   }, []);
@@ -122,21 +126,21 @@ export default function TruckLocationSpeedWidget() {
                 <div className="text-right">
                   {/* Speed */}
                   <div className="mb-2">
-                    <p className={`text-2xl font-bold ${getSpeedColor(truck.speed_kmh)}`}>
-                      {Number.isFinite(truck.speed_kmh) ? Number(truck.speed_kmh).toFixed(1) : '0.0'}
+                    <p className={`text-2xl font-bold ${getSpeedColor(truck.speed)}`}>
+                      {Number.isFinite(truck.speed) ? Number(truck.speed).toFixed(1) : '0.0'}
                     </p>
                     <p className="text-xs text-slate-400">km/h</p>
                   </div>
 
                   {/* Coordinates */}
-                  {truck.location && Number.isFinite(truck.location.lat) && Number.isFinite(truck.location.lon) ? (
+                  {Number.isFinite(truck.latitude) && Number.isFinite(truck.longitude) ? (
                     <div className="text-xs text-slate-400">
                       <p>
-                        📍 {Number(truck.location.lat).toFixed(3)}, {Number(truck.location.lon).toFixed(3)}
+                        📍 {Number(truck.latitude).toFixed(3)}, {Number(truck.longitude).toFixed(3)}
                       </p>
                       <p className="text-xs text-slate-500 mt-1">
-                        {truck.updated_at
-                          ? new Date(truck.updated_at).toLocaleTimeString()
+                        {truck.timestamp
+                          ? new Date(truck.timestamp).toLocaleTimeString()
                           : 'No data'}
                       </p>
                     </div>

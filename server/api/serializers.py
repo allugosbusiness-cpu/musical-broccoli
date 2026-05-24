@@ -140,7 +140,8 @@ class FleetActivitySerializer(serializers.ModelSerializer):
         model = FleetActivity
         fields = [
             'id', 'truck', 'driver', 'mission', 'activity_type',
-            'activity_category', 'description', 'timestamp', 'created_at', 'updated_at'
+            'activity_category', 'description', 'avg_speed', 'compressed_trail',
+            'timestamp', 'created_at', 'updated_at'
         ]
 
 

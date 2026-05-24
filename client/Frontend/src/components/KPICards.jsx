@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect } from "react";
 import { TrendingUp, CheckCircle2, Gauge, Package, AlertTriangle, Zap } from "lucide-react";
+import axios from "axios";
 import { 
   getDashboardSummary, 
   getDashboardTrucks, 
@@ -7,6 +8,11 @@ import {
   getTrucks, 
   getAlerts 
 } from '../services/api';
+
+const getApiBase = () => {
+  if (import.meta.env.MODE === 'development') return 'http://localhost:8000/api';
+  return 'https://pulsetrack-back.onrender.com/api';
+};
 
 export default function KPICards({ selectedTruck = null, selectedDriver = null, refreshTrigger = 0 }) {
   const [kpis, setKpis] = useState({
@@ -32,7 +38,7 @@ export default function KPICards({ selectedTruck = null, selectedDriver = null, 
               setKpis({
                 activeTrucks: truck.status === 'enroute' ? 1 : 0,
                 onTimeRate: 0,  // Individual truck on-time rate would need more data
-                avgSpeed: 0,
+                avgSpeed: truck.speed || 0,
                 totalDeliveries: 1,  // Placeholder
                 criticalAlerts: 0,
                 speedViolations: 0,
@@ -68,23 +74,28 @@ export default function KPICards({ selectedTruck = null, selectedDriver = null, 
           }
         }
         
-        // Otherwise fetch global KPIs from dashboard summary
+        // Fetch real-time truck locations
         try {
-          const summary = await getDashboardSummary();
-          if (summary) {
-            setKpis({
-              activeTrucks: summary.trucks?.active || 0,
-              onTimeRate: summary.missions?.on_time_rate_percent || 0,
-              avgSpeed: 0,  // Not in summary, can be calculated from trucks
-              totalDeliveries: summary.missions?.completed || 0,
-              criticalAlerts: 0,  // Not in summary
-              speedViolations: 0,  // Not in summary
-            });
-            setLoading(false);
-            return;
-          }
+          const locResponse = await axios.get(`${getApiBase()}/v1/truck-tracking/all-locations/`);
+          const trucks = locResponse.data.trucks || [];
+          
+          // Calculate metrics from real-time location data
+          const activeTrucks = trucks.filter(t => t.status === 'enroute').length;
+          const speeds = trucks.map(t => t.speed || 0).filter(s => s > 0);
+          const avgSpeed = speeds.length > 0 ? Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length * 100) / 100 : 0;
+          
+          setKpis({
+            activeTrucks,
+            onTimeRate: 0,
+            avgSpeed,
+            totalDeliveries: 0,
+            criticalAlerts: 0,
+            speedViolations: speeds.filter(s => s > 100).length,
+          });
+          setLoading(false);
+          return;
         } catch (err) {
-          console.log('Could not fetch dashboard summary');
+          console.log('Could not fetch real-time locations');
         }
         
         // Fallback to manual calculation if endpoint fails
@@ -100,7 +111,6 @@ export default function KPICards({ selectedTruck = null, selectedDriver = null, 
         const drivers = Array.isArray(driversData) ? driversData : [];
 
         // Calculate metrics from v2 data
-        // Note: Count all trucks regardless of status, as they're all part of the fleet
         const activeTrucks = trucks.filter(t => t.status === 'enroute' || t.status === 'moving').length;
         const totalDeliveries = drivers.reduce((sum, d) => sum + (d.deliveries_count || 0), 0);
         
@@ -111,9 +121,9 @@ export default function KPICards({ selectedTruck = null, selectedDriver = null, 
         console.log('📊 KPICards: Active trucks:', activeTrucks, 'Total trucks:', trucks.length);
         
         setKpis({
-          activeTrucks: trucks.length,  // Show total truck count instead of just active
-          onTimeRate: Math.min(100, avgPerformance),  // Cap at 100%
-          avgSpeed: 0,  // Not available in v2 summary
+          activeTrucks,
+          onTimeRate: Math.min(100, avgPerformance),
+          avgSpeed: 0,
           totalDeliveries,
           criticalAlerts: 0,
           speedViolations: 0,
@@ -126,7 +136,7 @@ export default function KPICards({ selectedTruck = null, selectedDriver = null, 
     };
 
     calculateKPIs();
-    const interval = setInterval(calculateKPIs, 60000); // Update every 60 seconds (was 5 seconds)
+    const interval = setInterval(calculateKPIs, 5000); // Update every 5 seconds for real-time
     return () => clearInterval(interval);
   }, [selectedTruck, selectedDriver, refreshTrigger]);
 

@@ -1,13 +1,14 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from .models import TruckLocation, FleetMission
+from .models import TruckLocation, FleetMission, FleetActivity
 from django.db import transaction
 from django.db.models import Avg, Max
 
 @receiver(post_save, sender=TruckLocation)
 def update_mission_speed_and_trail(sender, instance, created, **kwargs):
     """
-    When a TruckLocation is created, update the related FleetMission's max_speed, avg_speed, and compressed_trail.
+    When a TruckLocation is created during mission tracking, record activity audit trail
+    with avg_speed and compressed_trail for the mission.
     """
     if not created:
         return
@@ -21,7 +22,7 @@ def update_mission_speed_and_trail(sender, instance, created, **kwargs):
     if not mission:
         return
 
-    # Update max_speed and avg_speed
+    # Calculate stats from all locations during this mission
     locations = TruckLocation.objects.filter(truck=instance.truck, driver=instance.driver, timestamp__gte=mission.started_at)
     max_speed = locations.aggregate(Max('speed'))['speed__max'] or 0
     avg_speed = locations.aggregate(Avg('speed'))['speed__avg'] or 0
@@ -33,8 +34,24 @@ def update_mission_speed_and_trail(sender, instance, created, **kwargs):
     if len(compressed) > 100:
         compressed = compressed[-100:]
 
-    # Save to mission
-    # NOTE: max_speed, avg_speed, compressed_trail are properties, not database fields
-    # Cannot use update_fields with properties - just skip them for now
-    # These would need to be actual database columns to persist
-    # For now, we silently ignore writes to these properties (see models.py setters)
+    # Save to activity audit trail
+    # Only create one activity record per mission (or update if exists)
+    activity, created_activity = FleetActivity.objects.get_or_create(
+        mission=mission,
+        driver=instance.driver,
+        truck=instance.truck,
+        activity_type='start',  # Location updates belong to 'start' activity
+        defaults={
+            'activity_category': 'tracking',
+            'description': f'GPS tracking: {len(locations)} location points recorded',
+            'avg_speed': avg_speed,
+            'compressed_trail': compressed,
+        }
+    )
+    
+    # If activity already exists, update the metrics
+    if not created_activity:
+        activity.avg_speed = avg_speed
+        activity.compressed_trail = compressed
+        activity.description = f'GPS tracking: {len(locations)} location points recorded'
+        activity.save(update_fields=['avg_speed', 'compressed_trail', 'description'])

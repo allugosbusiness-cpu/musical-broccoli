@@ -199,6 +199,8 @@ class FleetActivity(models.Model):
     )
     activity_category = models.CharField(max_length=50, default='mission')
     description = models.TextField(blank=True)
+    avg_speed = models.DecimalField(max_digits=6, decimal_places=2, default=0, blank=True, null=True)
+    compressed_trail = models.JSONField(default=list, blank=True)
     timestamp = models.DateTimeField(db_index=True, auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
