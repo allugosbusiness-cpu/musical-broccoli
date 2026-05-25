@@ -84,6 +84,9 @@ urlpatterns = [
     path('v1/mobile/profile/', mobile.get('mobile_driver_profile', dummy_view), name='mobile-profile'),
     path('v1/mobile/mission/current/', mobile.get('mobile_driver_current_mission', dummy_view), name='mobile-current-mission'),
     path('v1/mobile/mission/complete/', mobile.get('mobile_mission_complete', dummy_view), name='mobile-complete'),
+    # Location endpoints (OSM autocomplete and reverse geocode)
+    path('v1/locations/autocomplete/', location_autocomplete, name='location-autocomplete'),
+    path('v1/locations/reverse-geocode/', reverse_geocode, name='location-reverse-geocode'),
     # Router patterns (generic, after specific paths)
     path('v1/', include(router.urls)),
 ]
