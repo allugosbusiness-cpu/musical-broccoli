@@ -154,25 +154,9 @@ async function processLocationUpdate(location) {
     // Cache locally
     await storage.addLocationEntry(locationData);
 
-    // Check distance moved since last sent
-    if (lastSentLocation) {
-      const distance = getDistanceFromLatLonInMeters(
-        lastSentLocation.latitude,
-        lastSentLocation.longitude,
-        coords.latitude,
-        coords.longitude
-      );
-      // Only send if moved 50m+ (not on every location update)
-      if (distance < 50) {
-        // Still notify UI of speed change even if location hasn't moved much
-        if (onLocationUpdateCallback) {
-          onLocationUpdateCallback(locationData);
-        }
-        return;
-      }
-    }
-
-    // Send to backend
+    // Send EVERY GPS ping to backend for complete trail coverage.
+    // No distance filter - the backend records all TruckLocation points
+    // and the offline queue handles network failures.
     if (driverId) {
       try {
         console.log('[LocationService] sending location update for driver:', driverId);
