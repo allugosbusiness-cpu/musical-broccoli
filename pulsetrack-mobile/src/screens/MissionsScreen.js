@@ -120,31 +120,8 @@ const MissionsScreen = ({ navigation }) => {
     }
   };
 
-  const handleCompleteMission = async (mission) => {
-    Alert.alert(
-      'Complete Mission',
-      `Are you sure you want to complete ${mission.mission_number}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Complete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const result = await apiService.completeMission(mission.id);
-              if (result && result.success) {
-                Alert.alert('Success', 'Mission completed successfully');
-                await storage.clearCurrentMission();
-                loadMissions();
-              }
-            } catch (error) {
-              Alert.alert('Error', error.message);
-            }
-          },
-        },
-      ]
-    );
-  };
+  // Complete Mission button REMOVED - System auto-detects arrival via geofence
+  // When the driver reaches within 100m of destination, the backend auto-completes
 
   const formatStatus = (status) => {
     return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown';
@@ -267,12 +244,7 @@ const MissionsScreen = ({ navigation }) => {
                       >
                         <Text style={styles.actionButtonText}>View Map</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.completeButton]}
-                        onPress={() => handleCompleteMission(mission)}
-                      >
-                        <Text style={styles.actionButtonText}>Complete</Text>
-                      </TouchableOpacity>
+                      {/* Complete button REMOVED - auto-detected on arrival via geofence */}
                     </>
                   ) : null}
                 </View>

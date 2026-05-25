@@ -22,6 +22,7 @@ from .serializers import (
     TruckLocationSerializer, FleetActivitySerializer,
     PerformanceSerializer, AlertSerializer
 )
+from .mission_endpoints import check_mission_geofence
 
 logger = logging.getLogger(__name__)
 
@@ -345,11 +346,31 @@ def dashboard_drivers(request):
 
 @api_view(['GET'])
 def dashboard_trucks(request):
-    """Get all trucks with synced mission data for dashboard"""
+    """Get all trucks with synced mission data for dashboard
+    Includes latest speed from TruckLocation records for real-time speed display
+    """
     try:
         trucks = FleetTruck.objects.all()
         serializer = TruckSerializer(trucks, many=True)
-        return Response(serializer.data)
+        data = serializer.data
+        
+        # Enrich each truck with latest speed from location history
+        for truck_data in data:
+            truck_id = truck_data.get('id')
+            if truck_id:
+                try:
+                    latest_loc = TruckLocation.objects.filter(
+                        truck_id=truck_id
+                    ).order_by('-timestamp').first()
+                    if latest_loc:
+                        truck_data['speed_kmh'] = float(latest_loc.speed)
+                        truck_data['last_latitude'] = float(latest_loc.latitude)
+                        truck_data['last_longitude'] = float(latest_loc.longitude)
+                        truck_data['last_location_ts'] = latest_loc.timestamp.isoformat()
+                except Exception:
+                    pass
+        
+        return Response(data)
     except Exception as e:
         logger.error(f'Error fetching dashboard trucks: {str(e)}')
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -927,6 +948,7 @@ def mobile_location_update(request, driver_id=None):
     CRITICAL: Creates a NEW TruckLocation record each time (not update_or_create).
     This ensures every GPS ping is recorded for the trail/map.
     Also updates truck.last_latitude/last_longitude for real-time pin position.
+    Includes geofence auto-completion check - mission auto-completes on arrival.
     """
     try:
         data = request.data
@@ -990,7 +1012,38 @@ def mobile_location_update(request, driver_id=None):
         # Update truck's live position for real-time map pin
         truck.last_latitude = latitude
         truck.last_longitude = longitude
-        truck.save(update_fields=['last_latitude', 'last_longitude'])
+        truck.last_location_ts = timezone.now()
+        truck.save(update_fields=['last_latitude', 'last_longitude', 'last_location_ts'])
+        
+        # AUTO-COMPLETE: Check if driver reached destination via geofence
+        try:
+            active_missions = FleetMission.objects.filter(
+                driver=driver,
+                status__in=['enroute', 'in_progress']
+            )
+            for active_mission in active_missions:
+                auto_completed = check_mission_geofence(active_mission, latitude, longitude)
+                if auto_completed:
+                    logger.info(f'✅ Mission {active_mission.mission_number} auto-completed via geofence!')
+                    # Set truck back to idle
+                    truck.status = 'idle'
+                    truck.save(update_fields=['status'])
+                    # Return completion response to mobile app
+                    return Response({
+                        'success': True,
+                        'message': 'Location recorded. Mission auto-completed on arrival!',
+                        'location_id': str(location.id),
+                        'latitude': float(location.latitude),
+                        'longitude': float(location.longitude),
+                        'speed': float(location.speed),
+                        'timestamp': location.timestamp.isoformat(),
+                        'mission_completed': True,
+                        'mission_id': str(active_mission.id),
+                        'mission_number': active_mission.mission_number,
+                        'status': 'completed'
+                    }, status=status.HTTP_200_OK)
+        except Exception as geofence_error:
+            logger.warning(f'Geofence check error: {geofence_error}')
         
         logger.info(f'📍 Location recorded for truck {truck.truck_identifier}: ({latitude}, {longitude}) speed={speed}km/h')
         
@@ -1071,4 +1124,3 @@ def truck_trail_with_directions(request, truck_id):
     except Exception as e:
         logger.error(f'Error fetching truck trail: {str(e)}')
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-

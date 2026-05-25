@@ -16,7 +16,7 @@ from .views import (
     mission_start_tracking, mobile_get_current_mission,
     mobile_location_update, truck_trail_with_directions
 )
-from .mission_endpoints import create_mission
+from .mission_endpoints import create_mission, mission_route_geometry
 from .locations_endpoints import reverse_geocode, location_autocomplete
 
 router = DefaultRouter()
@@ -67,6 +67,8 @@ urlpatterns = [
     path('v1/truck-tracking/all-locations/', truck_tracking_all_locations, name='truck-tracking-all-locations'),
     path('v1/trucks/<str:truck_id>/truck_trail_with_directions/', truck_trail_with_directions, name='truck-trail-with-directions'),
     path('v1/calculate-distance/', calculate_distance, name='calculate-distance'),
+    # Route geometry endpoint (for GlobalMap to show OSRM routes per mission)
+    path('v1/dashboard/missions/<str:mission_id>/route-geometry/', mission_route_geometry, name='dashboard-mission-route-geometry'),
     # Mobile endpoints (specific, before router)
     path('v1/mobile/driver-registration/', mobile_driver_registration, name='mobile-driver-registration'),
     path('v1/mobile/validate-pin/', mobile_validate_pin, name='mobile-validate-pin'),

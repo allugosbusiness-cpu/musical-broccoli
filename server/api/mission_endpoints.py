@@ -4,7 +4,11 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 from django.utils import timezone
 from django.db import connection
-from .models import FleetDriver, FleetTruck, FleetMission
+from .models import FleetDriver, FleetTruck, FleetMission, TruckLocation
+from .osrm_service import compute_route_geometry
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(['GET'])
@@ -63,6 +67,123 @@ def get_available_missions(request, driver_id):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def mission_route_geometry(request, mission_id):
+    """
+    Get OSRM route geometry for a mission's origin → destination.
+    Used by the GlobalMap to display the planned route per truck/mission.
+    """
+    try:
+        mission = FleetMission.objects.filter(id=mission_id).first()
+        if not mission:
+            return Response(
+                {'error': 'Mission not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        origin = mission.get_origin_coords()
+        destination = mission.get_destination_coords()
+        
+        if not origin or not destination:
+            return Response(
+                {'error': 'Mission missing origin or destination coordinates'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Compute OSRM route geometry
+        route_data = compute_route_geometry(
+            origin_lat=origin['lat'],
+            origin_lng=origin['lon'],
+            dest_lat=destination['lat'],
+            dest_lng=destination['lon']
+        )
+        
+        if not route_data:
+            # Fallback: return straight-line geometry
+            import json
+            fallback_geometry = {
+                "type": "LineString",
+                "coordinates": [
+                    [origin['lon'], origin['lat']],
+                    [destination['lon'], destination['lat']]
+                ]
+            }
+            return Response({
+                'mission_id': str(mission.id),
+                'mission_number': mission.mission_number,
+                'geometry': fallback_geometry,
+                'distance': None,
+                'duration': None,
+                'fallback': True,
+                'message': 'OSRM route unavailable, using straight-line'
+            })
+        
+        return Response({
+            'mission_id': str(mission.id),
+            'mission_number': mission.mission_number,
+            'geometry': route_data['geometry'],
+            'distance': route_data.get('distance'),
+            'duration': route_data.get('duration'),
+        })
+        
+    except Exception as e:
+        logger.error(f'Error fetching mission route geometry: {str(e)}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+# ===== AUTO-COMPLETE MISSION ON ARRIVAL =====
+GEOFENCE_RADIUS_METERS = 100  # Distance from destination to auto-complete
+
+def check_mission_geofence(mission, current_lat, current_lon):
+    """
+    Check if a truck is within geofence of mission destination.
+    If within GEOFENCE_RADIUS_METERS, auto-complete the mission.
+    """
+    try:
+        destination = mission.get_destination_coords()
+        if not destination:
+            return False
+        
+        from math import radians, cos, sin, asin, sqrt
+        
+        dest_lat = destination['lat']
+        dest_lon = destination['lon']
+        
+        # Haversine distance
+        lon1_rad = radians(current_lon)
+        lat1_rad = radians(current_lat)
+        lon2_rad = radians(dest_lon)
+        lat2_rad = radians(dest_lat)
+        
+        dlon = lon2_rad - lon1_rad
+        dlat = lat2_rad - lat1_rad
+        a = sin(dlat/2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon/2)**2
+        c = 2 * asin(sqrt(a))
+        distance_m = 6371000 * c  # Earth radius in meters
+        
+        if distance_m <= GEOFENCE_RADIUS_METERS:
+            # Auto-complete the mission
+            if mission.status in ['enroute', 'in_progress']:
+                mission.status = 'completed'
+                mission.completed_at = timezone.now()
+                mission.delivered_at = timezone.now()
+                mission.progress_pct = 100
+                mission.save(update_fields=['status', 'completed_at', 'delivered_at', 'progress_pct'])
+                logger.info(f'✅ Mission {mission.mission_number} auto-completed on arrival (geofence)')
+                return True
+        
+        return False
+    except Exception as e:
+        logger.error(f'Geofence check error: {str(e)}')
+        return False
 
 
 def _safe_create_mission(data):

@@ -4,6 +4,7 @@
  */
 
 import API_CONFIG from '../config/api';
+import storage from '../utils/storage';
 
 class ApiService {
   constructor() {
@@ -144,21 +145,86 @@ class ApiService {
   // ===== LOCATION TRACKING =====
 
   /**
-   * Send location update to backend
+   * Send location update to backend with offline fallback
    */
   async sendLocationUpdate(driverId, locationData) {
-    return this.request(API_CONFIG.endpoints.locationUpdate(driverId), {
-      method: 'POST',
-      body: JSON.stringify({
-        driver_id: driverId,
-        latitude: locationData.latitude,
-        longitude: locationData.longitude,
-        speed: locationData.speed || 0,
-        accuracy: locationData.accuracy || 0,
-        altitude: locationData.altitude || 0,
-        timestamp: Date.now(),
-      }),
-    });
+    const payload = {
+      driver_id: driverId,
+      latitude: locationData.latitude,
+      longitude: locationData.longitude,
+      speed: locationData.speed || 0,
+      accuracy: locationData.accuracy || 0,
+      altitude: locationData.altitude || 0,
+      timestamp: Date.now(),
+    };
+
+    try {
+      console.log('[ApiService] Sending location update for driver:', driverId);
+      const result = await this.request(API_CONFIG.endpoints.locationUpdate(driverId), {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      console.log('[ApiService] Location update sent successfully');
+      return result;
+    } catch (error) {
+      console.log('[ApiService] Location update failed, queuing offline:', error.message);
+      // Queue location update for later sending when connectivity is restored
+      await storage.addPendingLocationUpdate(driverId, {
+        ...locationData,
+        timestamp: payload.timestamp,
+      });
+      // Return success-like response so app continues uninterrupted
+      return { success: true, queued: true, message: 'Location queued for offline sync' };
+    }
+  }
+
+  /**
+   * Process queued location updates when connectivity is restored
+   */
+  async processOfflineQueue() {
+    try {
+      const queuedUpdates = await storage.getPendingLocationUpdates();
+      console.log('[ApiService] Processing offline queue with', queuedUpdates.length, 'updates');
+
+      if (queuedUpdates.length === 0) {
+        console.log('[ApiService] No queued updates to process');
+        return { processed: 0, failed: 0 };
+      }
+
+      let processed = 0;
+      let failed = 0;
+
+      // Send updates in batches to avoid overwhelming backend
+      for (const update of queuedUpdates) {
+        try {
+          await this.request(API_CONFIG.endpoints.locationUpdate(update.driver_id), {
+            method: 'POST',
+            body: JSON.stringify({
+              driver_id: update.driver_id,
+              latitude: update.latitude,
+              longitude: update.longitude,
+              speed: update.speed || 0,
+              accuracy: update.accuracy || 0,
+              altitude: update.altitude || 0,
+              timestamp: update.timestamp,
+            }),
+          });
+          // Remove from queue only after successful send
+          await storage.removePendingLocationUpdate(update.queued_at);
+          processed++;
+          console.log('[ApiService] Processed queued update:', update.driver_id);
+        } catch (error) {
+          failed++;
+          console.log('[ApiService] Failed to process queued update:', error.message);
+        }
+      }
+
+      console.log('[ApiService] Queue processing complete:', { processed, failed });
+      return { processed, failed };
+    } catch (error) {
+      console.log('[ApiService] Error processing offline queue:', error.message);
+      return { processed: 0, failed: 0 };
+    }
   }
 
   // ===== ALERTS =====

@@ -23,12 +23,18 @@ const SPEED_TASK_NAME = 'PULSETRACK_SPEED_MONITORING';
 let watchPositionSubscription = null;
 let locationUpdateInterval = null;
 let lastSentLocation = null;
+let lastLocationTimestamp = null;
+let lastLocationCoords = null;
 let speedAlertThreshold = API_CONFIG.speedAlertThreshold;
 let currentSpeed = 0;
+let currentSpeedSource = 'gps';  // 'gps' or 'calculated'
 let isTracking = false;
 let driverId = null;
 let onSpeedAlertCallback = null;
 let onLocationUpdateCallback = null;
+let networkMonitorInterval = null;
+let isOnline = true;
+let lastNetworkCheckTime = 0;
 
 // Define background tasks only if TaskManager is available
 if (TaskManager && TaskManager.defineTask) {
@@ -77,16 +83,69 @@ if (TaskManager && TaskManager.defineTask) {
   console.warn('TaskManager.defineTask skipped because TaskManager is not available');
 }
 
+/**
+ * Calculate speed from distance over time between two location updates.
+ * Acts as fallback when GPS hardware speed is 0/null.
+ */
+function calculateSpeedFromDistance(location) {
+  const coords = location.coords;
+  const currentTime = Date.now();
+  
+  // First try GPS hardware speed (most accurate when available)
+  if (coords.speed && coords.speed > 0) {
+    currentSpeedSource = 'gps';
+    return Math.round((coords.speed || 0) * 3.6 * 100) / 100;
+  }
+  
+  // Fallback: calculate speed from distance between last two points
+  if (lastLocationCoords && lastLocationTimestamp) {
+    const distance = getDistanceFromLatLonInMeters(
+      lastLocationCoords.latitude,
+      lastLocationCoords.longitude,
+      coords.latitude,
+      coords.longitude
+    );
+    
+    const timeDiffSeconds = (currentTime - lastLocationTimestamp) / 1000;
+    
+    // Only calculate if we moved > 5m and time diff is reasonable (0.5s - 30s)
+    if (distance > 5 && timeDiffSeconds > 0.5 && timeDiffSeconds < 30) {
+      const speedMs = distance / timeDiffSeconds;
+      const speedKmh = speedMs * 3.6;
+      currentSpeedSource = 'calculated';
+      return Math.round(speedKmh * 100) / 100;
+    }
+  }
+  
+  // Update tracking vars even if no speed was calculated
+  lastLocationCoords = coords;
+  lastLocationTimestamp = currentTime;
+  
+  // If we truly can't get speed, return 0
+  return 0;
+}
+
 async function processLocationUpdate(location) {
   try {
     const coords = location.coords;
-    const speedKmh = (coords.speed || 0) * 3.6;
+    
+    // SPEED FIX: Use GPS speed if available, otherwise calculate from distance/time
+    const speedKmh = calculateSpeedFromDistance(location);
     currentSpeed = speedKmh;
+    
+    // Update last location for next calculation
+    lastLocationCoords = coords;
+    lastLocationTimestamp = Date.now();
+
+    // Log speed updates for debugging (every 5th update to avoid log spam)
+    if (Math.random() < 0.2) {
+      console.log(`[LocationService] Speed: ${currentSpeed} km/h (source: ${currentSpeedSource}), Lat: ${coords.latitude.toFixed(4)}, Lon: ${coords.longitude.toFixed(4)}`);
+    }
 
     const locationData = {
       latitude: coords.latitude,
       longitude: coords.longitude,
-      speed: Math.round(speedKmh * 100) / 100,
+      speed: currentSpeed,
       accuracy: coords.accuracy || 0,
       altitude: coords.altitude || 0,
       timestamp: Date.now(),
@@ -103,8 +162,13 @@ async function processLocationUpdate(location) {
         coords.latitude,
         coords.longitude
       );
-      if (distance < API_CONFIG.locationDistanceFilter) {
-        return; // Too close, skip sending
+      // Only send if moved 50m+ (not on every location update)
+      if (distance < 50) {
+        // Still notify UI of speed change even if location hasn't moved much
+        if (onLocationUpdateCallback) {
+          onLocationUpdateCallback(locationData);
+        }
+        return;
       }
     }
 
@@ -123,7 +187,7 @@ async function processLocationUpdate(location) {
       }
     }
 
-    // Notify listeners
+    // Notify listeners of location AND speed change
     if (onLocationUpdateCallback) {
       onLocationUpdateCallback(locationData);
     }
@@ -183,25 +247,27 @@ class LocationService {
 
   /**
    * Start continuous GPS tracking
+   * For speed calculation, we need frequent updates (reduce distance filter for foreground)
    */
   async startTracking(driverIdParam, options = {}) {
     driverId = driverIdParam;
     isTracking = true;
     speedAlertThreshold = options.speedAlertThreshold || API_CONFIG.speedAlertThreshold;
 
-    // Start foreground location watching
+    // Start foreground location watching - MINIMAL distance filter for speed updates
+    // Speed requires frequent fixes, so we poll every 1-2 seconds instead of waiting for distance threshold
     watchPositionSubscription = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.Highest,
-        timeInterval: options.timeInterval || API_CONFIG.locationUpdateInterval / 2,
-        distanceInterval: options.distanceFilter || API_CONFIG.locationDistanceFilter / 2,
+        timeInterval: 1000, // Poll every 1 second for responsive speed updates
+        distanceInterval: 5, // Minimal distance to still get updates when stationary
       },
       (location) => {
         processLocationUpdate(location);
       }
     );
 
-    // Start background location updates
+    // Start background location updates (for when app is minimized)
     try {
       await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
         accuracy: Location.Accuracy.Balanced,
@@ -234,6 +300,7 @@ class LocationService {
       }
     }, API_CONFIG.locationUpdateInterval);
 
+    console.log('[LocationService] Tracking started for driver:', driverId);
     return true;
   }
 
@@ -267,7 +334,33 @@ class LocationService {
   }
 
   /**
-   * Get current speed (km/h)
+   * Get current location with latest GPS speed
+   * This fetches fresh data from GPS instead of using cached speed
+   */
+  async getCurrentLocationWithSpeed() {
+    try {
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      const coords = location.coords;
+      const speedKmh = (coords.speed || 0) * 3.6;
+      return {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        speed: Math.round(speedKmh * 100) / 100,
+        rawSpeed: coords.speed,
+        accuracy: coords.accuracy || 0,
+        altitude: coords.altitude || 0,
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      console.error('Error getting current location:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get current speed (km/h) - returns cached value
    */
   getCurrentSpeed() {
     return currentSpeed;
@@ -352,6 +445,83 @@ class LocationService {
   async hasForegroundPermission() {
     const { status } = await Location.getForegroundPermissionsAsync();
     return status === 'granted';
+  }
+
+  /**
+   * Start network monitoring to detect connectivity changes
+   * When connectivity is restored, process offline queue
+   */
+  startNetworkMonitoring() {
+    if (networkMonitorInterval) {
+      console.log('[LocationService] Network monitoring already active');
+      return;
+    }
+
+    console.log('[LocationService] Starting network monitoring');
+    isOnline = true;
+
+    // Check network status every 10 seconds
+    networkMonitorInterval = setInterval(async () => {
+      try {
+        const wasOnline = isOnline;
+        isOnline = await this.checkOnlineStatus();
+
+        // Detect transition from offline to online
+        if (!wasOnline && isOnline) {
+          console.log('[LocationService] Connectivity restored! Processing offline queue');
+          const result = await apiService.processOfflineQueue();
+          console.log('[LocationService] Offline queue processed:', result);
+        } else if (wasOnline && !isOnline) {
+          console.log('[LocationService] Lost connectivity');
+        }
+      } catch (error) {
+        console.log('[LocationService] Network check error:', error.message);
+      }
+    }, 10000); // Check every 10 seconds
+
+    return true;
+  }
+
+  /**
+   * Stop network monitoring
+   */
+  stopNetworkMonitoring() {
+    if (networkMonitorInterval) {
+      clearInterval(networkMonitorInterval);
+      networkMonitorInterval = null;
+      console.log('[LocationService] Network monitoring stopped');
+    }
+  }
+
+  /**
+   * Check if device is online by attempting to reach a lightweight endpoint
+   */
+  async checkOnlineStatus() {
+    try {
+      // Try a simple HTTP request to check connectivity
+      // Using a lightweight endpoint that returns quickly
+      const response = await Promise.race([
+        fetch(`${API_CONFIG.baseUrl.split('/api')[0]}/api/v1/health/`, {
+          method: 'GET',
+          timeout: 5000,
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Network check timeout')), 5000)
+        ),
+      ]);
+
+      return response && (response.ok || response.status < 500);
+    } catch (error) {
+      console.log('[LocationService] Online check failed:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Get current online status
+   */
+  getOnlineStatus() {
+    return isOnline;
   }
 }
 

@@ -10,6 +10,7 @@ const KEYS = {
   DRIVER_PROFILE: '@pulsetrack_driver_profile',
   CURRENT_MISSION: '@pulsetrack_current_mission',
   LOCATION_HISTORY: '@pulsetrack_location_history',
+  PENDING_LOCATION_UPDATES: '@pulsetrack_pending_location_updates',
   APP_SETTINGS: '@pulsetrack_app_settings',
 };
 
@@ -170,6 +171,58 @@ class StorageService {
     } catch (error) {
       console.error('Error getting app settings:', error);
       return null;
+    }
+  }
+
+  // ===== PENDING LOCATION UPDATES (Offline Queue) =====
+
+  async addPendingLocationUpdate(driverId, locationData) {
+    try {
+      const queue = await this.getPendingLocationUpdates();
+      queue.push({
+        driver_id: driverId,
+        ...locationData,
+        queued_at: Date.now(),
+      });
+      // Keep last 200 pending updates
+      const trimmed = queue.slice(-200);
+      await AsyncStorage.setItem(KEYS.PENDING_LOCATION_UPDATES, JSON.stringify(trimmed));
+      return true;
+    } catch (error) {
+      console.error('Error adding pending location update:', error);
+      return false;
+    }
+  }
+
+  async getPendingLocationUpdates() {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.PENDING_LOCATION_UPDATES);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error getting pending location updates:', error);
+      return [];
+    }
+  }
+
+  async removePendingLocationUpdate(queuedAt) {
+    try {
+      const queue = await this.getPendingLocationUpdates();
+      const filtered = queue.filter(u => u.queued_at !== queuedAt);
+      await AsyncStorage.setItem(KEYS.PENDING_LOCATION_UPDATES, JSON.stringify(filtered));
+      return true;
+    } catch (error) {
+      console.error('Error removing pending location update:', error);
+      return false;
+    }
+  }
+
+  async clearPendingLocationUpdates() {
+    try {
+      await AsyncStorage.removeItem(KEYS.PENDING_LOCATION_UPDATES);
+      return true;
+    } catch (error) {
+      console.error('Error clearing pending location updates:', error);
+      return false;
     }
   }
 

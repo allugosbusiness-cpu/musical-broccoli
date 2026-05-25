@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { getCachedResults, setCachedResults } from '../data/locationCache';
 
 const getApiV1Base = () => {
   if (import.meta.env.MODE === 'development') return 'http://localhost:8000/api/v1';
@@ -83,7 +84,7 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
   const [originSuggestions, setOriginSuggestions] = useState([]);
   const [destinationSuggestions, setDestinationSuggestions] = useState([]);
 
-  // Fetch location suggestions
+  // Fetch location suggestions with client-side caching
   const fetchLocationSuggestions = async (query, type) => {
     if (query.length < 2) {
       if (type === 'origin') setOriginSuggestions([]);
@@ -91,15 +92,34 @@ export default function MissionCreationForm({ trucks, drivers, onMissionCreated,
       return;
     }
 
+    // Check client cache first
+    const cached = getCachedResults(query);
+    if (cached) {
+      console.log(`📍 Using cached results for "${query}"`);
+      if (type === 'origin') {
+        setOriginSuggestions(cached);
+      } else {
+        setDestinationSuggestions(cached);
+      }
+      return;
+    }
+
     try {
       const response = await axios.get(`${getApiV1Base()}/locations/autocomplete/`, {
-        params: { q: query }
+        params: { q: query, source: 'auto' }
       });
       
+      const results = response.data.results || [];
+      
+      // Cache results client-side (reduce backend calls)
+      if (results.length > 0) {
+        setCachedResults(query, results);
+      }
+      
       if (type === 'origin') {
-        setOriginSuggestions(response.data.results || []);
+        setOriginSuggestions(results);
       } else {
-        setDestinationSuggestions(response.data.results || []);
+        setDestinationSuggestions(results);
       }
     } catch (err) {
       console.error(`Location search error (${type}):`, err);

@@ -1,5 +1,6 @@
 """
 Location endpoints for autocomplete and reverse geocoding
+Uses OSM Nominatim proxy with local fallback for offline/resilience
 """
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -8,6 +9,10 @@ from rest_framework.permissions import AllowAny
 from math import radians, cos, sin, asin, sqrt
 
 from .location_suggestions import search_locations, get_locations_by_type, ZIMBABWE_LOCATIONS, MANICALAND_LOCATIONS
+from .geocoding_proxy import search_nominatim, reverse_geocode_nominatim
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(['GET'])
@@ -82,18 +87,64 @@ def reverse_geocode(request):
 @permission_classes([AllowAny])
 def location_autocomplete(request):
     """
-    Autocomplete location search.
+    Autocomplete location search using OSM Nominatim with local fallback.
     Query params: q (search query)
     Returns: { results: [{name, lat, lon, type}] }
+    
+    Strategy:
+    1. Try Nominatim first (cached, rate-limited)
+    2. Fall back to local Zimbabwe location database
+    3. Return empty results if both fail
     """
     try:
-        query = request.query_params.get('q', '')
-        results = search_locations(query, limit=10)
+        query = request.query_params.get('q', '').strip()
+        source = request.query_params.get('source', 'auto')
+        
+        if not query or len(query) < 2:
+            return Response({'results': []}, status=status.HTTP_200_OK)
+        
+        results = []
+        
+        # 1. Try Nominatim for any query (cached server-side)
+        if source in ('auto', 'nominatim'):
+            try:
+                nominatim_results = search_nominatim(query, limit=10)
+                if nominatim_results:
+                    results.extend(nominatim_results)
+            except Exception as e:
+                logger.warning(f"Nominatim search failed, using local fallback: {e}")
+        
+        # 2. Always add local Zimbabwe results as supplement
+        try:
+            local_results = search_locations(query, limit=5)
+            for local in local_results:
+                # Add local results with explicit local marker
+                local['source'] = 'local'
+                results.append(local)
+        except Exception as e:
+            logger.warning(f"Local search failed: {e}")
+        
+        # Deduplicate by name (Nominatim might return similar to local)
+        seen_names = set()
+        deduped = []
+        for r in results:
+            name_key = r.get('name', '').lower()[:30]
+            if name_key not in seen_names:
+                seen_names.add(name_key)
+                deduped.append(r)
+        
+        # Limit total results
+        deduped = deduped[:15]
         
         return Response({
-            'results': results
+            'results': deduped,
+            'count': len(deduped),
+            'source': source,
+            'query': query,
         }, status=status.HTTP_200_OK)
+        
     except Exception as e:
+        logger.error(f'Location autocomplete error: {str(e)}')
         return Response(
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
