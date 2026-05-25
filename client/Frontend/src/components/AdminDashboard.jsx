@@ -1137,11 +1137,17 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
     }
   }, [drivers]);
 
-  // Handle location search - accepts both name search and direct coordinate input
-  const handleLocationSearch = (type, searchTerm) => {
+  // Get API base URL for v1 endpoints (works in both dev and prod)
+  const getApiV1Base = () => {
+    if (import.meta.env.MODE === 'development') return 'http://localhost:8000/api/v1';
+    return 'https://pulsetrack-back.onrender.com/api/v1';
+  };
+
+  // Handle location search - accepts name search, direct coordinate input, and OSM Nominatim geocoding
+  const handleLocationSearch = async (type, searchTerm) => {
     setLocationSearch(prev => ({ ...prev, [type]: searchTerm }));
     
-    if (!searchTerm) {
+    if (!searchTerm || searchTerm.length < 2) {
       setLocationSuggestions(prev => ({ ...prev, [type]: [] }));
       return;
     }
@@ -1166,12 +1172,51 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
       }
     }
 
-    // Otherwise search from ZIMBABWE_LOCATIONS
-    const filtered = ZIMBABWE_LOCATIONS.filter(loc =>
+    // Search from ZIMBABWE_LOCATIONS (hardcoded local locations)
+    const localFiltered = ZIMBABWE_LOCATIONS.filter(loc =>
       loc.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     
-    setLocationSuggestions(prev => ({ ...prev, [type]: filtered }));
+    // ALSO: Search via OSM Nominatim for real-world addresses like "10446 greenside extension mutare"
+    // This resolves any address to lat/lon coordinates
+    try {
+      const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerm)}&limit=5&countrycodes=zw`;
+      const response = await fetch(nominatimUrl, {
+        headers: { 'User-Agent': 'PulseTrack App' }
+      });
+      
+      if (response.ok) {
+        const nominatimResults = await response.json();
+        if (nominatimResults && nominatimResults.length > 0) {
+          // Convert Nominatim results to our format
+          const geocodedResults = nominatimResults.map(r => ({
+            lat: parseFloat(r.lat),
+            lon: parseFloat(r.lon),
+            name: r.display_name || `${r.name || searchTerm}`,
+            source: 'nominatim'
+          }));
+          
+          // Merge local + geocoded results (deduplicate by lat/lon)
+          const merged = [...localFiltered];
+          for (const geo of geocodedResults) {
+            const exists = merged.some(m => 
+              Math.abs(m.lat - geo.lat) < 0.001 && Math.abs(m.lon - geo.lon) < 0.001
+            );
+            if (!exists) {
+              merged.push(geo);
+            }
+          }
+          
+          setLocationSuggestions(prev => ({ ...prev, [type]: merged }));
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Nominatim search failed, using local results only:', e.message);
+    }
+    
+    // Fallback: local results only
+    setLocationSuggestions(prev => ({ ...prev, [type]: localFiltered }));
   };
 
   // Select location suggestion
