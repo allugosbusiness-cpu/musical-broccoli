@@ -1143,6 +1143,75 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
     return 'https://pulsetrack-back.onrender.com/api/v1';
   };
 
+  /**
+   * Geocode a text address to {lat, lon, name} using the backend proxy
+   * Falls back to direct Nominatim if backend is unreachable
+   */
+  const geocodeAddress = async (addressText) => {
+    if (!addressText || addressText.length < 2) return null;
+    
+    // Check if it's already coordinates
+    const coordMatch = addressText.trim().match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
+    if (coordMatch) {
+      const lat = parseFloat(coordMatch[1]);
+      const lon = parseFloat(coordMatch[2]);
+      if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+        return { lat, lon, name: addressText, source: 'coordinate' };
+      }
+    }
+    
+    // Check Zimbabwe locations first
+    const exact = ZIMBABWE_LOCATIONS.find(l => 
+      l.name.toLowerCase() === addressText.toLowerCase()
+    );
+    if (exact) return { ...exact, source: 'local' };
+    
+    const partial = ZIMBABWE_LOCATIONS.filter(l =>
+      l.name.toLowerCase().includes(addressText.toLowerCase())
+    );
+    if (partial.length === 1) return { ...partial[0], source: 'local' };
+    
+    // Try backend autocomplete proxy (avoids CORS)
+    try {
+      const resp = await fetch(
+        `${getApiV1Base()}/locations/autocomplete/?q=${encodeURIComponent(addressText)}&source=auto`,
+        { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        const results = data.results || [];
+        if (results.length > 0) {
+          return { lat: results[0].lat, lon: results[0].lon, name: results[0].name, source: 'nominatim' };
+        }
+      }
+    } catch (e) {
+      console.warn('Backend geocoding failed:', e.message);
+    }
+    
+    // Fallback: direct Nominatim call
+    try {
+      const resp = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressText)}&limit=3&countrycodes=zw`,
+        { headers: { 'User-Agent': 'PulseTrack App' } }
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data && data.length > 0) {
+          return {
+            lat: parseFloat(data[0].lat),
+            lon: parseFloat(data[0].lon),
+            name: data[0].display_name || addressText,
+            source: 'nominatim'
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('Direct Nominatim failed:', e.message);
+    }
+    
+    return null;
+  };
+
   // Handle location search - accepts name search, direct coordinate input, and OSM Nominatim geocoding
   const handleLocationSearch = async (type, searchTerm) => {
     setLocationSearch(prev => ({ ...prev, [type]: searchTerm }));
@@ -1157,65 +1226,44 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
     if (coordMatch) {
       const lat = parseFloat(coordMatch[1]);
       const lon = parseFloat(coordMatch[2]);
-      // Validate coordinate ranges
       if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-        // ✅ Accept custom coordinates
         setLocationSuggestions(prev => ({ 
           ...prev, 
-          [type]: [{ 
-            lat, 
-            lon, 
-            name: `Custom Location (${Number.isFinite(lat) ? Number(lat).toFixed(4) : 'N/A'}, ${Number.isFinite(lon) ? Number(lon).toFixed(4) : 'N/A'})`
-          }]
+          [type]: [{ lat, lon, name: `Custom Location (${lat.toFixed(4)}, ${lon.toFixed(4)})` }]
         }));
         return;
       }
     }
 
-    // Search from ZIMBABWE_LOCATIONS (hardcoded local locations)
+    // Search from ZIMBABWE_LOCATIONS + backend autocomplete proxy
     const localFiltered = ZIMBABWE_LOCATIONS.filter(loc =>
       loc.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     
-    // ALSO: Search via OSM Nominatim for real-world addresses like "10446 greenside extension mutare"
-    // This resolves any address to lat/lon coordinates
     try {
-      const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerm)}&limit=5&countrycodes=zw`;
-      const response = await fetch(nominatimUrl, {
-        headers: { 'User-Agent': 'PulseTrack App' }
-      });
-      
-      if (response.ok) {
-        const nominatimResults = await response.json();
-        if (nominatimResults && nominatimResults.length > 0) {
-          // Convert Nominatim results to our format
-          const geocodedResults = nominatimResults.map(r => ({
-            lat: parseFloat(r.lat),
-            lon: parseFloat(r.lon),
-            name: r.display_name || `${r.name || searchTerm}`,
-            source: 'nominatim'
-          }));
-          
-          // Merge local + geocoded results (deduplicate by lat/lon)
-          const merged = [...localFiltered];
-          for (const geo of geocodedResults) {
-            const exists = merged.some(m => 
-              Math.abs(m.lat - geo.lat) < 0.001 && Math.abs(m.lon - geo.lon) < 0.001
-            );
-            if (!exists) {
-              merged.push(geo);
-            }
+      const resp = await fetch(
+        `${getApiV1Base()}/locations/autocomplete/?q=${encodeURIComponent(searchTerm)}&source=auto`,
+        { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        const apiResults = (data.results || []).map(r => ({
+          lat: r.lat, lon: r.lon, name: r.name || r.display_name || searchTerm, source: 'nominatim'
+        }));
+        // Merge with local results, deduplicate
+        const merged = [...localFiltered];
+        for (const r of apiResults) {
+          if (!merged.some(m => Math.abs(m.lat - r.lat) < 0.001 && Math.abs(m.lon - r.lon) < 0.001)) {
+            merged.push(r);
           }
-          
-          setLocationSuggestions(prev => ({ ...prev, [type]: merged }));
-          return;
         }
+        setLocationSuggestions(prev => ({ ...prev, [type]: merged }));
+        return;
       }
     } catch (e) {
-      console.warn('Nominatim search failed, using local results only:', e.message);
+      console.warn('Backend autocomplete failed:', e.message);
     }
     
-    // Fallback: local results only
     setLocationSuggestions(prev => ({ ...prev, [type]: localFiltered }));
   };
 
@@ -1424,6 +1472,27 @@ function MissionsTable({ missions, trucks = [], drivers = [], onDelete, onRefres
     e.preventDefault();
     setError(null);
     setSuccess(null);
+    
+    // AUTO-GEOCODE: If origin/destination/current_location are still text strings
+    // (user typed an address but didn't click a suggestion), geocode them now
+    try {
+      for (const field of ['origin', 'destination', 'current_location']) {
+        if (formData[field] && typeof formData[field] === 'string' && formData[field].trim()) {
+          console.log(`🔍 Auto-geocoding ${field}: "${formData[field]}"`);
+          const geocoded = await geocodeAddress(formData[field]);
+          if (geocoded) {
+            formData[field] = geocoded;
+            setLocationSearch(prev => ({ ...prev, [field]: geocoded.name }));
+            console.log(`✅ Geocoded ${field}:`, geocoded);
+          } else {
+            console.warn(`⚠️ Could not geocode ${field}: "${formData[field]}"`);
+          }
+        }
+      }
+    } catch (geoErr) {
+      console.warn('Auto-geocoding error:', geoErr);
+    }
+    
     try {
       if (editingId) {
         // For update, normalize status and auto-calculate progress with OSRM
