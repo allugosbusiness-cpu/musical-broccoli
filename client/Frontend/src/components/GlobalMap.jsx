@@ -7,6 +7,7 @@ import 'leaflet.markercluster';
 import { getDashboardTrucks, getDashboardMissions, getMissionRouteGeometry } from '../services/api';
 import { reverseGeocode } from '../services/geocoding';
 import { getCoordinates } from '../data/locations';
+import { fetchTruckTrailAudit, trailToLeafletCoords } from '../services/trailAuditService';
 import { locationSyncService } from '../services/locationSyncService';
 import RoadMatchedTrailSystem from './RoadMatchedTrailSystem';
 import DriverEventAlerts from './DriverEventAlerts';
@@ -80,6 +81,7 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
   const [showRawTraces, setShowRawTraces] = useState(false);
   const [legend, setLegend] = useState([]);
   const [selectedTruckData, setSelectedTruckData] = useState(null);
+  const [showFullTrails, setShowFullTrails] = useState(true);
   
   // ✅ NEW: Cache to prevent duplicate updates to same truck location
   const lastTruckHashRef = useRef({});  // Tracks hash of last known truck state
@@ -948,34 +950,45 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
         />
       )}
 
-      {/* Driver Event Alerts */}
-      <DriverEventAlerts tracker={driverEventTracker} />
+          {/* Driver Event Alerts */}
+          <DriverEventAlerts tracker={driverEventTracker} />
 
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-slate-700/50 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900/50">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-bold text-slate-100 uppercase tracking-widest">
-            🗺️ Smart Global Map
-          </span>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#cbd5e1' }}>
-            <input
-              type="checkbox"
-              checked={showRawTraces}
-              onChange={(e) => {
-                setShowRawTraces(e.target.checked);
-                // Update all previews
-                trucks.forEach(t => {
-                  updateRawPreview(
-                    t.id,
-                    e.target.checked ? (gpsBufferRef.current[t.id] || []) : [],
-                    t.route_color
-                  );
-                });
-              }}
-              style={{ cursor: 'pointer' }}
-            />
-            Show raw GPS traces
-          </label>
+          {/* Header */}
+          <div className="px-5 py-4 border-b border-slate-700/50 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900/50">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-slate-100 uppercase tracking-widest">
+                🗺️ Smart Global Map
+              </span>
+              <div className="flex items-center gap-3">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#cbd5e1', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={showFullTrails}
+                    onChange={(e) => setShowFullTrails(e.target.checked)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  Full trails
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#cbd5e1', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={showRawTraces}
+                    onChange={(e) => {
+                      setShowRawTraces(e.target.checked);
+                      // Update all previews
+                      trucks.forEach(t => {
+                        updateRawPreview(
+                          t.id,
+                          e.target.checked ? (gpsBufferRef.current[t.id] || []) : [],
+                          t.route_color
+                        );
+                      });
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  Raw GPS
+                </label>
+              </div>
         </div>
       </div>
 

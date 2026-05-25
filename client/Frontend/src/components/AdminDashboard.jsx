@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Edit2, Trash2, X, Save, AlertCircle, RefreshCw, Eye, QrCode, MapPin } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, AlertCircle, RefreshCw, Eye, QrCode, MapPin, Route, Navigation } from 'lucide-react';
 import DriverQRCodeModal from './DriverQRCodeModal';
+import TrailAuditViewer from './TrailAuditViewer';
 import { ZIMBABWE_LOCATIONS } from '../data/zimbabweLocations';
 import { 
   getV1Trucks, getV1Drivers, getV1Missions,
@@ -13,6 +14,8 @@ import {
 
 export default function AdminDashboard({ onSelectTruck = () => {}, onSelectDriver = () => {}, onDataChanged = () => {} }) {
   const [activeTab, setActiveTab] = useState('drivers');
+  const [showTrailViewer, setShowTrailViewer] = useState(false);
+  const [trailViewerTruckId, setTrailViewerTruckId] = useState(null);
   const [drivers, setDrivers] = useState([]);
   const [trucks, setTrucks] = useState([]);
   const [missions, setMissions] = useState([]);
@@ -140,7 +143,7 @@ export default function AdminDashboard({ onSelectTruck = () => {}, onSelectDrive
 
         {/* Tabs */}
         <div className="flex gap-4 mb-6 border-b border-slate-700">
-          {['drivers', 'trucks', 'missions'].map(tab => (
+          {['drivers', 'trucks', 'missions', 'trails'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -170,11 +173,38 @@ export default function AdminDashboard({ onSelectTruck = () => {}, onSelectDrive
             <DriversTable drivers={driverPage} totalCount={drivers.length} onDelete={handleDeleteDriver} onRefresh={fetchData} onSelectDriver={onSelectDriver} onSelectDriverForQR={setSelectedDriverForQR} onSelectTruckForQR={setSelectedTruckForQR} onSelectMissionForQR={setSelectedMissionForQR} />
           ) : activeTab === 'trucks' ? (
             <TrucksTable trucks={trucksPage} totalCount={trucks.length} onDelete={handleDeleteTruck} onRefresh={fetchData} onSelectTruck={onSelectTruck} />
+          ) : activeTab === 'trails' ? (
+            <div className="p-8 text-center">
+              <Route size={48} className="mx-auto mb-4 text-blue-400" />
+              <h2 className="text-2xl font-bold text-white mb-2">Trail & Audit Viewer</h2>
+              <p className="text-slate-400 mb-6 max-w-lg mx-auto">
+                View the full GPS trail of where each truck has been, including audit trail logs 
+                recorded from the mobile app. See distance traveled, speed stats, and activity timeline.
+              </p>
+              <button
+                onClick={() => setShowTrailViewer(true)}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition flex items-center gap-2 mx-auto"
+              >
+                <Route size={20} />
+                Open Trail & Audit Viewer
+              </button>
+            </div>
           ) : (
             <MissionsTable missions={missionsPage} totalCount={missions.length} trucks={trucksPage} onDelete={handleDeleteMission} onRefresh={fetchData} />
           )}
         </div>
       </div>
+
+      {/* Trail & Audit Viewer Modal */}
+      {showTrailViewer && (
+        <TrailAuditViewer 
+          onClose={() => {
+            setShowTrailViewer(false);
+            setTrailViewerTruckId(null);
+          }} 
+          initialTruckId={trailViewerTruckId}
+        />
+      )}
 
       {/* Driver QR Code Modal */}
       {selectedDriverForQR && (

@@ -18,6 +18,7 @@ from .views import (
 )
 from .mission_endpoints import create_mission, mission_route_geometry
 from .locations_endpoints import reverse_geocode, location_autocomplete
+from .trail_endpoints import truck_trail_audit, truck_trail_summary, all_trucks_trail_summary
 
 router = DefaultRouter()
 router.register(r'drivers', DriverViewSet, basename='driver')
@@ -69,6 +70,10 @@ urlpatterns = [
     path('v1/calculate-distance/', calculate_distance, name='calculate-distance'),
     # Route geometry endpoint (for GlobalMap to show OSRM routes per mission)
     path('v1/dashboard/missions/<str:mission_id>/route-geometry/', mission_route_geometry, name='dashboard-mission-route-geometry'),
+    # Trail audit endpoints (full GPS trail + audit log for each truck)
+    path('v1/trucks/<str:truck_id>/trail-audit/', truck_trail_audit, name='truck-trail-audit'),
+    path('v1/trucks/<str:truck_id>/trail-summary/', truck_trail_summary, name='truck-trail-summary'),
+    path('v1/trucks/trail-summary/', all_trucks_trail_summary, name='all-trucks-trail-summary'),
     # Mobile endpoints (specific, before router)
     path('v1/mobile/driver-registration/', mobile_driver_registration, name='mobile-driver-registration'),
     path('v1/mobile/validate-pin/', mobile_validate_pin, name='mobile-validate-pin'),

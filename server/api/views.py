@@ -1045,6 +1045,41 @@ def mobile_location_update(request, driver_id=None):
         except Exception as geofence_error:
             logger.warning(f'Geofence check error: {geofence_error}')
         
+        # === TRAIL AUDIT LOGGING ===
+        # Log a "trail_recorded" activity every N locations (not every ping to avoid noise)
+        # This creates the audit trail entries visible in the TrailAuditViewer
+        try:
+            import random
+            trail_log_frequency = 10  # Log every 10th location update
+            if random.randint(1, trail_log_frequency) == 1:
+                from .models import FleetActivity
+                from datetime import datetime
+                
+                # Batch count of how many locations we have for this truck today
+                today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                points_today = TruckLocation.objects.filter(
+                    truck=truck,
+                    timestamp__gte=today_start
+                ).count()
+                
+                FleetActivity.objects.create(
+                    fleet_id=truck.fleet_id or (driver.fleet_id if driver else None),
+                    truck=truck,
+                    driver=driver,
+                    activity_type='trail_recorded',
+                    activity_category='trail',
+                    location_lat=latitude,
+                    location_lon=longitude,
+                    speed_kmh=speed,
+                    notes=f'Trail point #{points_today} recorded for {truck.truck_identifier}',
+                    timestamp=timezone.now(),
+                    is_critical=False,
+                )
+                logger.debug(f'🚚 Trail audit entry logged for {truck.truck_identifier}')
+        except Exception as audit_error:
+            logger.warning(f'Trail audit logging error (non-critical): {audit_error}')
+        # === END TRAIL AUDIT LOGGING ===
+        
         logger.info(f'📍 Location recorded for truck {truck.truck_identifier}: ({latitude}, {longitude}) speed={speed}km/h')
         
         return Response({
