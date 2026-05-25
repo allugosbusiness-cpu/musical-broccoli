@@ -4,9 +4,20 @@
  * Uses LRU-like eviction: keeps last 100 unique queries.
  */
 
-const CACHE_KEY = 'pulsetrack_location_cache';
+const CACHE_KEY = 'pulsetrack_location_cache_v2';
 const MAX_ENTRIES = 100;
 const CACHE_TTL_MS = 3600000; // 1 hour
+
+// Clear legacy cache (pre-v2) to remove stale hardcoded data
+try {
+  const oldCache = localStorage.getItem('pulsetrack_location_cache');
+  if (oldCache) {
+    localStorage.removeItem('pulsetrack_location_cache');
+    console.log('📍 [LocationCache] Cleared legacy cache (v1 → v2)');
+  }
+} catch (e) {
+  // ignore
+}
 
 /**
  * Get all cached entries
