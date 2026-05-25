@@ -766,7 +766,9 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
   }, [selectedTruck, trucks]);
 
   /**
-   * Load and display truck trails
+   * Load and display truck trails from BOTH:
+   * 1. truck_trail_with_directions (legacy - returns data.trail[])
+   * 2. trail-audit (new - returns data.trail[] with latitude/longitude format)
    */
   useEffect(() => {
     if (!map.current || !trucks.length) return;
@@ -774,16 +776,57 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
     const loadTrails = async () => {
       for (const truck of trucks) {
         try {
+          // TRY 1: New trail-audit endpoint (returns full GPS trail data)
+          const auditResp = await fetch(
+            `${getApiV1Base()}/trucks/${truck.id}/trail-audit/?days=7&limit=2000`
+          );
+          
+          if (auditResp.ok) {
+            const auditData = await auditResp.json();
+            
+            // trail-audit returns data.trail[] with {latitude, longitude, timestamp}
+            if (auditData.trail && auditData.trail.length >= 2) {
+              // Remove old trail
+              if (trailLayersRef.current[truck.id]) {
+                map.current.removeLayer(trailLayersRef.current[truck.id]);
+              }
+
+              // Convert {latitude, longitude} to Leaflet [lat, lng] format
+              const coords = auditData.trail
+                .filter(p => Number.isFinite(p.latitude) && Number.isFinite(p.longitude))
+                .map(p => [p.latitude, p.longitude]);
+
+              if (coords.length >= 2) {
+                const trailColor = truck.route_color || '#0066cc';
+                const trailPolyline = L.polyline(coords, {
+                  color: trailColor,
+                  weight: 2,
+                  opacity: 0.6,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                  zIndex: 90,
+                }).addTo(map.current);
+
+                trailLayersRef.current[truck.id] = trailPolyline;
+                console.log(`✅ Trail audit loaded for ${truck.id}: ${coords.length} points`);
+                continue;  // Skip legacy method - audit endpoint has full data
+              }
+            }
+          }
+        } catch (e) {
+          // audit endpoint not available, fall through to legacy
+        }
+
+        // TRY 2: Legacy truck_trail_with_directions endpoint
+        try {
           const response = await fetch(
             `${getApiBase()}/v1/trucks/${truck.id}/truck_trail_with_directions/?limit=100`
           );
           
-          // Skip if endpoint not found (404 = no trail data yet for this truck)
           if (response.status === 404) {
-            console.debug(`⏭️ No trail data for truck ${truck.id} (truck hasn't been tracked yet)`);
+            console.debug(`⏭️ No trail data for truck ${truck.id} (not tracked yet)`);
             continue;
           }
-
           if (!response.ok) {
             console.warn(`API error loading trail for ${truck.id}: ${response.status}`);
             continue;
@@ -791,9 +834,9 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
 
           const data = await response.json();
 
-          if (!data.snapped_path && !data.raw_trail) continue;
-
-          const trail = data.snapped_path || data.raw_trail || [];
+          // The endpoint returns data.trail[] with {latitude, longitude, timestamp, sequence}
+          // OR data.snapped_path/data.raw_trail for legacy format
+          const trail = data.trail || data.snapped_path || data.raw_trail || [];
           if (trail.length < 2) continue;
 
           // Remove old trail
@@ -803,17 +846,17 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
 
           // Convert to Leaflet format [lat, lng]
           const coords = trail.map(p => [
-            p.lat !== undefined ? p.lat : p.latitude,
-            p.lng !== undefined ? p.lng : p.longitude
-          ]);
+            p.lat !== undefined ? p.lat : (p.latitude || 0),
+            p.lng !== undefined ? p.lng : (p.longitude || 0)
+          ]).filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng));
 
-          // Draw trail polyline in truck's route color
+          if (coords.length < 2) continue;
+
           const trailColor = truck.route_color || '#0066cc';
           const trailPolyline = L.polyline(coords, {
             color: trailColor,
             weight: 2,
             opacity: 0.6,
-            dashArray: '2, 4',
             lineCap: 'round',
             lineJoin: 'round',
             zIndex: 90,
@@ -822,7 +865,6 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
           trailLayersRef.current[truck.id] = trailPolyline;
           console.log(`✅ Trail loaded for ${truck.id}: ${coords.length} points`);
         } catch (error) {
-          // Only log actual network errors, not 404s
           if (error.message !== 'Failed to fetch') {
             console.debug(`⏭️ Trail not available for ${truck.id}`);
           } else {
@@ -833,10 +875,9 @@ export default function GlobalMap({ onTruckSelect, highlightedTruck = null, refr
     };
 
     loadTrails();
-    // ✅ CRITICAL FIX: Reload trails every 5 seconds to show real-time movement
-    const interval = setInterval(loadTrails, 5000);  // Was 15s, now 5s for real-time
+    const interval = setInterval(loadTrails, 10000);  // Reload trails every 10 seconds
     return () => clearInterval(interval);
-  }, [trucks]);
+  }, [trucks, showFullTrails]);
 
   /**
    * Load and display routes from mission origin to destination

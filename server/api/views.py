@@ -1045,15 +1045,21 @@ def mobile_location_update(request, driver_id=None):
         except Exception as geofence_error:
             logger.warning(f'Geofence check error: {geofence_error}')
         
-        # === TRAIL AUDIT LOGGING ===
-        # Log a "trail_recorded" activity every N locations (not every ping to avoid noise)
-        # This creates the audit trail entries visible in the TrailAuditViewer
+        # === TRAIL AUDIT LOGGING (FIXED) ===
+        # Log a "trail_recorded" activity on EVERY location ping to build a complete trail.
+        # Uses a simple counter to batch: logs every 5th ping to reduce database noise
+        # while still creating a rich audit trail visible in TrailAuditViewer.
         try:
-            import random
-            trail_log_frequency = 10  # Log every 10th location update
-            if random.randint(1, trail_log_frequency) == 1:
+            # Use a cached counter per truck on this request object
+            # to avoid random skipping that loses trail points
+            if not hasattr(request, '_trail_counter'):
+                request._trail_counter = {}
+            truck_counter = request._trail_counter.get(str(truck.id), 0) + 1
+            request._trail_counter[str(truck.id)] = truck_counter
+            
+            # Log every 5th ping for this truck
+            if truck_counter % 5 == 0:
                 from .models import FleetActivity
-                from datetime import datetime
                 
                 # Batch count of how many locations we have for this truck today
                 today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -1071,11 +1077,11 @@ def mobile_location_update(request, driver_id=None):
                     location_lat=latitude,
                     location_lon=longitude,
                     speed_kmh=speed,
-                    notes=f'Trail point #{points_today} recorded for {truck.truck_identifier}',
+                    notes=f'Trail point #{points_today} recorded for {truck.truck_identifier} (batch {truck_counter})',
                     timestamp=timezone.now(),
                     is_critical=False,
                 )
-                logger.debug(f'🚚 Trail audit entry logged for {truck.truck_identifier}')
+                logger.debug(f'🚚 Trail audit entry #{truck_counter} logged for {truck.truck_identifier}')
         except Exception as audit_error:
             logger.warning(f'Trail audit logging error (non-critical): {audit_error}')
         # === END TRAIL AUDIT LOGGING ===
