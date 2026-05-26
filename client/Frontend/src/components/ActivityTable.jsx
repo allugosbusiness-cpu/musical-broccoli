@@ -34,14 +34,23 @@ const ActivityTable = () => {
     setLoading(true);
     setError('');
     try {
-      // TODO: Activities endpoint not yet implemented on backend
-      // Placeholder data for now
-      const mockActivities = [
-        { id: 1, truck_id: 1, activity_type: 'Departure', timestamp: new Date().toISOString() },
-        { id: 2, truck_id: 2, activity_type: 'Arrival', timestamp: new Date().toISOString() },
-      ];
-      setActivities(mockActivities);
-      setTotalCount(mockActivities.length);
+      const params = new URLSearchParams({
+        days: filters.days,
+        limit: ITEMS_PER_PAGE,
+      });
+      if (filters.activity_type) params.set('activity_type', filters.activity_type);
+      if (filters.activity_category) params.set('activity_category', filters.activity_category);
+      
+      const response = await fetch(`${API_BASE}/activities/?${params.toString()}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const data = await response.json();
+      setActivities(data.activities || []);
+      setTotalCount(data.total_count || 0);
     } catch (err) {
       console.error('Error fetching activities:', err);
       setError('Failed to load activities');
@@ -52,8 +61,14 @@ const ActivityTable = () => {
 
   const fetchSummary = async () => {
     try {
-      // TODO: Activities summary endpoint not yet implemented
-      setSummary({ total_count: 0 });
+      const response = await fetch(`${API_BASE}/activities/summary/?days=${filters.days}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSummary(data);
+      }
     } catch (err) {
       console.error('Error fetching summary:', err);
     }
