@@ -246,6 +246,67 @@ class ApiService {
     });
   }
 
+  /**
+   * Get active alerts for a driver (notifications)
+   */
+  async getDriverAlerts(driverId) {
+    try {
+      const result = await this.request(
+        `${API_CONFIG.baseUrl}/alerts/?driver=${driverId}&is_resolved=false&limit=50`,
+        { method: 'GET' }
+      );
+      return { alerts: Array.isArray(result) ? result : (result.results || []) };
+    } catch (error) {
+      console.log('[ApiService] Failed to fetch driver alerts:', error.message);
+      return { alerts: [] };
+    }
+  }
+
+  /**
+   * Send a driver-crafted alert message to the fleet manager
+   */
+  async sendDriverAlert(driverId, truckId, message, category, latitude, longitude) {
+    return this.request(
+      `${API_CONFIG.baseUrl}/alerts/driver-send/`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          driver_id: driverId,
+          truck_id: truckId,
+          message: message,
+          alert_category: category || 'other',
+          latitude: latitude || 0,
+          longitude: longitude || 0,
+        }),
+      }
+    );
+  }
+
+  /**
+   * Check for overspeed/delayed alerts after a location update
+   */
+  async checkAlerts(driverId, truckId, latitude, longitude, speed, missionId = null) {
+    try {
+      return await this.request(
+        `${API_CONFIG.baseUrl}/alerts/check/`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            driver_id: driverId,
+            truck_id: truckId,
+            latitude: latitude,
+            longitude: longitude,
+            speed: speed,
+            mission_id: missionId,
+          }),
+        }
+      );
+    } catch (error) {
+      console.log('[ApiService] Alert check failed:', error.message);
+      return { alerts_created: [], active_alerts: [] };
+    }
+  }
+
   // ===== DRIVER PROFILE =====
 
   /**
