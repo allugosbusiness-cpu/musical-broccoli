@@ -67,6 +67,12 @@ export default function AlertsTable({ filterTruckId = null, onTruckAlert = () =>
         return 'text-red-600 bg-red-50';
       case 'back_on_route':
         return 'text-green-600 bg-green-50';
+      case 'overspeed':
+        return 'text-yellow-600 bg-yellow-50';
+      case 'delayed':
+        return 'text-orange-600 bg-orange-50';
+      case 'driver_alert':
+        return 'text-purple-600 bg-purple-50';
       default:
         return 'text-gray-600 bg-gray-50';
     }
