@@ -252,11 +252,16 @@ class FleetAdminAuditLog(models.Model):
 
 
 class Alert(models.Model):
-    """System alerts"""
+    """System alerts - supports overspeed, delayed, driver_alert, etc."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    truck = models.ForeignKey(FleetTruck, on_delete=models.SET_NULL, null=True, blank=True, related_name='alerts')
+    driver = models.ForeignKey(FleetDriver, on_delete=models.SET_NULL, null=True, blank=True, related_name='alerts')
+    mission = models.ForeignKey(FleetMission, on_delete=models.SET_NULL, null=True, blank=True, related_name='alerts')
     alert_type = models.CharField(
         max_length=50,
-        choices=[('speed', 'Speeding'), ('temperature', 'Temperature'), ('maintenance', 'Maintenance'), ('location', 'Location'), ('delivery', 'Delivery'), ('other', 'Other')],
+        choices=[('overspeed', 'Overspeed'), ('delayed', 'Delayed'), ('driver_alert', 'Driver Alert'),
+                 ('off_route', 'Off Route'), ('back_on_route', 'Back On Route'),
+                 ('maintenance', 'Maintenance'), ('other', 'Other')],
         db_index=True
     )
     severity = models.CharField(
@@ -265,13 +270,17 @@ class Alert(models.Model):
         db_index=True
     )
     message = models.TextField()
+    location_lat = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    location_lon = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    speed_kmh = models.DecimalField(max_digits=6, decimal_places=2, blank=True, null=True)
     is_resolved = models.BooleanField(default=False, db_index=True)
     resolved_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'alerts'
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.alert_type} - {self.severity}"

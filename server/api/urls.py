@@ -20,6 +20,7 @@ from .mission_endpoints import create_mission, mission_route_geometry
 from .locations_endpoints import reverse_geocode, location_autocomplete
 from .trail_endpoints import truck_trail_audit, truck_trail_summary, all_trucks_trail_summary
 from .production_hardening import apply_production_indexes, cleanup_old_locations
+from .alert_endpoints import check_and_create_alerts, driver_send_alert
 
 router = DefaultRouter()
 router.register(r'drivers', DriverViewSet, basename='driver')
@@ -78,6 +79,9 @@ urlpatterns = [
     # Production endpoints (DB indexing, data cleanup for scale)
     path('v1/production/apply-indexes/', apply_production_indexes, name='apply-production-indexes'),
     path('v1/production/cleanup-locations/', cleanup_old_locations, name='cleanup-old-locations'),
+    # Smart alert endpoints
+    path('v1/alerts/check/', check_and_create_alerts, name='alerts-check'),
+    path('v1/alerts/driver-send/', driver_send_alert, name='alerts-driver-send'),
     # Mobile endpoints (specific, before router)
     path('v1/mobile/driver-registration/', mobile_driver_registration, name='mobile-driver-registration'),
     path('v1/mobile/validate-pin/', mobile_validate_pin, name='mobile-validate-pin'),

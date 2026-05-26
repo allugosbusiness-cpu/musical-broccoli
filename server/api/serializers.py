@@ -155,9 +155,19 @@ class PerformanceSerializer(serializers.ModelSerializer):
 
 
 class AlertSerializer(serializers.ModelSerializer):
+    truck_identifier = serializers.CharField(source='truck.truck_identifier', read_only=True, default=None)
+    driver_name = serializers.SerializerMethodField()
+    
     class Meta:
         model = Alert
         fields = [
-            'id', 'alert_type', 'severity', 'message', 'is_resolved',
-            'resolved_at', 'created_at', 'updated_at'
+            'id', 'alert_type', 'severity', 'message', 'truck', 'driver', 'mission',
+            'truck_identifier', 'driver_name',
+            'location_lat', 'location_lon', 'speed_kmh',
+            'is_resolved', 'resolved_at', 'created_at', 'updated_at'
         ]
+    
+    def get_driver_name(self, obj):
+        if obj.driver:
+            return obj.driver.get_display_name()
+        return None
